@@ -3,39 +3,90 @@ import gspread
 import streamlit as st
 import os
 import json
+import time
 from google.oauth2.service_account import Credentials
-from typing import Dict, List, Tuple, Optional, Any
+from typing import Dict, List, Tuple, Optional, Any, Callable
 from utils.constants import SERVICE_ACCOUNT
 from services.error_handler import with_error_context, LoaderError
+from services.logger import app_logger
 
 SCOPES = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+
+# Maximum allowed duration (seconds) for any single Google Sheets network operation.
+# Used both as the gspread socket timeout and as an elapsed-time guard.
+GSHEET_TIMEOUT = 20
+
+
+def _timed_op(label: str, func: Callable[[], Any]) -> Any:
+    """Run a Google Sheets network operation with structured logging, timing,
+    and a hard timeout guard.
+
+    Logs the start and completion of each operation and measures elapsed time.
+    Converts any failure (including socket timeouts) or an over-budget duration
+    into a descriptive LoaderError that names the exact operation that failed.
+    """
+    app_logger.info(f"[GSheets] ▶ {label} — starting...")
+    start = time.perf_counter()
+    try:
+        result = func()
+    except Exception as e:
+        elapsed = time.perf_counter() - start
+        app_logger.error(f"[GSheets] ✗ {label} — FAILED after {elapsed:.2f}s: {e}")
+        # Surface socket/read timeouts explicitly as a timeout LoaderError.
+        if elapsed >= GSHEET_TIMEOUT or "timeout" in str(e).lower() or "timed out" in str(e).lower():
+            raise LoaderError(
+                f"Google Sheets operation '{label}' timed out after {elapsed:.2f}s "
+                f"(limit {GSHEET_TIMEOUT}s): {e}"
+            ) from e
+        raise LoaderError(f"Google Sheets operation '{label}' failed after {elapsed:.2f}s: {e}") from e
+
+    elapsed = time.perf_counter() - start
+    app_logger.info(f"[GSheets] ✓ {label} — completed in {elapsed:.2f}s")
+    if elapsed >= GSHEET_TIMEOUT:
+        app_logger.error(f"[GSheets] ✗ {label} — exceeded {GSHEET_TIMEOUT}s budget ({elapsed:.2f}s)")
+        raise LoaderError(
+            f"Google Sheets operation '{label}' exceeded the {GSHEET_TIMEOUT}s budget "
+            f"(took {elapsed:.2f}s)"
+        )
+    return result
+
 
 @st.cache_resource
 @with_error_context(LoaderError)
 def get_gc() -> gspread.client.Client:
     """Authenticates and returns the Google Sheets client.
     Priority: Streamlit Secrets > Environment Variable > File (local dev only).
+    A 20-second network timeout is applied so stalled connections fail fast.
     """
+    def _authorized(creds: Credentials) -> gspread.client.Client:
+        gc = gspread.authorize(creds)
+        # Hard socket timeout so a stalled connection raises instead of hanging forever.
+        gc.set_timeout(GSHEET_TIMEOUT)
+        return gc
+
     # 1. Try Streamlit Secrets (Cloud/Deployment)
     if "service_account" in st.secrets:
+        app_logger.info("[GSheets] Authenticating via Streamlit Secrets")
         creds_dict = st.secrets["service_account"]
         creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-        return gspread.authorize(creds)
+        return _authorized(creds)
 
     # 2. Try Environment Variable (JSON string)
     service_account_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
     if service_account_json:
+        app_logger.info("[GSheets] Authenticating via GOOGLE_SERVICE_ACCOUNT_JSON env var")
         try:
             creds_dict = json.loads(service_account_json)
             creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-            return gspread.authorize(creds)
+            return _authorized(creds)
         except json.JSONDecodeError as e:
             raise LoaderError(f"Invalid JSON in GOOGLE_SERVICE_ACCOUNT_JSON: {e}") from e
 
     # 3. Try File (local development only - file should be gitignored)
     if os.path.exists(SERVICE_ACCOUNT):
+        app_logger.info(f"[GSheets] Authenticating via local file: {SERVICE_ACCOUNT}")
         creds = Credentials.from_service_account_file(SERVICE_ACCOUNT, scopes=SCOPES)
-        return gspread.authorize(creds)
+        return _authorized(creds)
 
     raise LoaderError(
         "Google credentials not found. Set one of:\n"
@@ -140,16 +191,23 @@ TARGET_COLS = ["Month Name","Location Name",
 def load_targets(sheet_id: str) -> pd.DataFrame:
     """Load WS/BS monthly targets from a separate sheet tab. Returns empty DF if sheet not found."""
     try:
-        wb = get_gc().open_by_key(sheet_id)
-        ws = next((s for s in wb.worksheets() if s.title.strip() == TARGET_TAB), None)
+        wb = _timed_op(f"load_targets: open spreadsheet [{sheet_id}]", lambda: get_gc().open_by_key(sheet_id))
+        ws = _timed_op(
+            f"load_targets: list worksheets / locate '{TARGET_TAB}'",
+            lambda: next((s for s in wb.worksheets() if s.title.strip() == TARGET_TAB), None),
+        )
         if not ws:
             # Optional targets sheet not found - safe to return empty DataFrame
             return pd.DataFrame(columns=TARGET_COLS)
-        df = pd.DataFrame(ws.get_all_records())
+        records = _timed_op(f"load_targets: fetch records from '{TARGET_TAB}'", lambda: ws.get_all_records())
+        df = pd.DataFrame(records)
         for c in TARGET_COLS[2:]:
             if c in df.columns:
                 df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
         return df
+    except LoaderError:
+        # Already descriptive (named operation + timing) — propagate unchanged.
+        raise
     except gspread.exceptions.APIError as e:
         raise LoaderError(f"Google Sheets API error loading targets: {e}") from e
     except gspread.exceptions.GSpreadException as e:
@@ -196,36 +254,47 @@ def load_unbilled_sheets(sheet_id: str) -> Dict[str, pd.DataFrame]:
 @with_error_context(LoaderError)
 def load_raw_worksheet(sheet_id: str, sheet_tab: str) -> pd.DataFrame:
     """Raw loading logic for main WSMIS data."""
-    wb = get_gc().open_by_key(sheet_id)
+    wb = _timed_op(f"load_data: open spreadsheet [{sheet_id}]", lambda: get_gc().open_by_key(sheet_id))
     try:
-        ws = wb.worksheet(sheet_tab)
-    except gspread.exceptions.WorksheetNotFound:
+        ws = _timed_op(f"load_data: load worksheet '{sheet_tab}'", lambda: wb.worksheet(sheet_tab))
+    except LoaderError as le:
+        # The named worksheet was not found; fall back to a case-insensitive / JC-TAT search.
+        if not isinstance(le.__cause__, gspread.exceptions.WorksheetNotFound):
+            raise
         target = sheet_tab.lower()
-        ws = next((s for s in wb.worksheets() if s.title.lower() == target), None)
-        if not ws:
-            ws = next((s for s in wb.worksheets() if "JC" in s.title.upper() and "TAT" in s.title.upper()), None)
+        ws = _timed_op(
+            f"load_data: locate worksheet (fallback) for '{sheet_tab}'",
+            lambda: next((s for s in wb.worksheets() if s.title.lower() == target), None)
+            or next((s for s in wb.worksheets() if "JC" in s.title.upper() and "TAT" in s.title.upper()), None),
+        )
         if not ws:
             raise ValueError(f"Could not find sheet tab matching '{sheet_tab}'")
-    
-    return pd.DataFrame(ws.get_all_records())
+
+    records = _timed_op(f"load_data: fetch records from '{ws.title}'", lambda: ws.get_all_records())
+    return pd.DataFrame(records)
 
 @with_error_context(LoaderError)
 def load_raw_expense(sheet_id: str) -> pd.DataFrame:
     """Raw loading logic for EXP sheet. Required sheet - errors propagate as LoaderError."""
     try:
-        wb = get_gc().open_by_key(sheet_id)
-        exp_ws = next((s for s in wb.worksheets() if s.title.strip() == "EXP."), None)
-        if not exp_ws:
-            exp_ws = next((s for s in wb.worksheets() if s.title.strip() == "EXP"), None)
+        wb = _timed_op(f"load_expense: open spreadsheet [{sheet_id}]", lambda: get_gc().open_by_key(sheet_id))
+        exp_ws = _timed_op(
+            "load_expense: list worksheets / locate 'EXP'",
+            lambda: next((s for s in wb.worksheets() if s.title.strip() == "EXP."), None)
+            or next((s for s in wb.worksheets() if s.title.strip() == "EXP"), None),
+        )
         if not exp_ws:
             raise ValueError("EXP sheet not found in workbook")
-        exp_data = exp_ws.get_all_values()
+        exp_data = _timed_op("load_expense: fetch values from 'EXP'", lambda: exp_ws.get_all_values())
         if not exp_data or len(exp_data) < 2:
             raise ValueError("EXP sheet is empty or has no data")
         exp_df = pd.DataFrame(exp_data[1:], columns=exp_data[0])
         # Drop empty columns
         exp_df = exp_df[[c for c in exp_df.columns if str(c).strip() != ""]]
         return exp_df
+    except LoaderError:
+        # Already descriptive (named operation + timing) — propagate unchanged.
+        raise
     except gspread.exceptions.APIError as e:
         raise LoaderError(f"Google Sheets API error loading EXP sheet: {e}") from e
     except gspread.exceptions.GSpreadException as e:

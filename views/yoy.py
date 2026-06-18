@@ -102,25 +102,27 @@ def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, sele
     rows = []
     for loc in all_locs:
         r = {"🚦": "", "Location Name": loc}
-        ct = 0; pt = 0
-        for cm, pm, _ in pairs:
+        # Monthly trend columns
+        for cm in cp_months:
             cv = c_idx.get((loc, cm), 0)
-            pv = p_idx.get((loc, pm), 0)
-            r[cm] = fmt_inr(cv); r[pm] = fmt_inr(pv)
-            r[f"{cm} {mode_str}%"] = yoy_badge(cv, pv)
-            ct+=cv; pt+=pv
-        r["Total CP"] = fmt_inr(ct); r["Total PP"] = fmt_inr(pt); r[f"Total {mode_str}%"] = yoy_badge(ct, pt)
+            r[cm] = fmt_inr(cv)
+        
+        # CP vs PP totals
+        ct = cp_locs.get(loc, 0)
+        pt = pp_locs.get(loc, 0)
+        r["CP Total"] = fmt_inr(ct)
+        r["PP Total"] = fmt_inr(pt)
+        r[f"{mode_str} %"] = yoy_badge(ct, pt)
         r["🚦"] = f'<span class="traffic-light">{traffic_light(ct, pt)}</span>'
         rows.append(r)
 
     tr = {"🚦": "", "Location Name": "TOTAL"}
-    cgt = 0; pgt = 0
-    for cm, pm, _ in pairs:
+    for cm in cp_months:
         cv = c_m_idx.get(cm, 0)
-        pv = p_m_idx.get(pm, 0)
-        tr[cm] = fmt_inr(cv); tr[pm] = fmt_inr(pv); tr[f"{cm} {mode_str}%"] = yoy_badge(cv, pv)
-        cgt+=cv; pgt+=pv
-    tr["Total CP"] = fmt_inr(cgt); tr["Total PP"] = fmt_inr(pgt); tr[f"Total {mode_str}%"] = yoy_badge(cgt, pgt)
+        tr[cm] = fmt_inr(cv)
+    tr["CP Total"] = fmt_inr(cp_val)
+    tr["PP Total"] = fmt_inr(pp_val)
+    tr[f"{mode_str} %"] = yoy_badge(cp_val, pp_val)
     rows.append(tr)
     
     html_table(pd.DataFrame(rows), total_row=True, height="400px")

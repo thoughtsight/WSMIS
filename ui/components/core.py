@@ -86,7 +86,7 @@ def EmptyState(message: str = "No data available for the selected filters.", ico
     <div style="color:#1d1d1f; font-weight:500; font-size:16px; margin-bottom:4px;">No Data Found</div>
     <div style="color:#86868b; font-size:14px;">{message}</div>
 </div>'''
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
 
 def AlertBanner(message: str, type: str = "warning"):
     """
@@ -120,4 +120,4 @@ def AlertBanner(message: str, type: str = "warning"):
     <span style="font-size:18px;">{icon}</span>
     <span style="color:#1d1d1f; font-size:14px; font-weight:500;">{message}</span>
 </div>'''
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(html.replace('\n', ''), unsafe_allow_html=True)

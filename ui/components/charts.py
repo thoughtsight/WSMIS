@@ -21,7 +21,7 @@ def ChartCard(title: str, fig: go.Figure, description: Optional[str] = None, hei
     <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-bottom:4px;">{title}</div>
     {"<div style='font-size:13px; color:#6E6E73; margin-bottom:16px;'>" + description + "</div>" if description else ""}
 </div>'''
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
     
     # We render the figure directly below the header because Streamlit's st.plotly_chart cannot be easily embedded inside pure HTML string containers without complex components.
     st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})

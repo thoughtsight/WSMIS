@@ -104,38 +104,46 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     elif bhs >= 35: bhs_label, bhs_color, bhs_icon = "Fair",      "#FF9F0A", "🟡"
     else:           bhs_label, bhs_color, bhs_icon = "Poor",      "#FF3B30", "🔴"
 
-    breakdown_html = []
-    breakdown = [
-        ("Revenue Growth",   rev_score,   35, "📈"),
-        ("Discount Control", disc_score,  35, "🏷️"),
-        ("Volume (JC)",      jc_score,    20, "🔧"),
-        ("Alert Penalty",    alert_score, 10, "⚠️"),
-    ]
-    for name, score, max_score, icon in breakdown:
-        fill_pct = int(score / max_score * 100) if max_score > 0 else 0
-        bar_color = bhs_color if score >= max_score * 0.7 else ("#FF9F0A" if score >= max_score * 0.4 else "#FF3B30")
-        breakdown_html.append(f"""<div style="margin-bottom:8px;">
-    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
-        <span style="color:#1d1d1f;font-weight:500;">{icon} {name}</span><span style="color:{bar_color};font-weight:600;">{score} / {max_score} pts</span>
-    </div>
-    <div style="background:#F2F2F7;border-radius:4px;height:6px;">
-        <div style="background:{bar_color};width:{fill_pct}%;height:6px;border-radius:4px;"></div>
-    </div>
-</div>""")
-    
-    bhs_html = f"""<div class="kpi-card" style="background:#fff; border-radius:12px; padding:16px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); display:flex; align-items:center; gap:24px; margin-bottom:16px;">
-    <div style="text-align:center; min-width:140px; border-right:1px solid #e5e5ea; padding-right:24px;">
-        <div style="font-size:13px; color:#6E6E73; font-weight:500; margin-bottom:4px;">Workshop Health</div>
+    def get_color(score, max_score):
+        return "#34C759" if score >= max_score * 0.7 else ("#FF9F0A" if score >= max_score * 0.4 else "#FF3B30")
+
+    rev_color = get_color(rev_score, 35)
+    disc_color = get_color(disc_score, 35)
+    jc_color = get_color(jc_score, 20)
+    alert_color = get_color(alert_score, 10)
+
+    bhs_html = f"""<div class="kpi-card" style="background:#fff; border-radius:12px; padding:16px 24px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); display:flex; align-items:center; gap:32px; margin-bottom:16px;">
+    <div style="text-align:center; min-width:140px;">
+        <div style="font-size:13px; color:#6E6E73; font-weight:500; margin-bottom:8px;">Workshop Health</div>
         <div style="font-size:48px; font-weight:700; color:{bhs_color}; line-height:1;">{bhs}</div>
         <div style="font-size:14px; font-weight:600; color:{bhs_color}; margin-top:8px;">{bhs_icon} {bhs_label}</div>
     </div>
-    <div style="flex-grow:1;">
-        {"".join(breakdown_html)}
+    <div style="width:1px; height:80px; background:#e5e5ea;"></div>
+    <div style="flex-grow:1; display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px;">
+        <div>
+            <div style="font-size:12px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Revenue Growth</div>
+            <div style="font-size:18px; font-weight:600; color:#1d1d1f; margin-top:4px;">{rev_growth_pct:+.1f}%</div>
+            <div style="font-size:13px; font-weight:500; color:{rev_color}; margin-top:4px;">{rev_score} / 35 pts</div>
+        </div>
+        <div>
+            <div style="font-size:12px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Labour Discount</div>
+            <div style="font-size:18px; font-weight:600; color:#1d1d1f; margin-top:4px;">{avg_disc:.1f}%</div>
+            <div style="font-size:13px; font-weight:500; color:{disc_color}; margin-top:4px;">{disc_score} / 35 pts</div>
+        </div>
+        <div>
+            <div style="font-size:12px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Volume (JC)</div>
+            <div style="font-size:18px; font-weight:600; color:#1d1d1f; margin-top:4px;">{jc_growth_pct:+.1f}%</div>
+            <div style="font-size:13px; font-weight:500; color:{jc_color}; margin-top:4px;">{jc_score} / 20 pts</div>
+        </div>
+        <div>
+            <div style="font-size:12px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Alert Penalty</div>
+            <div style="font-size:18px; font-weight:600; color:#1d1d1f; margin-top:4px;">{red_count_bhs} Critical</div>
+            <div style="font-size:13px; font-weight:500; color:{alert_color}; margin-top:4px;">{alert_score} / 10 pts</div>
+        </div>
     </div>
 </div>"""
-    st.markdown(bhs_html, unsafe_allow_html=True)
+    st.markdown(bhs_html.replace('\n', ''), unsafe_allow_html=True)
 
-    # ── Alert Summary ────────────────────────────────────────────
     # ── Alert Summary ────────────────────────────────────────────
     if alerts:
         red_count = sum(1 for s, _ in alerts if s == "red")
@@ -155,7 +163,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         <div style="font-size:24px; font-weight:700; color:#007AFF;">💡 {blue_count}</div>
     </div>
 </div>"""
-        st.markdown(alert_html, unsafe_allow_html=True)
+        st.markdown(alert_html.replace('\n', ''), unsafe_allow_html=True)
     else:
         st.info("No alerts for this period")
 
@@ -232,7 +240,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     <div style="color:#6E6E73;font-size:13px;margin-top:4px;">📍 {loc} | 💰 {impact}</div>
     <div style="color:#FF3B30;font-size:12px;margin-top:4px;font-weight:500;">✅ {action}</div>
 </div>'''
-                st.markdown(html, unsafe_allow_html=True)
+                st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
         else:
             st.info("No critical problems detected")
 
@@ -245,7 +253,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     <div style="color:#6E6E73;font-size:13px;margin-top:4px;">📍 {loc} | 💰 {impact}</div>
     <div style="color:#007AFF;font-size:12px;margin-top:4px;font-weight:500;">👤 Owner: {owner}</div>
 </div>'''
-                st.markdown(html, unsafe_allow_html=True)
+                st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
         else:
             st.info("No significant opportunities identified")
     # ── Revenue Trend ─────────────────────────────────────────────

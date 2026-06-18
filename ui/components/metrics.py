@@ -44,7 +44,7 @@ def MetricCard(label: str, value: str, sub: str = None, cp: float = None, pp: fl
     </div>
     {meta_html}
 </div>"""
-    st.markdown(html, unsafe_allow_html=True)
+    st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
 
 def KPIGrid(metrics: list):
     """

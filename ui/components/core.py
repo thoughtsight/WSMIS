@@ -4,6 +4,32 @@ def UniversalHeader(client_name: str, report_title: str, selected_months: list, 
     """
     Universal Report Header matching the approved enterprise design.
     """
+    
+    # Official display names mapping
+    DISPLAY_TITLES = {
+        "Cockpit": "Cockpit",
+        "Overview": "Workshop Overview",
+        "Executive": "Executive Dashboard",
+        "Labour": "Labour Revenue",
+        "Parts": "Parts Revenue",
+        "Margin": "Margin Analysis",
+        "Sales Mix": "Sales Mix",
+        "Discounts": "Discount Analysis",
+        "Leakage Center": "Leakage Center",
+        "Advisors": "Advisor Performance",
+        "Advisor MoM": "Advisor MoM Performance",
+        "Locations": "Location Performance",
+        "Trends": "Performance Trends",
+        "Targets": "Target vs Actual",
+        "Reports": "Automated Reports",
+        "Expense Analysis": "Expense Analysis",
+        "Profit & Loss": "Profit & Loss",
+        "Internal Audit": "Internal Audit",
+        "Audit Intelligence": "Audit Intelligence",
+        "System Health": "System Health"
+    }
+    official_title = DISPLAY_TITLES.get(report_title, report_title)
+
     # Format period
     if not selected_months:
         period_str = "All Periods"
@@ -18,7 +44,7 @@ def UniversalHeader(client_name: str, report_title: str, selected_months: list, 
     <div class="report-header">
         <div class="rh-left">
             <div class="rh-client">{client_name}</div>
-            <div class="rh-title">{report_title}</div>
+            <div class="rh-title">{official_title}</div>
             <div class="rh-period">{period_str}</div>
         </div>
         <div class="rh-right-container">
@@ -26,10 +52,10 @@ def UniversalHeader(client_name: str, report_title: str, selected_months: list, 
             <div class="rh-right">
                 <div class="rh-firm">Saurabh A Jain & Co.</div>
                 <div class="rh-sub">Chartered Accountants • Internal Audit</div>
-                <div style="text-align: right; margin-top: 6px;"><span class="rh-confidential">CONFIDENTIAL</span></div>
+                <div class="rh-confidential-container"><span class="rh-confidential">CONFIDENTIAL</span></div>
                 <div class="rh-bottom">
                     <span>🗓 Synced: {synced_at}</span>
-                    <span style="color:#E5E5EA; margin:0 8px;">|</span>
+                    <span class="rh-pipe">|</span>
                     <span>v1.0.0-rc1</span>
                 </div>
             </div>
@@ -46,7 +72,7 @@ def UniversalFooter():
         <div class="rf-top">Strictly Confidential · For Internal Use Only · Unauthorised reproduction is strictly prohibited.</div>
         <div class="rf-bottom">
             <div>Saurabh A Jain & Co. (Chartered Accountants)</div>
-            <div>support@autollp.in</div>
+            <div><a href="mailto:support@autollp.in" style="color:inherit; text-decoration:none;">support@autollp.in</a></div>
         </div>
     </div>
     ''', unsafe_allow_html=True)

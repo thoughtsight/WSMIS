@@ -2,7 +2,7 @@
 Reusable UI Components Library
 Enforces consistent layout, typography, and UX across WSMIS v2.
 """
-from .core import PageHeader, EmptyState, AlertBanner
+from .core import UniversalHeader, UniversalFooter, EmptyState, AlertBanner
 from .metrics import MetricCard, KPIGrid
 from .charts import ChartCard
 from .filters import FilterToolbar

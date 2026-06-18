@@ -50,7 +50,7 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from config.settings import LABOUR_DISC_BENCH, HIGH_DISC_ALERT, YOY_DECLINE_ALERT, VOR_ALERT_THRESHOLD
 
 # Import new Phase B UI Components
-from ui.components import PageHeader, KPIGrid, AlertBanner, ChartCard
+from ui.components import KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     with st.spinner("Loading Cockpit..."):
@@ -69,7 +69,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     def s(d, c): return d[c].sum() if not d.empty else 0
 
     # ── KPI Cards ────────────────────────────────────────────────
-    PageHeader("Executive Summary", icon="📊")
+    
     cp_rev = calculate_net_revenue(cp)
     pp_rev = calculate_net_revenue(pp)
     cp_mar = calculate_total_margin(cp)
@@ -104,7 +104,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     elif bhs >= 35: bhs_label, bhs_color, bhs_icon = "Fair",      "#FF9F0A", "🟡"
     else:           bhs_label, bhs_color, bhs_icon = "Poor",      "#FF3B30", "🔴"
 
-    PageHeader("Business Health Score", icon="🏆")
+    
     bhs_c = st.columns([1, 2])
     with bhs_c[0]:
         st.markdown(f"""
@@ -135,7 +135,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
 
     # ── Alert Summary ────────────────────────────────────────────
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("Alert Summary", icon="🚨")
+    
     if alerts:
         red_count = sum(1 for s, _ in alerts if s == "red")
         yellow_count = sum(1 for s, _ in alerts if s == "yellow")
@@ -150,7 +150,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
 
     # ── Top 3 Problems ───────────────────────────────────────────
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("Top 3 Problems", icon="🔥")
+    
     problems = []
 
     # Problem 1: High discount locations
@@ -195,7 +195,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         st.info("No critical problems detected")
     # ── Top 3 Opportunities ───────────────────────────────────────
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("Top 3 Opportunities", icon="💎")
+    
     opportunities = []
 
     # A. Discount Recovery Opportunity
@@ -265,7 +265,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
 
     # ── Advisor Rankings ───────────────────────────────────────────
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("Advisor Rankings", icon="🎯")
+    
     aa = advisor_summary(cp, adv_col=ADV_COL, as_index=False).agg(
         JCs=("JC_Nos.","sum"),
         NL=("Net_Labour","sum"),
@@ -311,7 +311,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
 
     # ── Location Rankings ───────────────────────────────────────────
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("Location Rankings", icon="🏢")
+    
     loc_cp = location_summary(cp, as_index=True).agg(
         JCs=("JC_Nos.","sum"),
         NL=("Net_Labour","sum"),

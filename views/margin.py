@@ -50,7 +50,7 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, PLY, C
 
 # Import new Phase B UI Components
-from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
+from ui.components import KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -60,7 +60,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     # df is already filtered by selected_months at main level, use it directly for current period
     cp = df.copy()
     
-    PageHeader("Margin Analysis", icon="💰")
+    
     kpis = ["Total Margin", "Net Labour", "Parts_Margin", "Oil_Margin", "OTC Income", "FSC Income"]
     kpi_data = []
     for k in kpis:
@@ -105,7 +105,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ChartCard("💰 Margin Waterfall", fig, height=400)
         
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("Category × Month Margin Matrix", icon="💰")
+    
     cats = ["Parts_Margin", "Accessory_Margin", "Oil_Margin", "Tyre_Margin", "Battery_Margin", "Other_Margin", "VOR Charges",
             "Total Parts Margin", "Net Labour", "OTC Income", "MSIL Labour Claim", "FSC Income", "Dealer FOC", "Internal Consumption", "Total Margin"]
     

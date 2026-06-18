@@ -1,14 +1,53 @@
 import streamlit as st
 
-def PageHeader(title: str, description: str = None, icon: str = None):
+def UniversalHeader(client_name: str, report_title: str, selected_months: list, synced_at: str):
     """
-    Standardized Page Header for all WSMIS reports.
+    Universal Report Header matching the approved enterprise design.
     """
-    icon_html = f'<span style="margin-right:8px;">{icon}</span>' if icon else ''
+    # Format period
+    if not selected_months:
+        period_str = "All Periods"
+    elif len(selected_months) == 1:
+        period_str = selected_months[0]
+    elif len(selected_months) == 2:
+        period_str = f"{selected_months[0]} & {selected_months[1]}"
+    else:
+        period_str = f"{selected_months[0]} to {selected_months[-1]}"
+
     st.markdown(f'''
-    <div class="page-header">
-        <h1 style="margin-bottom: 4px; display: flex; align-items: center;">{icon_html}{title}</h1>
-        {"<p style='color:#6E6E73; margin-top:0; font-size:14px;'>" + description + "</p>" if description else ""}
+    <div class="report-header">
+        <div class="rh-left">
+            <div class="rh-client">{client_name}</div>
+            <div class="rh-title">{report_title}</div>
+            <div class="rh-period">{period_str}</div>
+        </div>
+        <div class="rh-right-container">
+            <div class="rh-divider"></div>
+            <div class="rh-right">
+                <div class="rh-firm">Saurabh A Jain & Co.</div>
+                <div class="rh-sub">Chartered Accountants • Internal Audit</div>
+                <div style="text-align: right; margin-top: 6px;"><span class="rh-confidential">CONFIDENTIAL</span></div>
+                <div class="rh-bottom">
+                    <span>🗓 Synced: {synced_at}</span>
+                    <span style="color:#E5E5EA; margin:0 8px;">|</span>
+                    <span>v1.0.0-rc1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+def UniversalFooter():
+    """
+    Universal Report Footer for all pages.
+    """
+    st.markdown(f'''
+    <div class="report-footer">
+        <div class="rf-top">Strictly Confidential · For Internal Use Only · Unauthorised reproduction is strictly prohibited.</div>
+        <div class="rf-bottom">
+            <div>Saurabh A Jain & Co. (Chartered Accountants)</div>
+            <div>support@autollp.in</div>
+        </div>
     </div>
     ''', unsafe_allow_html=True)
 

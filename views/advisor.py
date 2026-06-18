@@ -49,7 +49,7 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, LOC_COLORS, PLY
 
 # Import new Phase B UI Components
-from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
+from ui.components import KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Advisor Scorecard..."):
@@ -104,7 +104,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     aa["Composite_Score"] = aa[score_cols].mean(axis=1).round(1)
     
     # KPI cards
-    PageHeader("Advisor Scorecard", icon="🎯")
+    
     top = aa.nlargest(1, "Composite_Score").iloc[0] if not aa.empty else None
     KPIGrid([
         {"label": "Total Advisors", "value": str(len(aa))},
@@ -128,7 +128,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     
     # Full table
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("Complete Scorecard", icon="📋")
+    
     
     aa_sorted = aa.sort_values("Composite_Score", ascending=False).reset_index(drop=True)
     aa_sorted["Rank"] = range(1, len(aa_sorted) + 1)

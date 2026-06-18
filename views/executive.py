@@ -49,7 +49,7 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, MONTH_SORT_ORDER
 
 # Import new Phase B UI Components
-from ui.components import PageHeader, KPIGrid, AlertBanner
+from ui.components import KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -64,7 +64,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.warning("No data for the selected period. Please adjust the month picker.")
         return
 
-    PageHeader("Executive Summary", icon="🧠")
+    
 
     # 5.1 — Page layout
     c1, c2, c3 = st.columns([2, 2, 2])
@@ -124,7 +124,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     # 5.2 — KPI snapshot (8 metric cards)
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("KPI Snapshot", icon="📊")
+    
 
     jc_cp = get_jobcard_count(cp); jc_pp = get_jobcard_count(pp)
     lab_cp = get_net_labour(cp); lab_pp = get_net_labour(pp)

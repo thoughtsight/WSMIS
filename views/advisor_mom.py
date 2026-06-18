@@ -49,7 +49,7 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C
 
 # Import new Phase B UI Components
-from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
+from ui.components import KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -64,7 +64,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.warning("No data for the selected period. Please adjust the month picker.")
         return
 
-    PageHeader("Advisor MoM Performance", icon="👤")
+    
 
     # 3.1 — Header controls row
     adv_jcs = advisor_summary(cp, adv_col=ADV_COL, as_index=True)["JC_Nos."].sum()
@@ -176,7 +176,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     # 3.5 — MoM delta table
     st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
-    PageHeader("Advisor MoM Delta Table", icon="📋")
+    
     sel_locs = adv_data["Location Name"].unique().tolist()
     all_adv_monthly = cp[cp["Location Name"].isin(sel_locs)].groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
         JCs=("JC_Nos.","sum"), NL=("Net_Labour","sum"), DL=("Labour Discount","sum"), PL=("Pre-GST Labour","sum")
@@ -245,7 +245,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     # 3.8 — Advisor coaching note
     st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
-    PageHeader("Coaching Note", icon="📋")
+    
     notes = []
     adv_disc = calc_ratio(calculate_labour_discount(adv_data), get_labour_sales(adv_data), multiplier=100, fill_value=0)
     adv_parts_jc = get_net_parts(adv_data) / get_jobcard_count(adv_data) if get_jobcard_count(adv_data) > 0 else 0

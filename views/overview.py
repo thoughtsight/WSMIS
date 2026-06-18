@@ -50,7 +50,7 @@ from utils.constants import ADV_COL, MP_COLORS, C, LOC_COLORS
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 # Import new Phase B UI Components
-from ui.components import PageHeader, KPIGrid, ChartCard, TableCard, EmptyState, AlertBanner
+from ui.components import KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Overview..."):
@@ -151,7 +151,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     cp_mar, pp_mar = calculate_total_margin(cp), calculate_total_margin(pp)
     cp_avg = cp_lab/cp_jc if cp_jc else 0; pp_avg = pp_lab/pp_jc if pp_jc else 0
 
-    PageHeader("Overall Performance", icon="📊")
+    
     KPIGrid([
         {"label": "Total JCs", "value": fmt_num(cp_jc), "cp": cp_jc, "pp": pp_jc},
         {"label": "Net Labour", "value": fmt_inr(cp_lab), "cp": cp_lab, "pp": pp_lab},
@@ -161,7 +161,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     ])
     
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("WS vs BS Split", icon="⚖️")
+    
     cp_ws = cp[cp["MP_PB"]=="MP"]; pp_ws = pp[pp["MP_PB"]=="MP"]
     cp_bs = cp[cp["MP_PB"]=="PB"]; pp_bs = pp[pp["MP_PB"]=="PB"]
     
@@ -223,7 +223,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         fig.update_layout(legend=dict(orientation="v", x=1.05, y=0.5))
         ChartCard("⚖️ WS vs BS Labour Split — CP", fig, height=300)
 
-    PageHeader("Monthly Summary", icon="📅")
+    
     summ = monthly_summary(cp, as_index=False).agg(
         JCs=("JC_Nos.","sum"), L=("Net_Labour","sum"), P=("Net_Parts","sum"), M=("Total Margin","sum"),
         GL=("Pre-GST Labour","sum"), DL=("Labour Discount","sum"), GP=("Pre-GST Parts","sum"), DP=("Parts Discount","sum")

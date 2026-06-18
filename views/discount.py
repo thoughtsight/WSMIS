@@ -49,7 +49,7 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C
 
 # Import new Phase B UI Components
-from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
+from ui.components import KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -84,7 +84,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     cpp = calc_contribution_pct(cpd, get_parts_sales(disc_cp), fill_value=0)
     ppp = calc_contribution_pct(ppd, get_parts_sales(disc_pp), fill_value=0)
 
-    PageHeader("Discount Analysis", icon="🏷️")
+    
     KPIGrid([
         {"label": "Labour Disc Rs", "value": fmt_inr(cl), "cp": cl, "pp": pl, "invert_trend": True},
         {"label": "Labour Disc %", "value": f"{clp:.2f}%", "cp": clp, "pp": plp, "invert_trend": True},
@@ -123,7 +123,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     # Delta table
     st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
-    PageHeader("Discount Leakage Delta Table", icon="⚠️")
+    
     cp_adv = advisor_summary(disc_cp, adv_col=ADV_COL, as_index=True).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum")).reset_index()
     cp_adv["D%"] = np.where(cp_adv["L"]>0, cp_adv["D"]/cp_adv["L"]*100, 0)
     cp_adv["Leakage"] = np.maximum(0, (cp_adv["D%"] - 15) / 100 * cp_adv["L"])

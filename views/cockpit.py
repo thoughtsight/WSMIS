@@ -43,12 +43,14 @@ from utils.constants import (
 )
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding, render_neg_labour_alert
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from config.settings import LABOUR_DISC_BENCH, HIGH_DISC_ALERT, YOY_DECLINE_ALERT, VOR_ALERT_THRESHOLD
+
+# Import new Phase B UI Components
+from ui.components import PageHeader, KPIGrid, AlertBanner, ChartCard
 
 def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     with st.spinner("Loading Cockpit..."):
@@ -64,8 +66,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     def s(d, c): return d[c].sum() if not d.empty else 0
 
     # ── KPI Cards ────────────────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">📊 Executive Summary</div>', unsafe_allow_html=True)
-    c = st.columns(5)
+    PageHeader("Executive Summary", icon="📊")
     cp_rev = calculate_net_revenue(cp)
     pp_rev = calculate_net_revenue(pp)
     cp_mar = calculate_total_margin(cp)
@@ -76,12 +77,13 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     cp_pre_lab = s(cp, "Pre-GST Labour")
     avg_disc = calculate_labour_discount_pct(cp)
 
-    with c[0]: kpi("Total Revenue", fmt_inr(cp_rev), f"PP: {fmt_inr(pp_rev)}", cp_rev, pp_rev)
-    with c[1]: kpi("Total Margin", fmt_inr(cp_mar), f"PP: {fmt_inr(pp_mar)}", cp_mar, pp_mar)
-    with c[2]: kpi("Total JCs", fmt_num(cp_jc), f"PP: {fmt_num(pp_jc)}", cp_jc, pp_jc)
-    with c[3]: kpi("Avg Discount %", f"{avg_disc:.1f}%", benchmark=f"{LABOUR_DISC_BENCH}%")
-    with c[4]: kpi("YoY Growth %", fmt_pct(calc_growth_pct(cp_rev, pp_rev, fill_value=0), True), cp=cp_rev, pp=pp_rev)
-    st.markdown('</div>', unsafe_allow_html=True)
+    KPIGrid([
+        {"label": "Total Revenue", "value": fmt_inr(cp_rev), "cp": cp_rev, "pp": pp_rev},
+        {"label": "Total Margin", "value": fmt_inr(cp_mar), "cp": cp_mar, "pp": pp_mar},
+        {"label": "Total JCs", "value": fmt_num(cp_jc), "cp": cp_jc, "pp": pp_jc},
+        {"label": "Avg Discount %", "value": f"{avg_disc:.1f}%", "benchmark": f"{LABOUR_DISC_BENCH}%", "invert_trend": True},
+        {"label": "YoY Growth %", "value": fmt_pct(calc_growth_pct(cp_rev, pp_rev, fill_value=0), True), "cp": cp_rev, "pp": pp_rev}
+    ])
 
     # ── Business Health Score ────────────────────────────────────
     rev_growth_pct = calc_growth_pct(cp_rev, pp_rev, fill_value=0) if pp_rev > 0 else 0
@@ -99,7 +101,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     elif bhs >= 35: bhs_label, bhs_color, bhs_icon = "Fair",      "#FF9F0A", "🟡"
     else:           bhs_label, bhs_color, bhs_icon = "Poor",      "#FF3B30", "🔴"
 
-    st.markdown('<div class="section-card"><div class="section-title">🏆 Business Health Score</div>', unsafe_allow_html=True)
+    PageHeader("Business Health Score", icon="🏆")
     bhs_c = st.columns([1, 2])
     with bhs_c[0]:
         st.markdown(f"""
@@ -127,24 +129,25 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
                     <div style="background:{bar_color};width:{fill_pct}%;height:8px;border-radius:4px;"></div>
                 </div>
             </div>""", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Alert Summary ────────────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">🚨 Alert Summary</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("Alert Summary", icon="🚨")
     if alerts:
         red_count = sum(1 for s, _ in alerts if s == "red")
         yellow_count = sum(1 for s, _ in alerts if s == "yellow")
         blue_count = sum(1 for s, _ in alerts if s == "blue")
-        c = st.columns(3)
-        with c[0]: st.metric("Critical Alerts", red_count, delta_color="inverse")
-        with c[1]: st.metric("Warning Alerts", yellow_count)
-        with c[2]: st.metric("Opportunity Alerts", blue_count)
+        KPIGrid([
+            {"label": "Critical Alerts", "value": str(red_count)},
+            {"label": "Warning Alerts", "value": str(yellow_count)},
+            {"label": "Opportunity Alerts", "value": str(blue_count)}
+        ])
     else:
         st.info("No alerts for this period")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Top 3 Problems ───────────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">🔥 Top 3 Problems</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("Top 3 Problems", icon="🔥")
     problems = []
 
     # Problem 1: High discount locations
@@ -187,10 +190,9 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
             """, unsafe_allow_html=True)
     else:
         st.info("No critical problems detected")
-    st.markdown('</div>', unsafe_allow_html=True)
-
     # ── Top 3 Opportunities ───────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">💎 Top 3 Opportunities</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("Top 3 Opportunities", icon="💎")
     opportunities = []
 
     # A. Discount Recovery Opportunity
@@ -233,28 +235,19 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
             """, unsafe_allow_html=True)
     else:
         st.info("No significant opportunities identified")
-    st.markdown('</div>', unsafe_allow_html=True)
-
     # ── Revenue Trend ─────────────────────────────────────────────
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="section-card"><div class="section-title">📈 Revenue Trend</div>', unsafe_allow_html=True)
         trend_data = monthly_summary(cp, as_index=False).agg(
             Labour=("Net_Labour", "sum"), Parts=("Net_Parts", "sum")
         ).sort_values("Month_Sort")
         trend_data["Revenue"] = trend_data["Labour"] + trend_data["Parts"]
         if not trend_data.empty:
             fig = px.line(trend_data, x="Month Name", y="Revenue", markers=True)
-            apply_chart(fig, "Monthly Revenue", 280)
-            st.plotly_chart(fig, width='stretch', key="cockpit_trend",
-                            config={"displayModeBar": True, "displaylogo": False,
-                                    "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                    "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
+            ChartCard("📈 Revenue Trend", fig, height=280)
 
     # ── WS vs BS Split ───────────────────────────────────────────
     with c2:
-        st.markdown('<div class="section-card"><div class="section-title">⚖️ WS vs BS Split</div>', unsafe_allow_html=True)
         wbs_data = cp.groupby("MP_PB", as_index=False, dropna=False).agg(
             Labour=("Net_Labour", "sum"), Parts=("Net_Parts", "sum")
         ).rename(columns={"MP_PB": "Type"})
@@ -264,16 +257,12 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
                          color="Type", color_discrete_map=MP_COLORS)
             fig.update_traces(texttemplate="%{label}<br><b>%{percent}</b>",
                               hovertemplate="<b>%{label}</b><br>Revenue: ₹%{value:,.0f}<br>Share: %{percent}<extra></extra>")
-            apply_chart(fig, "Revenue Split", 280)
-            fig.update_layout(margin=dict(t=52,b=20,l=0,r=0), legend=dict(orientation="v",x=1.05,y=0.5))
-            st.plotly_chart(fig, width='stretch', key="cockpit_wsbs",
-                            config={"displayModeBar": True, "displaylogo": False,
-                                    "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                    "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
+            fig.update_layout(legend=dict(orientation="v", x=1.05, y=0.5))
+            ChartCard("⚖️ WS vs BS Split", fig, height=280)
 
     # ── Advisor Rankings ───────────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">🎯 Advisor Rankings</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("Advisor Rankings", icon="🎯")
     aa = advisor_summary(cp, adv_col=ADV_COL, as_index=False).agg(
         JCs=("JC_Nos.","sum"),
         NL=("Net_Labour","sum"),
@@ -305,20 +294,21 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
             top5 = top5.rename(columns={ADV_COL: "Advisor"})
             top5["JCs"] = top5["JCs"].apply(fmt_num)
             top5["Avg_Lab_JC"] = top5["Avg_Lab_JC"].apply(fmt_inr)
-            html_table(top5, height="250px")
+            from ui.components.tables import TableCard
+            TableCard(top5, height=250, index=False)
         with c2:
             st.markdown("**Bottom 5 Advisors**")
             bot5 = aa_sorted.tail(5)[[ADV_COL, "Composite_Score", "JCs", "Avg_Lab_JC"]].iloc[::-1]
             bot5 = bot5.rename(columns={ADV_COL: "Advisor"})
             bot5["JCs"] = bot5["JCs"].apply(fmt_num)
             bot5["Avg_Lab_JC"] = bot5["Avg_Lab_JC"].apply(fmt_inr)
-            html_table(bot5, height="250px")
+            TableCard(bot5, height=250, index=False)
     else:
         st.info("Not enough advisor data (minimum 20 JCs required)")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Location Rankings ───────────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">🏢 Location Rankings</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("Location Rankings", icon="🏢")
     loc_cp = location_summary(cp, as_index=True).agg(
         JCs=("JC_Nos.","sum"),
         NL=("Net_Labour","sum"),
@@ -345,7 +335,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
             top5_loc["Net Labour"] = top5_loc["Net Labour"].apply(fmt_inr)
             top5_loc["Margin"] = top5_loc["Margin"].apply(fmt_inr)
             top5_loc["YoY_Pct"] = top5_loc["YoY_Pct"].apply(lambda x: f"{x:.1f}%")
-            html_table(top5_loc, height="250px")
+            TableCard(top5_loc, height=250, index=False)
         with c2:
             st.markdown("**Bottom 5 Locations**")
             bot5_loc = loc_data.tail(5)[["Location Name", "Grp", "JCs", "NL", "M", "YoY_Pct"]].iloc[::-1]
@@ -354,8 +344,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
             bot5_loc["Net Labour"] = bot5_loc["Net Labour"].apply(fmt_inr)
             bot5_loc["Margin"] = bot5_loc["Margin"].apply(fmt_inr)
             bot5_loc["YoY_Pct"] = bot5_loc["YoY_Pct"].apply(lambda x: f"{x:.1f}%")
-            html_table(bot5_loc, height="250px")
+            TableCard(bot5_loc, height=250, index=False)
     else:
         st.info("No location data available")
-    st.markdown('</div>', unsafe_allow_html=True)
 

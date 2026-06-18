@@ -48,12 +48,8 @@ from utils.filters import (
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C
 
-# Import shared UI helpers from app
-from ui.kpi_cards import kpi
-from ui.tables import html_table
-from ui.traffic import yoy_badge, traffic_light, tgt_badge
-from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+# Import new Phase B UI Components
+from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty: return
@@ -65,7 +61,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.warning("No data for the selected period. Please adjust the month picker.")
         return
 
-    st.markdown('<div class="section-card"><div class="section-title">👤 Advisor MoM Performance</div>', unsafe_allow_html=True)
+    PageHeader("Advisor MoM Performance", icon="👤")
 
     # 3.1 — Header controls row
     adv_jcs = advisor_summary(cp, adv_col=ADV_COL, as_index=True)["JC_Nos."].sum()
@@ -92,8 +88,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     metric_col = {"Net Labour": "Net_Labour", "Net Parts": "Net_Parts", "Oil Qty": "Oil_Sale_Qty"}.get(metric, "Net_Labour")
 
     # 3.2 — KPI cards row (5 cards)
-    st.markdown('<div style="margin-top:10px"></div>', unsafe_allow_html=True)
-    kc1, kc2, kc3, kc4, kc5 = st.columns(5)
+    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
 
     adv_monthly = monthly_summary(adv_data, as_index=False)[metric_col].sum().sort_values("Month_Sort")
     if not adv_monthly.empty:
@@ -101,28 +96,30 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         prior_val = adv_monthly[metric_col].iloc[-2] if len(adv_monthly) > 1 else 0
         mom_delta = latest_val - prior_val if len(adv_monthly) > 1 else 0
 
-        with kc1:
-            fmt_fn = fmt_inr if metric in ["Net Labour", "Net Parts"] else fmt_num
-            this_month_name = adv_monthly["Month Name"].iloc[-1] if not adv_monthly.empty else "N/A"
-            st.metric(f"This Month ({this_month_name})", fmt_fn(latest_val), fmt_fn(mom_delta) if len(adv_monthly) > 1 else None)
-        with kc2:
-            last_month_name = adv_monthly["Month Name"].iloc[-2] if len(adv_monthly) > 1 else "N/A"
-            st.metric(f"Last Month ({last_month_name})", fmt_fn(prior_val))
-        with kc3:
-            _3m_avg = adv_monthly[metric_col].tail(3).mean() if len(adv_monthly) >= 3 else adv_monthly[metric_col].mean()
-            st.metric("3M Avg", fmt_fn(_3m_avg))
-        with kc4:
-            loc_monthly = monthly_summary(all_adv_data, as_index=False)[metric_col].sum().sort_values("Month_Sort")
-            n_advs = all_adv_data[ADV_COL].nunique()
-            loc_avg = loc_monthly[metric_col].mean() / max(n_advs, 1) if not loc_monthly.empty else 0
-            st.metric("Location Avg", fmt_fn(loc_avg))
-        with kc5:
-            adv_totals = cp[cp["Location Name"].isin(sel_locs)].groupby(ADV_COL, dropna=False)[metric_col].sum().sort_values(ascending=False)
-            rank = adv_totals.index.get_loc(sel_adv) + 1 if sel_adv in adv_totals.index else "N/A"
-            st.metric("Rank", f"#{rank}")
+        fmt_fn = fmt_inr if metric in ["Net Labour", "Net Parts"] else fmt_num
+        this_month_name = adv_monthly["Month Name"].iloc[-1] if not adv_monthly.empty else "N/A"
+        last_month_name = adv_monthly["Month Name"].iloc[-2] if len(adv_monthly) > 1 else "N/A"
+        _3m_avg = adv_monthly[metric_col].tail(3).mean() if len(adv_monthly) >= 3 else adv_monthly[metric_col].mean()
+        
+        loc_monthly = monthly_summary(all_adv_data, as_index=False)[metric_col].sum().sort_values("Month_Sort")
+        n_advs = all_adv_data[ADV_COL].nunique()
+        loc_avg = loc_monthly[metric_col].mean() / max(n_advs, 1) if not loc_monthly.empty else 0
+        
+        # Determine Rank
+        # For ranking we compare the overall sum of the metric in CP
+        adv_totals = cp.groupby(ADV_COL, dropna=False)[metric_col].sum().sort_values(ascending=False)
+        rank = adv_totals.index.get_loc(sel_adv) + 1 if sel_adv in adv_totals.index else "N/A"
+
+        KPIGrid([
+            {"label": f"This Month ({this_month_name})", "value": fmt_fn(latest_val), "cp": latest_val, "pp": prior_val, "invert_trend": (metric == "Discount%")},
+            {"label": f"Last Month ({last_month_name})", "value": fmt_fn(prior_val)},
+            {"label": "3M Avg", "value": fmt_fn(_3m_avg)},
+            {"label": "Location Avg", "value": fmt_fn(loc_avg)},
+            {"label": "Rank", "value": f"#{rank}"}
+        ])
 
     # 3.3 — MoM sparkline (6-month rolling)
-    st.markdown('<div class="section-card"><div class="section-title">📈 6-Month Rolling Trend</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     last_6 = adv_monthly.tail(6) if len(adv_monthly) >= 6 else adv_monthly
     if not last_6.empty:
         fig = go.Figure()
@@ -133,15 +130,10 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         if not loc_6.empty and n_adv > 0:
             loc_6["Avg"] = loc_6[metric_col] / n_adv
             fig.add_trace(go.Scatter(x=loc_6["Month Name"], y=loc_6["Avg"], mode='lines', name="Location Avg", line=dict(color=C["gray"], dash='dash')))
-        apply_chart(fig, f"{sel_adv} — {metric} Trend (Last 6M)", 350)
-        st.plotly_chart(fig, width='stretch', key="adv_mom_spark",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
+        ChartCard(f"📈 {sel_adv} — {metric} Trend (Last 6M)", fig, height=350)
 
     # 3.4 — Multi-metric radar/spider chart
-    st.markdown('<div class="section-card"><div class="section-title">🕸️ Performance Profile vs Location Average</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     radar_metrics = {
         "JC Volume": "JC_Nos.",
         "Labour/JC": "Net_Labour",
@@ -177,15 +169,11 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         fig.add_trace(go.Scatterpolar(r=radar_vals + [radar_vals[0]], theta=["JC Vol", "Lab/JC", "Pts/JC", "Oil/JC", "Acc/JC", "JC Vol"], fill='toself', name=sel_adv, line_color=C["primary"]))
         fig.add_trace(go.Scatterpolar(r=loc_vals + [loc_vals[0]], theta=["JC Vol", "Lab/JC", "Pts/JC", "Oil/JC", "Acc/JC", "JC Vol"], fill='toself', name="Location Avg", line_color=C["gray"]))
         fig.update_layout(polar=dict(radialaxis=dict(visible=True, range=[0, 100])), showlegend=True, height=400)
-        apply_chart(fig, f"{sel_adv} Performance Profile", 400)
-        st.plotly_chart(fig, width='stretch', key="adv_mom_radar",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
+        ChartCard(f"🕸️ {sel_adv} Performance Profile", fig, height=400)
 
     # 3.5 — MoM delta table
-    st.markdown('<div class="section-card"><div class="section-title">📋 Advisor MoM Delta Table</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    PageHeader("Advisor MoM Delta Table", icon="📋")
     all_adv_monthly = cp[cp["Location Name"].isin(sel_locs)].groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
         JCs=("JC_Nos.","sum"), NL=("Net_Labour","sum"), DL=("Labour Discount","sum"), PL=("Pre-GST Labour","sum")
     ).sort_values([ADV_COL, "Month_Sort"])
@@ -213,11 +201,10 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                     "Disc%": f"{l_row['Disc%']:.1f}%",
                 })
         dt = pd.DataFrame(dt_rows).sort_values("JCs", ascending=False)
-        html_table(dt, height="300px")
-    st.markdown('</div>', unsafe_allow_html=True)
+        TableCard(dt, height=300, index=False)
 
     # 3.6 — Rank movement heatmap
-    st.markdown('<div class="section-card"><div class="section-title">🏅 Rank Movement Heatmap</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     if not all_adv_monthly.empty:
         month_ranks = []
         for m in all_adv_monthly["Month Name"].unique():
@@ -228,15 +215,10 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             ranks_df = pd.concat(month_ranks)
             rank_pivot = ranks_df.pivot(index=ADV_COL, columns="Month Name", values="Rank").fillna(0)
             fig = px.imshow(rank_pivot.values, x=rank_pivot.columns.tolist(), y=rank_pivot.index.tolist(), color_continuous_scale="RdYlGn_r", aspect="auto")
-            apply_chart(fig, f"Rank by JC Volume — {', '.join(sel_locs)}", 400)
-            st.plotly_chart(fig, width='stretch', key="adv_mom_rank_heat",
-                            config={"displayModeBar": True, "displaylogo": False,
-                                    "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                    "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
+            ChartCard(f"🏅 Rank by JC Volume — {', '.join(sel_locs)}", fig, height=400)
 
     # 3.7 — Consistent underperformer flag
-    st.markdown('<div class="section-card"><div class="section-title">⚠️ Consistent Underperformers</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     def flag_underperformers(df_mom, metric_col, n_months=3):
         ups = []
         for adv in df_mom[ADV_COL].unique():
@@ -256,10 +238,10 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.warning(f"⚠️ Consistent Underperformers (3+ months bottom quartile by JCs): {', '.join(under[:5])}{'...' if len(under) > 5 else ''}")
     else:
         st.success("✅ No consistent underperformers detected.")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # 3.8 — Advisor coaching note
-    st.markdown('<div class="section-card"><div class="section-title">📋 Coaching Note</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    PageHeader("Coaching Note", icon="📋")
     notes = []
     adv_disc = calc_ratio(calculate_labour_discount(adv_data), get_labour_sales(adv_data), multiplier=100, fill_value=0)
     adv_parts_jc = get_net_parts(adv_data) / get_jobcard_count(adv_data) if get_jobcard_count(adv_data) > 0 else 0
@@ -280,4 +262,3 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             st.write("Note copied to clipboard (simulated)")
     else:
         st.info("No specific coaching notes for this advisor.")
-    st.markdown('</div>', unsafe_allow_html=True)

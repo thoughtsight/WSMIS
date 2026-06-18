@@ -127,8 +127,11 @@ def clean_hover(fig, x_label, y_label, color_label=None, y_fmt="inr"):
 
 
 def csv_btn(df, name, key):
-    st.download_button("📥 Export CSV", df.to_csv(index=False).encode("utf-8"), file_name=name, mime="text/csv", key=key)
-
+    from ui.export_buttons import render_export_buttons
+    from services.export_service import ExportMeta
+    title = name.replace(".csv", "").replace("_", " ").title()
+    meta = ExportMeta(report_title=title)
+    render_export_buttons(df, meta, formats=["csv"], key_prefix=key, collapsed=True)
 
 def render_neg_labour_alert(df_cp):
     """Show a sticky red banner listing advisors with negative net labour."""

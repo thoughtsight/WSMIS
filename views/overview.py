@@ -47,13 +47,10 @@ from utils.filters import (
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C, LOC_COLORS
-
-# Import shared UI helpers from app
-from ui.kpi_cards import kpi
-from ui.tables import html_table
-from ui.traffic import yoy_badge, traffic_light, tgt_badge
-from ui.helpers import apply_chart, clean_hover, _render_finding, csv_btn, render_alerts
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+
+# Import new Phase B UI Components
+from ui.components import PageHeader, KPIGrid, ChartCard, TableCard, EmptyState, AlertBanner
 
 def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Overview..."):
@@ -154,24 +151,28 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     cp_mar, pp_mar = calculate_total_margin(cp), calculate_total_margin(pp)
     cp_avg = cp_lab/cp_jc if cp_jc else 0; pp_avg = pp_lab/pp_jc if pp_jc else 0
 
-    st.markdown('<div class="section-title" style="margin-bottom:8px">Overall Performance</div>', unsafe_allow_html=True)
-    c = st.columns(5)
-    with c[0]: kpi("Total JCs", fmt_num(cp_jc), f"PP: {fmt_num(pp_jc)}", cp_jc, pp_jc)
-    with c[1]: kpi("Net Labour", fmt_inr(cp_lab), f"PP: {fmt_inr(pp_lab)}", cp_lab, pp_lab)
-    with c[2]: kpi("Net Parts", fmt_inr(cp_pts), f"PP: {fmt_inr(pp_pts)}", cp_pts, pp_pts)
-    with c[3]: kpi("Total Margin", fmt_inr(cp_mar), f"PP: {fmt_inr(pp_mar)}", cp_mar, pp_mar)
-    with c[4]: kpi("Avg Labour/JC", fmt_inr(cp_avg), f"PP: {fmt_inr(pp_avg)}", cp_avg, pp_avg)
+    PageHeader("Overall Performance", icon="📊")
+    KPIGrid([
+        {"label": "Total JCs", "value": fmt_num(cp_jc), "cp": cp_jc, "pp": pp_jc},
+        {"label": "Net Labour", "value": fmt_inr(cp_lab), "cp": cp_lab, "pp": pp_lab},
+        {"label": "Net Parts", "value": fmt_inr(cp_pts), "cp": cp_pts, "pp": pp_pts},
+        {"label": "Total Margin", "value": fmt_inr(cp_mar), "cp": cp_mar, "pp": pp_mar},
+        {"label": "Avg Labour/JC", "value": fmt_inr(cp_avg), "cp": cp_avg, "pp": pp_avg}
+    ])
     
-    st.markdown('<div class="section-title" style="margin-top:16px; margin-bottom:8px">WS vs BS Split</div>', unsafe_allow_html=True)
-    c = st.columns(6)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("WS vs BS Split", icon="⚖️")
     cp_ws = cp[cp["MP_PB"]=="MP"]; pp_ws = pp[pp["MP_PB"]=="MP"]
     cp_bs = cp[cp["MP_PB"]=="PB"]; pp_bs = pp[pp["MP_PB"]=="PB"]
-    with c[0]: kpi("WS JCs", fmt_num(s(cp_ws,"JC_Nos.")), cp=s(cp_ws,"JC_Nos."), pp=s(pp_ws,"JC_Nos."))
-    with c[1]: kpi("WS Net Labour", fmt_inr(s(cp_ws,"Net_Labour")), cp=s(cp_ws,"Net_Labour"), pp=s(pp_ws,"Net_Labour"))
-    with c[2]: kpi("WS Margin", fmt_inr(calculate_total_margin(cp_ws)), cp=calculate_total_margin(cp_ws), pp=calculate_total_margin(pp_ws))
-    with c[3]: kpi("BS JCs", fmt_num(s(cp_bs,"JC_Nos.")), cp=s(cp_bs,"JC_Nos."), pp=s(pp_bs,"JC_Nos."))
-    with c[4]: kpi("BS Net Labour", fmt_inr(s(cp_bs,"Net_Labour")), cp=s(cp_bs,"Net_Labour"), pp=s(pp_bs,"Net_Labour"))
-    with c[5]: kpi("BS Margin", fmt_inr(calculate_total_margin(cp_bs)), cp=calculate_total_margin(cp_bs), pp=calculate_total_margin(pp_bs))
+    
+    KPIGrid([
+        {"label": "WS JCs", "value": fmt_num(s(cp_ws,"JC_Nos.")), "cp": s(cp_ws,"JC_Nos."), "pp": s(pp_ws,"JC_Nos.")},
+        {"label": "WS Net Labour", "value": fmt_inr(s(cp_ws,"Net_Labour")), "cp": s(cp_ws,"Net_Labour"), "pp": s(pp_ws,"Net_Labour")},
+        {"label": "WS Margin", "value": fmt_inr(calculate_total_margin(cp_ws)), "cp": calculate_total_margin(cp_ws), "pp": calculate_total_margin(pp_ws)},
+        {"label": "BS JCs", "value": fmt_num(s(cp_bs,"JC_Nos.")), "cp": s(cp_bs,"JC_Nos."), "pp": s(pp_bs,"JC_Nos.")},
+        {"label": "BS Net Labour", "value": fmt_inr(s(cp_bs,"Net_Labour")), "cp": s(cp_bs,"Net_Labour"), "pp": s(pp_bs,"Net_Labour")},
+        {"label": "BS Margin", "value": fmt_inr(calculate_total_margin(cp_bs)), "cp": calculate_total_margin(cp_bs), "pp": calculate_total_margin(pp_bs)}
+    ])
     
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
@@ -186,12 +187,9 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
             x="Month", y="Net Labour (₹)", color="Type", markers=True,
             color_discrete_map={"MP":C["primary"],"PB":C["orange"]},
         )
-        apply_chart(fig, "📈 Monthly Net Labour Trend", 320)
         fig.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Month: %{x}<br>Net Labour: ₹%{y:,.0f}<extra></extra>")
-        st.plotly_chart(fig, width='stretch', key="ov_trend",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
+        ChartCard("📈 Monthly Net Labour Trend", fig, height=320)
+        
     with c2:
         lr = cp.groupby(["Location Name","Location Group"], as_index=False, dropna=False)["Net_Labour"].sum()\
                .sort_values("Net_Labour",ascending=True)\
@@ -199,13 +197,9 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         lr["Label"] = lr["Net Labour (₹)"].apply(fmt_inr_short)
         fig = px.bar(lr, x="Net Labour (₹)", y="Location", color="Group", orientation="h",
                      color_discrete_map=LOC_COLORS, text="Label")
-        apply_chart(fig, "🏢 Location Ranking — Net Labour CP", 340, text_col="Label", bar_text_pos="outside")
         fig.update_traces(hovertemplate="<b>%{y}</b><br>Net Labour: %{customdata[0]}<br>Group: %{fullData.name}<extra></extra>",
-                          customdata=lr[["Label"]].values)
-        st.plotly_chart(fig, width='stretch', key="ov_loc",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
+                          customdata=lr[["Label"]].values, textposition="outside")
+        ChartCard("🏢 Location Ranking — Net Labour CP", fig, height=340)
         
     c1, c2 = st.columns(2)
     with c1:
@@ -214,12 +208,9 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
                      color_discrete_sequence=px.colors.qualitative.Pastel)
         fig.update_traces(texttemplate="%{label}<br><b>%{value:,}</b>",
                           hovertemplate="<b>%{label}</b><br>JCs: %{value:,}<br>Share: %{percent}<extra></extra>")
-        apply_chart(fig, "🔧 Service Type Mix — CP JCs", 300)
-        fig.update_layout(margin=dict(t=52,b=20,l=0,r=0), legend=dict(orientation="v",x=1.05,y=0.5))
-        st.plotly_chart(fig, width='stretch', key="ov_svc",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
+        fig.update_layout(legend=dict(orientation="v", x=1.05, y=0.5))
+        ChartCard("🔧 Service Type Mix — CP JCs", fig, height=300)
+        
     with c2:
         wd = cp.groupby("MP_PB", as_index=False, dropna=False)["Net_Labour"].sum()\
                .rename(columns={"MP_PB":"Type","Net_Labour":"Net Labour (₹)"})
@@ -229,14 +220,10 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
             texttemplate="%{label}<br><b>%{percent}</b>",
             hovertemplate="<b>%{label} Labour</b><br>Amount: ₹%{value:,.0f}<br>Share: %{percent}<extra></extra>"
         )
-        apply_chart(fig, "⚖️ WS vs BS Labour Split — CP", 300)
-        fig.update_layout(margin=dict(t=52,b=20,l=0,r=0), legend=dict(orientation="v",x=1.05,y=0.5))
-        st.plotly_chart(fig, width='stretch', key="ov_wsbs",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
+        fig.update_layout(legend=dict(orientation="v", x=1.05, y=0.5))
+        ChartCard("⚖️ WS vs BS Labour Split — CP", fig, height=300)
 
-    st.markdown('<div class="section-card"><div class="section-title">📅 Monthly Summary</div>', unsafe_allow_html=True)
+    PageHeader("Monthly Summary", icon="📅")
     summ = monthly_summary(cp, as_index=False).agg(
         JCs=("JC_Nos.","sum"), L=("Net_Labour","sum"), P=("Net_Parts","sum"), M=("Total Margin","sum"),
         GL=("Pre-GST Labour","sum"), DL=("Labour Discount","sum"), GP=("Pre-GST Parts","sum"), DP=("Parts Discount","sum")
@@ -262,27 +249,11 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
           "Avg Lab/JC": fmt_inr(summ["L"].sum()/summ["JCs"].sum() if summ["JCs"].sum()>0 else 0)}
     dt = pd.concat([dt, pd.DataFrame([tr])])
     
-    html_table(dt, total_row=True, height="400px")
+    # Render with TableCard
+    TableCard(dt, height=400)
     
-    # Excel export
-    c1, c2 = st.columns([1, 4])
-    with c1:
-        try:
-            import openpyxl
-            output = BytesIO()
-            with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                summ.to_excel(writer, sheet_name='Monthly Summary', index=False)
-            output.seek(0)
-            st.download_button(
-                "📊 Export Excel",
-                output.getvalue(),
-                file_name=f"overview_summary_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                key="ov_excel"
-            )
-        except ImportError:
-            pass
-    with c2:
-        csv_btn(summ, "monthly_summary.csv", "ov_csv")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Use standardized export buttons
+    from services.export_service import ExportMeta
+    from ui.export_buttons import render_export_buttons
+    meta = ExportMeta(report_title="Monthly Summary", location="All", date_range="")
+    render_export_buttons(summ, meta, formats=["csv", "excel"], key_prefix="ov", collapsed=False)

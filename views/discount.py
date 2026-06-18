@@ -48,12 +48,8 @@ from utils.filters import (
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C
 
-# Import shared UI helpers from app
-from ui.kpi_cards import kpi
-from ui.tables import html_table
-from ui.traffic import yoy_badge, traffic_light, tgt_badge
-from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+# Import new Phase B UI Components
+from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty: return
@@ -85,14 +81,16 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     cpp = calc_contribution_pct(cpd, get_parts_sales(disc_cp), fill_value=0)
     ppp = calc_contribution_pct(ppd, get_parts_sales(disc_pp), fill_value=0)
 
-    c = st.columns(4)
-    with c[0]: kpi("Labour Disc Rs", fmt_inr(cl), cp=cl, pp=pl)
-    with c[1]: kpi("Labour Disc %", f"{clp:.2f}%", cp=clp, pp=plp)
-    with c[2]: kpi("Parts Disc Rs", fmt_inr(cpd), cp=cpd, pp=ppd)
-    with c[3]: kpi("Parts Disc %", f"{cpp:.2f}%", cp=cpp, pp=ppp)
+    PageHeader("Discount Analysis", icon="🏷️")
+    KPIGrid([
+        {"label": "Labour Disc Rs", "value": fmt_inr(cl), "cp": cl, "pp": pl, "invert_trend": True},
+        {"label": "Labour Disc %", "value": f"{clp:.2f}%", "cp": clp, "pp": plp, "invert_trend": True},
+        {"label": "Parts Disc Rs", "value": fmt_inr(cpd), "cp": cpd, "pp": ppd, "invert_trend": True},
+        {"label": "Parts Disc %", "value": f"{cpp:.2f}%", "cp": cpp, "pp": ppp, "invert_trend": True}
+    ])
 
     # Rolling trend
-    st.markdown('<div class="section-card"><div class="section-title">📉 Labour Discount % Trend</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
     disc_trend = monthly_summary(disc_cp, as_index=False).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum")).sort_values("Month_Sort")
     disc_trend["D%"] = np.where(disc_trend["L"]>0, disc_trend["D"]/disc_trend["L"]*100, 0)
     disc_trend["Rolling3M"] = disc_trend["D%"].rolling(3, min_periods=1).mean()
@@ -100,16 +98,11 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     fig.add_trace(go.Bar(x=disc_trend["Month Name"], y=disc_trend["D%"], name="Monthly D%", marker_color=C["primary"]))
     fig.add_trace(go.Scatter(x=disc_trend["Month Name"], y=disc_trend["Rolling3M"], name="3M Rolling Avg", mode='lines+markers', line=dict(color=C["orange"])))
     fig.add_hline(y=15, line_dash="dash", line_color=C["red"], annotation_text="15% Benchmark")
-    apply_chart(fig, "Labour Discount % Trend", 350)
-    st.plotly_chart(fig, width='stretch', key="disc_trend",
-                    config={"displayModeBar": True, "displaylogo": False,
-                            "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                            "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
+    ChartCard("📉 Labour Discount % Trend", fig, height=350)
 
     # Heatmap toggle
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
     heat_view = st.radio("Heatmap View", ["By Location", "By Advisor"], horizontal=True, key="heat_view")
-    st.markdown('<div class="section-card"><div class="section-title">🗺️ Discount% Heatmap</div>', unsafe_allow_html=True)
     if heat_view == "By Location":
         hd = disc_cp.groupby(["Location Name","Month Name","Month_Sort"], as_index=False, dropna=False).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum"))
         hd["D%"] = np.where(hd["L"]>0, hd["D"]/hd["L"]*100, 0)
@@ -123,15 +116,11 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         ha = ha.sort_values("Month_Sort")
         hp = ha.pivot_table(index=ADV_COL, columns="Month Name", values="D%", aggfunc="mean").fillna(0)
         fig = px.imshow(hp.values, x=hp.columns.tolist(), y=hp.index.tolist(), color_continuous_scale=["#E8F9EE","#FFF3E0","#FFEBE9"], aspect="auto")
-    apply_chart(fig, f"Discount % — {heat_view} x Month", 350)
-    st.plotly_chart(fig, width='stretch', key="disc_heat",
-                    config={"displayModeBar": True, "displaylogo": False,
-                            "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                            "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
+    ChartCard("🗺️ Discount% Heatmap", fig, height=350)
 
     # Delta table
-    st.markdown('<div class="section-card"><div class="section-title">⚠️ Discount Leakage Delta Table</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("Discount Leakage Delta Table", icon="⚠️")
     cp_adv = advisor_summary(disc_cp, adv_col=ADV_COL, as_index=True).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum")).reset_index()
     cp_adv["D%"] = np.where(cp_adv["L"]>0, cp_adv["D"]/cp_adv["L"]*100, 0)
     cp_adv["Leakage"] = np.maximum(0, (cp_adv["D%"] - 15) / 100 * cp_adv["L"])
@@ -164,5 +153,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             "PP Leakage": "N/A",
             "Leakage Δ": "N/A",
         })
-    html_table(dt, height="400px")
-    st.markdown('</div>', unsafe_allow_html=True)
+    TableCard(dt, height=400, index=False)

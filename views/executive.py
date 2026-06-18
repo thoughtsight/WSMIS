@@ -48,12 +48,8 @@ from utils.filters import (
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, MONTH_SORT_ORDER
 
-# Import shared UI helpers from app
-from ui.kpi_cards import kpi
-from ui.tables import html_table
-from ui.traffic import yoy_badge, traffic_light, tgt_badge
-from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+# Import new Phase B UI Components
+from ui.components import PageHeader, KPIGrid, AlertBanner
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty: return
@@ -65,7 +61,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.warning("No data for the selected period. Please adjust the month picker.")
         return
 
-    st.markdown('<div class="section-card"><div class="section-title">🧠 Executive Summary</div>', unsafe_allow_html=True)
+    PageHeader("Executive Summary", icon="🧠")
 
     # 5.1 — Page layout
     c1, c2, c3 = st.columns([2, 2, 2])
@@ -84,7 +80,6 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     if not st.session_state.get("exec_generated", False):
         st.info("Click 'Generate Summary' to produce the executive brief.")
-        st.markdown('</div>', unsafe_allow_html=True)
         return
 
     # 5.1a — Auto-generated Top Insights
@@ -125,9 +120,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         </div>''', unsafe_allow_html=True)
 
     # 5.2 — KPI snapshot (8 metric cards)
-    st.markdown('<div class="section-title" style="margin-top:20px">📊 KPI Snapshot</div>', unsafe_allow_html=True)
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    kpi5, kpi6, kpi7, kpi8 = st.columns(4)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("KPI Snapshot", icon="📊")
 
     jc_cp = get_jobcard_count(cp); jc_pp = get_jobcard_count(pp)
     lab_cp = get_net_labour(cp); lab_pp = get_net_labour(pp)
@@ -144,22 +138,19 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     bs_jcs = cp[cp["MP_PB"] == "PB"]["JC_Nos."].sum()
     ws_ratio = calc_ratio(ws_jcs, ws_jcs + bs_jcs, multiplier=100, fill_value=0)
 
-    with kpi1:
-        st.metric("Total JCs", f"{jc_cp:,.0f}", f"{((jc_cp-jc_pp)/jc_pp*100 if jc_pp>0 else 0):+.1f}%", help="Total number of Job Cards closed in this period")
-    with kpi2:
-        st.metric("Net Labour", fmt_inr(lab_cp), f"{((lab_cp-lab_pp)/lab_pp*100 if lab_pp>0 else 0):+.1f}%", help="Pre-GST Labour Revenue minus Labour Discounts")
-    with kpi3:
-        st.metric("Net Parts", fmt_inr(parts_cp), f"{((parts_cp-parts_pp)/parts_pp*100 if parts_pp>0 else 0):+.1f}%", help="Pre-GST Parts Revenue minus Parts Discounts")
-    with kpi4:
-        st.metric("Total Margin", fmt_inr(margin_cp), f"{((margin_cp-margin_pp)/margin_pp*100 if margin_pp>0 else 0):+.1f}%")
-    with kpi5:
-        st.metric("Avg Labour/JC", fmt_inr(avg_lab_jc_cp), f"{((avg_lab_jc_cp-avg_lab_jc_pp)/avg_lab_jc_pp*100 if avg_lab_jc_pp>0 else 0):+.1f}%")
-    with kpi6:
-        st.metric("Disc %", f"{disc_cp:.2f}%", f"{disc_cp-disc_pp:+.2f}%", delta_color="inverse")
-    with kpi7:
-        st.metric("Oil Penetration", f"{oil_pen:.1f}%")
-    with kpi8:
-        st.metric("WS/BS Split", f"{ws_ratio:.0f}% / {100-ws_ratio:.0f}%")
+    KPIGrid([
+        {"label": "Total JCs", "value": f"{jc_cp:,.0f}", "cp": jc_cp, "pp": jc_pp},
+        {"label": "Net Labour", "value": fmt_inr(lab_cp), "cp": lab_cp, "pp": lab_pp},
+        {"label": "Net Parts", "value": fmt_inr(parts_cp), "cp": parts_cp, "pp": parts_pp},
+        {"label": "Total Margin", "value": fmt_inr(margin_cp), "cp": margin_cp, "pp": margin_pp}
+    ])
+    st.markdown('<div style="margin-top:16px;"></div>', unsafe_allow_html=True)
+    KPIGrid([
+        {"label": "Avg Labour/JC", "value": fmt_inr(avg_lab_jc_cp), "cp": avg_lab_jc_cp, "pp": avg_lab_jc_pp},
+        {"label": "Disc %", "value": f"{disc_cp:.2f}%", "cp": disc_cp, "pp": disc_pp, "invert_trend": True},
+        {"label": "Oil Penetration", "value": f"{oil_pen:.1f}%"},
+        {"label": "WS/BS Split", "value": f"{ws_ratio:.0f}% / {100-ws_ratio:.0f}%"}
+    ])
 
     # 5.3 — Rule-based NLG narrative
     st.markdown('<div class="section-title" style="margin-top:20px">📄 Management Brief</div>', unsafe_allow_html=True)

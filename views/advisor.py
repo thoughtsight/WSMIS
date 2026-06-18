@@ -48,12 +48,8 @@ from utils.filters import (
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, LOC_COLORS, PLY
 
-# Import shared UI helpers from app
-from ui.kpi_cards import kpi
-from ui.tables import html_table
-from ui.traffic import yoy_badge, traffic_light, tgt_badge
-from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+# Import new Phase B UI Components
+from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Advisor Scorecard..."):
@@ -105,19 +101,17 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     aa["Composite_Score"] = aa[score_cols].mean(axis=1).round(1)
     
     # KPI cards
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        st.metric("Total Advisors", len(aa))
-    with c2:
-        st.metric("Avg Composite Score", f"{aa['Composite_Score'].mean():.1f}/5")
-    with c3:
-        top = aa.nlargest(1, "Composite_Score").iloc[0] if not aa.empty else None
-        st.metric("Top Performer", f"{top[ADV_COL][:15]} ({top['Composite_Score']})" if top is not None else "N/A")
-    with c4:
-        st.metric("Ranked Advisors", f"{min_jc}+ JCs")
+    PageHeader("Advisor Scorecard", icon="🎯")
+    top = aa.nlargest(1, "Composite_Score").iloc[0] if not aa.empty else None
+    KPIGrid([
+        {"label": "Total Advisors", "value": str(len(aa))},
+        {"label": "Avg Composite Score", "value": f"{aa['Composite_Score'].mean():.1f}/5"},
+        {"label": "Top Performer", "value": f"{top[ADV_COL][:15]} ({top['Composite_Score']})" if top is not None else "N/A"},
+        {"label": "Ranked Advisors", "value": f"{min_jc}+ JCs"}
+    ])
     
     # Scatter plot
-    st.markdown('<div class="section-card"><div class="section-title">📊 Performance Scatter</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
     fig = px.scatter(
         aa, x="JCs", y="Avg_Lab_JC",
         size="Composite_Score", color="Grp",
@@ -127,14 +121,11 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         size_max=30
     )
     fig.update_layout(**PLY, height=400, xaxis_title="Total JCs", yaxis_title="Avg Labour / JC")
-    st.plotly_chart(fig, width='stretch', key="scorecard_scatter",
-                    config={"displayModeBar": True, "displaylogo": False,
-                            "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                            "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
+    ChartCard("📊 Performance Scatter", fig, height=400)
     
     # Full table
-    st.markdown('<div class="section-card"><div class="section-title">📋 Complete Scorecard</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("Complete Scorecard", icon="📋")
     
     aa_sorted = aa.sort_values("Composite_Score", ascending=False).reset_index(drop=True)
     aa_sorted["Rank"] = range(1, len(aa_sorted) + 1)
@@ -156,17 +147,16 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     dt["Lab_Disc_Pct"] = dt["Lab_Disc_Pct"].apply(lambda x: f"{x:.1f}%")
     
     def score_cell(v):
-        if v >= 4: return f'<span class="score-green">{v}</span>'
-        if v >= 3: return f'<span class="score-yellow">{v}</span>'
-        return f'<span class="score-red">{v}</span>'
+        if v >= 4: return f'🟢 {v}'
+        if v >= 3: return f'🟡 {v}'
+        return f'🔴 {v}'
     
     dt["Composite_Score"] = dt["Composite_Score"].apply(score_cell)
     
-    html_table(dt, height="500px")
-    st.markdown('</div>', unsafe_allow_html=True)
+    TableCard(dt, height=500, index=False)
     
     # Advisor drill-down
-    st.markdown('<div class="section-card"><div class="section-title">🔍 Advisor Drill-Down</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
     
     selected_advs = st.session_state.get("filter_advisor", [])
     if len(selected_advs) == 1:
@@ -190,9 +180,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         fig.add_trace(go.Scatter(x=adv_monthly["Month Name"], y=adv_monthly["NL"], name="Net Labour", mode='lines+markers'))
         fig.add_trace(go.Scatter(x=adv_monthly["Month Name"], y=adv_monthly["NP"], name="Net Parts", mode='lines+markers'))
         fig.update_layout(**PLY, height=300, xaxis_title="", yaxis_title="Amount (₹)")
-        st.plotly_chart(fig, width='stretch', key="scorecard_drill_chart",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+        ChartCard(f"🔍 Drill-Down: {sel_adv}", fig, height=300)

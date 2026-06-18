@@ -69,161 +69,8 @@ PAGE_CAPABILITIES = {
 # PAGE CONFIG & CSS
 st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Auto LLP MIS v1.0.0-rc1", page_icon="🚗")
 
-APPLE_CSS = """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-html, body, [class*="css"] { font-family: 'Inter', -apple-system, sans-serif !important; }
-.stApp { background-color: #F5F5F7 !important; }
-
-.kpi-card {
-    background: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 16px;
-    padding: 18px 20px; box-shadow: 0 1px 4px rgba(0,0,0,.05); text-align: center; transition: box-shadow 0.2s ease; height: 100%;
-}
-.kpi-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.10); }
-.kpi-label { font-size: 11px; font-weight: 600; color: #6E6E73; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.kpi-value { font-size: 24px; font-weight: 700; color: #1D1D1F; line-height: 1.2; }
-.kpi-sub { font-size: 11px; color: #8E8E93; margin-top: 2px; }
-.kpi-delta-pos { color: #34C759; font-size: 13px; font-weight: 700; margin-top: 4px; }
-.kpi-delta-neg { color: #FF3B30; font-size: 13px; font-weight: 700; margin-top: 4px; }
-.kpi-delta-new { color: #0071E3; font-size: 13px; font-weight: 700; margin-top: 4px; }
-.kpi-meta { font-size: 10px; color: #8E8E93; margin-top: 3px; letter-spacing: 0.2px; }
-.badge-pos { background:#E8F9EE; color:#1A7F37; padding:2px 10px; border-radius:12px; font-weight:600; font-size:12px; display:inline-block; }
-.badge-neg { background:#FFEBE9; color:#CF222E; padding:2px 10px; border-radius:12px; font-weight:600; font-size:12px; display:inline-block; }
-.badge-new { background:#E8F0FE; color:#0071E3; padding:2px 10px; border-radius:12px; font-weight:600; font-size:12px; display:inline-block; }
-.badge-warn { background:#FFF3E0; color:#E65100; padding:2px 10px; border-radius:12px; font-weight:600; font-size:12px; display:inline-block; }
-.badge-neutral { background:#F5F5F7; color:#6E6E73; padding:2px 10px; border-radius:12px; font-weight:600; font-size:12px; display:inline-block; }
-.badge-ws { background:#E3F2FD; color:#0D47A1; padding:2px 8px; border-radius:8px; font-weight:600; font-size:11px; }
-.badge-bs { background:#FFF3E0; color:#E65100; padding:2px 8px; border-radius:8px; font-weight:600; font-size:11px; }
-.traffic-light { display: inline-block; font-size: 12px; line-height: 1; }
-.section-card { background: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 16px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,.05); margin-bottom: 16px; }
-.section-title { font-size: 16px; font-weight: 700; color: #1D1D1F; margin-bottom: 14px; }
-.header-bar { background: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 16px; padding: 16px 24px; box-shadow: 0 1px 4px rgba(0,0,0,.05); margin-bottom: 12px; }
-.brand-title { font-size: 22px; font-weight: 800; color: #1D1D1F; letter-spacing: -0.3px; }
-.brand-sub { font-size: 12px; color: #6E6E73; margin-top: 2px; }
-.period-tag-pp { display: inline-block; background: #F5F5F7; color: #6E6E73; padding: 3px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; margin-right: 6px; }
-.styled-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13px; border-radius: 12px; overflow: hidden; border: 1px solid #E5E5EA; }
-.styled-table thead th { background: #F5F5F7; color: #6E6E73; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; padding: 10px 12px; text-align: right; border-bottom: 1px solid #E5E5EA; position: sticky; top: 0; z-index: 1; white-space: nowrap; }
-.styled-table thead th:first-child { text-align: left; }
-.styled-table tbody td { padding: 8px 12px; border-bottom: 1px solid #F0F0F5; color: #1D1D1F; text-align: right; white-space: nowrap; }
-.styled-table tbody td:first-child { text-align: left; font-weight: 500; }
-.styled-table tbody tr:hover { background: #FAFAFE; }
-.styled-table tbody tr:last-child td { border-bottom: none; }
-.styled-table tbody tr.total-row td { font-weight: 700; background: #F5F5F7; border-top: 2px solid #E5E5EA; }
-.cell-neg { color: #FF3B30; font-weight: 600; }
-.insight-card { background: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 14px; padding: 16px 20px; box-shadow: 0 1px 4px rgba(0,0,0,.05); margin-bottom: 10px; border-left: 4px solid #0071E3; }
-.insight-card.pos { border-left-color: #34C759; }
-.insight-card.neg { border-left-color: #FF3B30; }
-.insight-card.warn { border-left-color: #FF9500; }
-.insight-title { font-size: 14px; font-weight: 700; color: #1D1D1F; margin-bottom: 3px; }
-.insight-stat { font-size: 12px; color: #6E6E73; }
-.stTabs [data-baseweb="tab-list"] { gap: 0; background: #FFFFFF; border-radius: 12px; padding: 4px; border: 1px solid #E5E5EA; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
-.stTabs [data-baseweb="tab"] { border-radius: 8px; padding: 8px 16px; font-weight: 600; font-size: 13px; color: #6E6E73; }
-.stTabs [aria-selected="true"] { background: #0071E3 !important; color: #FFFFFF !important; border-radius: 8px !important; }
-.stDownloadButton > button { background: #FFFFFF !important; border: 1px solid #E5E5EA !important; color: #1D1D1F !important; border-radius: 10px !important; font-weight: 600 !important; }
-.stDownloadButton > button:hover { border-color: #0071E3 !important; color: #0071E3 !important; }
-.stMultiSelect [data-baseweb="tag"] { background: #0071E3 !important; border-radius: 8px !important; }
-header[data-testid="stHeader"] { background: rgba(245,245,247,0.95) !important; }
-footer { visibility: hidden; }
-/* Switcher custom styles */
-div[role="radiogroup"] { flex-wrap: nowrap; overflow-x: auto; gap: 0 !important; }
-div[role="radiogroup"] > label > div:first-of-type { display: none !important; }
-div[role="radiogroup"] > label { 
-    padding: 6px 14px !important; background: #F5F5F7; border-radius: 20px; 
-    border: 1px solid #E5E5EA; margin-right: 6px !important; margin-bottom: 0px !important; 
-    cursor: pointer; white-space: nowrap; display: inline-flex; align-items: center; justify-content: center;
-}
-div[role="radiogroup"] > label[data-checked="true"], div[role="radiogroup"] > label:has(input:checked) { 
-    background: #0071E3 !important; border-color: #0071E3 !important; box-shadow: 0 2px 8px rgba(0, 113, 227, 0.3);
-}
-div[role="radiogroup"] > label[data-checked="true"] p, div[role="radiogroup"] > label:has(input:checked) p { 
-    color: white !important; font-weight: 600; 
-}
-/* Scorecard table cell coloring */
-.score-green { background: #E8F9EE; color: #1A7F37; font-weight: 600; border-radius: 6px; padding: 2px 8px; }
-.score-yellow { background: #FFF3E0; color: #E65100; font-weight: 600; border-radius: 6px; padding: 2px 8px; }
-.score-red { background: #FFEBE9; color: #CF222E; font-weight: 600; border-radius: 6px; padding: 2px 8px; }
-/* Insight cards */
-.insight-card { background: #F5F5F7; border-radius: 12px; padding: 16px; margin-bottom: 12px; border: 1px solid #E5E5EA; }
-.insight-card.pos { background: #E8F5E9; border-color: #C8E6C9; }
-.insight-card.warn { background: #FFF3E0; border-color: #FFE0B2; }
-.insight-title { font-size: 13px; font-weight: 600; color: #6E6E73; margin-bottom: 6px; }
-.insight-stat { font-size: 14px; font-weight: 500; color: #1D1D1F; }
-/* Location health cards */
-.loc-card { background: #FFFFFF; border: 1px solid #E5E5EA; border-radius: 16px;
-            padding: 16px 18px; margin-bottom: 12px; transition: box-shadow 0.2s; }
-.loc-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.10); }
-.loc-card-title { font-size: 16px; font-weight: 700; color: #1D1D1F; margin-bottom: 8px; }
-.loc-metric { font-size: 12px; color: #6E6E73; }
-.loc-metric-val { font-size: 14px; font-weight: 600; color: #1D1D1F; }
-/* Forecast section */
-.forecast-card { background: linear-gradient(135deg, #E8F0FE, #FFFFFF);
-                 border: 1px solid #B5D4F4; border-radius: 16px; padding: 20px; }
-.forecast-note { font-size: 11px; color: #8E8E93; font-style: italic; margin-top: 8px; }
-/* Alert banner */
-.alert-banner { background: #FFEBE9; border: 1px solid #FFCCCB; border-radius: 12px;
-                padding: 12px 16px; margin-bottom: 12px; color: #CF222E; font-weight: 600; }
-.info-banner { background: #E8F0FE; border: 1px solid #B5D4F4; border-radius: 12px;
-               padding: 12px 16px; margin-bottom: 12px; color: #185FA5; font-weight: 600; }
-/* Month picker preset buttons */
-.preset-active { background: #0071E3 !important; color: white !important; }
-/* Multiselect selection highlighting */
-.stMultiSelect [data-baseweb="tag"] { background: #0071E3 !important; color: white !important; border-radius: 8px !important; }
-/* Selectbox selection */
-.stSelectbox > div > div > div[data-baseweb="select"] { border-color: #0071E3 !important; }
-/* Expander highlighting */
-details[open] > summary { color: #0071E3 !important; font-weight: 600; }
-/* Tab selection */
-.stTabs [data-baseweb="tab"][aria-selected="true"] { 
-    background: #0071E3 !important; 
-    color: white !important; 
-    border-radius: 8px 8px 0 0;
-}
-/* ── Fullscreen: scale up all chart text ── */
-:-webkit-full-screen .js-plotly-plot .gtitle { font-size: 18px !important; }
-:-webkit-full-screen .js-plotly-plot .xtick text,
-:-webkit-full-screen .js-plotly-plot .ytick text { font-size: 14px !important; }
-:-webkit-full-screen .js-plotly-plot .legend text { font-size: 13px !important; }
-:-webkit-full-screen .js-plotly-plot .bar text,
-:-webkit-full-screen .js-plotly-plot .textpoint { font-size: 14px !important; font-weight: 700 !important; }
-:fullscreen .js-plotly-plot .gtitle { font-size: 18px !important; }
-:fullscreen .js-plotly-plot .xtick text,
-:fullscreen .js-plotly-plot .ytick text { font-size: 14px !important; }
-:fullscreen .js-plotly-plot .bar text { font-size: 14px !important; font-weight: 700 !important; }
-/* ── Compact sticky header ── */
-.top-header { position: sticky; top: 0; z-index: 999;
-    background: rgba(255,255,255,0.97); backdrop-filter: blur(12px);
-    border-bottom: 1px solid #E5E5EA; padding: 10px 24px;
-    display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-.top-header .brand { font-size: 18px; font-weight: 800; color: #1D1D1F; white-space: nowrap; }
-.top-header .data-ts { font-size: 11px; color: #8E8E93; white-space: nowrap; }
-/* ── Target achievement badges ── */
-.tgt-green  { background:#E8F9EE; color:#1A7F37; padding:3px 10px; border-radius:10px; font-weight:700; font-size:12px; }
-.tgt-yellow { background:#FFF3E0; color:#E65100; padding:3px 10px; border-radius:10px; font-weight:700; font-size:12px; }
-.tgt-red    { background:#FFEBE9; color:#CF222E; padding:3px 10px; border-radius:10px; font-weight:700; font-size:12px; }
-/* ── Negative labour alert ── */
-.neg-lab-alert { background:#FFEBE9; border-left:4px solid #FF3B30; border-radius:10px;
-    padding:12px 16px; margin-bottom:10px; }
-.neg-lab-alert b { color:#CF222E; }
-/* ── Rank movement ── */
-.rank-up   { color:#34C759; font-weight:700; }
-.rank-dn   { color:#FF3B30; font-weight:700; }
-.rank-eq   { color:#8E8E93; font-weight:600; }
-/* ── Mobile responsive ── */
-@media (max-width: 1024px) {
-    [data-testid="stHorizontalBlock"] > div { min-width: 48% !important; flex: 1 1 48% !important; }
-    .section-card { padding: 14px !important; }
-    .kpi-card  { padding: 10px 12px !important; }
-    .kpi-value { font-size: 18px !important; }
-    .styled-table { font-size: 11px !important; }
-    div[data-testid="stHorizontalBlock"]:has(.js-plotly-plot) > div { min-width: 100% !important; }
-}
-@media (max-width: 768px) {
-    [data-testid="stHorizontalBlock"] > div { min-width: 100% !important; }
-    .kpi-value { font-size: 16px !important; }
-    .kpi-card  { padding: 10px 12px !important; }
-}
-</style>
-"""
+from pathlib import Path
+APPLE_CSS = f"<style>\n{Path('static/style.css').read_text(encoding='utf-8')}\n</style>"
 st.markdown(APPLE_CSS, unsafe_allow_html=True)
 
 from utils.constants import PLY, C, LOC_COLORS, MP_COLORS
@@ -404,19 +251,46 @@ def render_month_picker(df, page):
     if not capabilities.get("show_period_filter") and not capabilities.get("show_comparison_filter"):
         return st.session_state.selected_months_custom, build_pairs(st.session_state.selected_months_custom, all_months, MONTH_SORT_ORDER, "YoY" if st.session_state.get("comparison_mode_radio") == "YoY" else "MoM"), capabilities.get("comparison_mode", False)
 
-    st.markdown('<div class="header-bar">', unsafe_allow_html=True)
-    c1, c2, c3, c4 = st.columns([0.8, 6.5, 1.7, 1.5])
+    # PAGE FILTERS (FilterToolbar UI)
+    st.markdown('<div class="filter-toolbar" style="background:#f9f9fb; padding:12px 16px; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:16px;">', unsafe_allow_html=True)
     
-    with c1:
-        st.markdown('<div style="padding:16px 0;font-size:13px;font-weight:600;color:#6E6E73;">Period</div>', unsafe_allow_html=True)
-    with c2:
-        preset = st.radio("Select Period", preset_options, horizontal=True, key="month_preset", label_visibility="collapsed", on_change=on_preset_change)
-    with c3:
-        mode_label = st.radio("Comparison Mode", ["YoY", "MoM"], horizontal=True, key="comparison_mode_radio", label_visibility="collapsed")
+    # We figure out how many columns we need
+    show_svc = capabilities.get("show_service_type_filter", False)
+    show_adv = "Advisor" in capabilities.get("additional_module_filters", [])
+    col_count = 3 # Period, Comparison Mode, Reset
+    if show_svc: col_count += 1
+    if show_adv: col_count += 1
+    
+    cols = st.columns(col_count)
+    col_idx = 0
+    
+    with cols[col_idx]:
+        preset = st.selectbox("Period", preset_options, index=preset_options.index(st.session_state.month_preset) if st.session_state.month_preset in preset_options else 1, key="month_preset", on_change=on_preset_change)
+    col_idx += 1
+    
+    with cols[col_idx]:
+        mode_label = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="comparison_mode_radio")
         comparison_mode = (mode_label == "YoY")
-    with c4:
-        if st.button("🔄 Reset All", width='stretch', key="clear_all"):
-            for key in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_adv", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
+    col_idx += 1
+    
+    if show_svc:
+        with cols[col_idx]:
+            svc_type_opts = ["All"] + sorted(df['Service Type'].dropna().unique().tolist())
+            svc_type = st.selectbox("Service Type", svc_type_opts, key="filter_svc_type_single")
+            st.session_state.filter_svc_type = [svc_type] if svc_type != "All" else []
+        col_idx += 1
+        
+    if show_adv:
+        with cols[col_idx]:
+            adv_opts = ["All"] + sorted(df[ADV_COL].dropna().unique().tolist())
+            advisor = st.selectbox("Advisor", adv_opts, key="filter_adv_single")
+            st.session_state.filter_advisor = [advisor] if advisor != "All" else []
+        col_idx += 1
+
+    with cols[col_idx]:
+        st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
+        if st.button("🔄 Reset Page", key="clear_page"):
+            for key in ["filter_svc_type_single", "filter_adv_single", "filter_svc_type", "filter_advisor", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
                 if key in st.session_state: del st.session_state[key]
             st.rerun()
 
@@ -425,12 +299,9 @@ def render_month_picker(df, page):
     is_custom = st.session_state.get("month_preset", "3M") == "Custom"
     
     if is_custom:
-        selected_months = st.multiselect("Current Period (CP)", all_months, key="selected_months_custom", on_change=on_custom_change)
+        selected_months = st.multiselect("Custom Months", all_months, key="selected_months_custom", on_change=on_custom_change)
     else:
         selected_months = st.session_state.selected_months_custom
-        preset_val = st.session_state.get("month_preset", "3M")
-        if preset_val != "Custom":
-            st.markdown(f'<div style="margin-bottom:12px;font-size:14px;color:#1d1d1f;font-weight:500;">Selected Period: Last {preset_val}</div>', unsafe_allow_html=True)
             
     pairs = build_pairs(selected_months, all_months, MONTH_SORT_ORDER, "YoY" if comparison_mode else "MoM")
 
@@ -443,56 +314,56 @@ def render_month_picker(df, page):
                 if len(selected_months) == 1 and not comparison_mode:
                     st.warning("Select 2+ months for MoM comparison, or switch to YoY mode.")
                 else:
-                    st.warning(f"No prior-period data found in dataset for {mode_label} comparison. "
-                               f"Check that the sheet contains data for the prior period.")
+                    st.warning(f"No prior-period data found in dataset for {mode_label} comparison.")
 
     return selected_months, pairs, comparison_mode
 
 def render_page_header_filters(df, page):
-    capabilities = PAGE_CAPABILITIES.get(page, {})
-    if not capabilities: return df, 0
-    
-    with st.expander("🔍 Page Filters", expanded=False):
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            loc_group = st.multiselect("Location Group", ["Arena", "Nexa", "Other"], key="filter_loc_group")
-            available_locs = sorted(df['Location Name'].dropna().unique().tolist())
-            if loc_group: available_locs = [l for l in available_locs if df[df['Location Name'] == l]['Location Group'].iloc[0] in loc_group]
-            location = st.multiselect("Location", available_locs, key="filter_location")
-        with c2:
-            svc_type = st.multiselect("Service Type", sorted(df['Service Type'].dropna().unique().tolist()), key="filter_svc_type") if capabilities.get("show_service_type_filter") else []
-            advisor = st.multiselect("Advisor", sorted(df[ADV_COL].dropna().unique().tolist()), key="filter_advisor") if "Advisor" in capabilities.get("additional_module_filters", []) else []
-        with c3:
-            mp_pb = st.radio("MP/PB", ["All", "MP", "PB"], horizontal=True, key="filter_mp_pb")
-            if st.button("Reset Filters"):
-                for k in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb"]:
-                    if k in st.session_state: del st.session_state[k]
-                st.rerun()
-
-    active_count = sum([1 for k in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb"] if st.session_state.get(k)])
+    # Now just apply the service/advisor filters set in render_month_picker
+    active_count = 0
     d = df
-    if loc_group: d = apply_location_group_filter(d, 'Location Group', loc_group)
-    if location: d = apply_location_filter(d, 'Location Name', location)
-    if svc_type: d = apply_service_type_filter(d, 'Service Type', svc_type)
-    if advisor: d = apply_advisor_filter(d, ADV_COL, advisor)
-    if mp_pb != "All": d = apply_mp_pb_filter(d, 'MP_PB', mp_pb)
+    svc_type = st.session_state.get("filter_svc_type", [])
+    advisor = st.session_state.get("filter_advisor", [])
+    if svc_type: 
+        d = apply_service_type_filter(d, 'Service Type', svc_type)
+        active_count += 1
+    if advisor: 
+        d = apply_advisor_filter(d, ADV_COL, advisor)
+        active_count += 1
     return d, active_count
 
 def render_global_filters(df):
     active_count = 0
     with st.sidebar:
         st.markdown("---")
-        st.markdown("### 🔍 Global Filters")
-        st.markdown("Use filters above specific charts to narrow down data.")
+        st.markdown("### 🌍 Global Filters")
+        
+        loc_group = st.multiselect("Location Group", ["Arena", "Nexa", "Other"], key="filter_loc_group")
+        available_locs = sorted(df['Location Name'].dropna().unique().tolist())
+        if loc_group: available_locs = [l for l in available_locs if df[df['Location Name'] == l]['Location Group'].iloc[0] in loc_group]
+        location = st.multiselect("Location", available_locs, key="filter_location")
+        mp_pb = st.radio("Business Unit", ["All", "MP", "PB"], horizontal=True, key="filter_mp_pb")
+        
         st.markdown("---")
         st.markdown("### ⚙ Actions")
-        if st.button("🧹 Reset All", use_container_width=True, key="clear_filters"):
-            for key in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
+        if st.button("🧹 Reset All Filters", use_container_width=True, key="clear_all_filters"):
+            for key in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset", "filter_svc_type_single", "filter_adv_single"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
 
-    return df, active_count
+    d = df
+    if loc_group: 
+        d = apply_location_group_filter(d, 'Location Group', loc_group)
+        active_count += 1
+    if location: 
+        d = apply_location_filter(d, 'Location Name', location)
+        active_count += 1
+    if mp_pb and mp_pb != "All": 
+        d = apply_mp_pb_filter(d, 'MP_PB', mp_pb)
+        active_count += 1
+        
+    return d, active_count
 
 # TABS
 

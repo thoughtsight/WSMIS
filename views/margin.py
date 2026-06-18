@@ -49,34 +49,24 @@ from utils.filters import (
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, PLY, C
 
-# Import shared UI helpers from app
-from ui.kpi_cards import kpi
-from ui.tables import html_table
-from ui.traffic import yoy_badge, traffic_light, tgt_badge
-from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+# Import new Phase B UI Components
+from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    # ── [DEBUG] Stage 3: render() entry ───────────────────────────────────────
-    from services.logger import logger as _log
-    _log.debug(f"[RENDER] margin.render: entered | df.shape={df.shape} | pairs={len(pairs)} | df.empty={df.empty}")
-    st.caption(f"[DEBUG] margin.render: entered · df.shape={df.shape} · pairs={len(pairs)}")
-    # ─────────────────────────────────────────────────────────────────────────
-    if df.empty:
-        st.caption("[DEBUG] margin.render: early return — df is empty")
-        return
-    st.caption("[DEBUG] margin.render: past empty guard")
+    if df.empty: return
     # df is already filtered by selected_months at main level, use it directly for current period
     cp = df.copy()
     
+    PageHeader("Margin Analysis", icon="💰")
     kpis = ["Total Margin", "Net Labour", "Parts_Margin", "Oil_Margin", "OTC Income", "FSC Income"]
-    c = st.columns(6)
-    for i, k in enumerate(kpis):
+    kpi_data = []
+    for k in kpis:
         v = cp[k].sum() if k != "Net Labour" else (get_labour_sales(cp) - calculate_labour_discount(cp))
-        with c[i]: kpi(k.replace("_", " "), fmt_inr(v))
+        kpi_data.append({"label": k.replace("_", " "), "value": fmt_inr(v)})
+    KPIGrid(kpi_data)
     
     # Waterfall chart
-    st.markdown('<div class="section-card"><div class="section-title">💰 Margin Waterfall</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
     gross_lab = get_labour_sales(cp)
     lab_disc = -calculate_labour_discount(cp)
     net_lab = gross_lab + lab_disc
@@ -109,21 +99,10 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         text=[fmt_inr(v) for v in values],
         connector={"line":{"color":"rgb(63, 63, 63)"}},
     ))
-    
-    fig.update_layout(
-        **PLY,
-        height=400,
-        xaxis_title="",
-        yaxis_title="Amount (₹)",
-        showlegend=False
-    )
-    st.plotly_chart(fig, width='stretch', key="ma_waterfall",
-                    config={"displayModeBar": True, "displaylogo": False,
-                            "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                            "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
+    ChartCard("💰 Margin Waterfall", fig, height=400)
         
-    st.markdown('<div class="section-card"><div class="section-title">💰 Category × Month Margin Matrix</div>', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    PageHeader("Category × Month Margin Matrix", icon="💰")
     cats = ["Parts_Margin", "Accessory_Margin", "Oil_Margin", "Tyre_Margin", "Battery_Margin", "Other_Margin", "VOR Charges",
             "Total Parts Margin", "Net Labour", "OTC Income", "MSIL Labour Claim", "FSC Income", "Dealer FOC", "Internal Consumption", "Total Margin"]
     
@@ -135,19 +114,18 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     rows = []
     prev_tm = 0
     for cat in cats:
-        r = {"Category": f"<b>{cat}</b>" if "Total" in cat else cat}
+        r = {"Category": f"{cat}"}
         ct = 0
         for m in mo:
             lookup_cat = "Net_Labour" if cat == "Net Labour" else cat
             v = m_data[m_data["Month Name"]==m][lookup_cat].sum() if not m_data[m_data["Month Name"]==m].empty else 0
             r[m] = fmt_inr(v)
-            if "Total" not in cat and v < 0: r[m] = f'<span class="cell-neg">{r[m]}</span>'
             ct += v
         r["Total CP"] = fmt_inr(ct)
         rows.append(r)
         
     # MoM
-    r = {"Category": "<i>MoM Growth %</i>"}
+    r = {"Category": "MoM Growth %"}
     for m in mo:
         v = m_data[m_data["Month Name"]==m]["Total Margin"].sum() if not m_data[m_data["Month Name"]==m].empty else 0
         if prev_tm > 0: r[m] = fmt_pct((v-prev_tm)/prev_tm*100, True)
@@ -156,51 +134,30 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     r["Total CP"] = "—"
     rows.append(r)
     
-    html_table(pd.DataFrame(rows), height="600px")
-    st.markdown('</div>', unsafe_allow_html=True)
+    TableCard(pd.DataFrame(rows), height=600, index=False)
     
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="section-card"><div class="section-title">📈 Total Margin Trend</div>', unsafe_allow_html=True)
         fig = px.area(m_data, x="Month Name", y="Total Margin", markers=True, color_discrete_sequence=[C["primary"]])
         fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="", yaxis_title="Total Margin (₹)")
-        st.plotly_chart(fig, width='stretch', key="ma_tr",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
+        ChartCard("📈 Total Margin Trend", fig, height=320)
     with c2:
-        st.markdown('<div class="section-card"><div class="section-title">🍰 Margin Mix</div>', unsafe_allow_html=True)
         md = m_data[["Parts_Margin", "Oil_Margin", "Net_Labour", "OTC Income", "FSC Income"]].sum().reset_index()
         md.columns = ["Cat", "Val"]
         md.loc[md["Cat"] == "Net_Labour", "Cat"] = "Net Labour"
         md = md[md["Val"] > 0]
         fig = px.pie(md, values="Val", names="Cat", hole=0.5, color_discrete_sequence=px.colors.qualitative.Set2)
         fig.update_layout(**PLY); fig.update_layout(height=320, margin=dict(t=0,b=0,l=0,r=0))
-        st.plotly_chart(fig, width='stretch', key="ma_mix",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
+        ChartCard("🍰 Margin Mix", fig, height=320)
         
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="section-card"><div class="section-title">🏢 Location Margin</div>', unsafe_allow_html=True)
         lm = location_summary(cp, as_index=False)["Total Margin"].sum().sort_values("Total Margin", ascending=True)
         fig = px.bar(lm, x="Total Margin", y="Location Name", orientation="h", color_discrete_sequence=[C["green"]])
         fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="", yaxis_title="")
-        st.plotly_chart(fig, width='stretch', key="ma_loc",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
+        ChartCard("🏢 Location Margin", fig, height=320)
     with c2:
-        st.markdown('<div class="section-card"><div class="section-title">⚖️ WS vs BS Margin</div>', unsafe_allow_html=True)
         wbs = cp.groupby(["Month_Sort", "Month Name", "MP_PB"], as_index=False, dropna=False)["Total Margin"].sum().sort_values("Month_Sort")
         fig = px.bar(wbs, x="Month Name", y="Total Margin", color="MP_PB", color_discrete_map=MP_COLORS)
         fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="", yaxis_title="")
-        st.plotly_chart(fig, width='stretch', key="ma_wsbs",
-                        config={"displayModeBar": True, "displaylogo": False,
-                                "modeBarButtonsToRemove": ["select2d","lasso2d"],
-                                "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
+        ChartCard("⚖️ WS vs BS Margin", fig, height=320)

@@ -35,17 +35,16 @@ def MetricCard(label: str, value: str, sub: str = None, cp: float = None, pp: fl
         
     meta_html = f'<div class="kpi-meta" style="font-size:11px; margin-top:8px; border-top:1px solid #f5f5f7; padding-top:4px;">{" · ".join(meta_parts)}</div>' if meta_parts else ""
     
-    st.markdown(f"""
-    <div class="kpi-card" style="background:#fff; border-radius:12px; padding:16px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); height:100%; display:flex; flex-direction:column; justify-content:space-between;">
-        <div>
-            <div class="kpi-label" style="font-size:13px; color:#6E6E73; font-weight:500; margin-bottom:4px;">{label}</div>
-            <div class="kpi-value" style="font-size:24px; font-weight:700; color:#1d1d1f; letter-spacing:-0.5px;">{value}</div>
-            {sub_html}
-            {delta_html}
-        </div>
-        {meta_html}
+    html = f"""<div class="kpi-card" style="background:#fff; border-radius:12px; padding:16px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); height:100%; display:flex; flex-direction:column; justify-content:space-between;">
+    <div>
+        <div class="kpi-label" style="font-size:13px; color:#6E6E73; font-weight:500; margin-bottom:4px;">{label}</div>
+        <div class="kpi-value" style="font-size:24px; font-weight:700; color:#1d1d1f; letter-spacing:-0.5px;">{value}</div>
+        {sub_html}
+        {delta_html}
     </div>
-    """, unsafe_allow_html=True)
+    {meta_html}
+</div>"""
+    st.markdown(html, unsafe_allow_html=True)
 
 def KPIGrid(metrics: list):
     """

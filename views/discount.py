@@ -58,7 +58,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         return
 
     # Use global period selection for consistency
-    cp_months = [p[0] for p in pairs]
+    cp_months = selected_months if selected_months else []
     pp_months = [p[1] for p in pairs]
 
     # If no pairs available, use selected_months for CP only

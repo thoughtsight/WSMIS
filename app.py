@@ -656,7 +656,7 @@ def main():
 
     # ── Prepare data for tabs with comparison support ───────────────
     # For tabs that need comparison (YoY/MoM), include both CP and PP months
-    cp_months = [p[0] for p in pairs]
+    cp_months = selected_months if selected_months else []
     pp_months = [p[1] for p in pairs]
     all_comparison_months = list(set(cp_months + pp_months))
 

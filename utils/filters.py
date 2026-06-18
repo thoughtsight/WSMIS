@@ -32,8 +32,8 @@ def apply_mp_pb_filter(df: pd.DataFrame, mp_pb_col: str, mp_pb_val: Optional[str
     return df
 
 def apply_month_filter(df: pd.DataFrame, month_col: str, months: Optional[List[str]]) -> pd.DataFrame:
-    """Filters a DataFrame by a list of months."""
-    if months and month_col in df.columns:
+    """Filters a DataFrame by a list of months. If months is [], returns empty DataFrame."""
+    if months is not None and month_col in df.columns:
         return df[df[month_col].isin(months)]
     return df
 

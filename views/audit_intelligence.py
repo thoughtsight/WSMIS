@@ -154,7 +154,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         return
 
     # Period labels for context
-    cp_months = [p[0] for p in pairs]
+    cp_months = selected_months if selected_months else []
     pp_months = [p[1] for p in pairs]
     period_label = f"{cp_months[0]} → {cp_months[-1]}" if cp_months else "Current Period"
     comparison_label = "YoY" if comparison_mode else "MoM"

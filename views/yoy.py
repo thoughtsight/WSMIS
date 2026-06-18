@@ -61,7 +61,7 @@ def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, sele
             from ui.components.core import EmptyState
             EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
             return
-    cp_months = [p[0] for p in pairs]
+    cp_months = selected_months if selected_months else []
     pp_months = [p[1] for p in pairs]
     # df contains both CP and PP months, filter appropriately
     cp = apply_month_filter(df, "Month Name", cp_months)

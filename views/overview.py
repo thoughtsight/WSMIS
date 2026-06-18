@@ -60,7 +60,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     if alerts:
         render_alerts(alerts)
 
-    cp_months = [p[0] for p in pairs]
+    cp_months = selected_months if selected_months else []
     pp_months = [p[1] for p in pairs]
     cp = apply_month_filter(df, "Month Name", cp_months)
     pp = apply_month_filter(df, "Month Name", pp_months)

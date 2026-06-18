@@ -22,6 +22,8 @@ import sys
 import os
 import importlib.util
 
+from ui.components.core import UniversalHeader, UniversalFooter
+
 # Explicit import to load correct internal_audit_app.py from WSMIS directory
 spec = importlib.util.spec_from_file_location(
     "internal_audit_app",
@@ -546,7 +548,6 @@ def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, ale
         st.error(f"Page '{page}' not found.")
 
     # ── Universal Footer ──────────────────────────────────────────
-    from ui.components.core import UniversalFooter
     UniversalFooter()
 
 def main():
@@ -645,7 +646,6 @@ def main():
     df_filtered, page_active_count = render_page_header_filters(df_filtered, st.session_state.get('current_page'))
 
     # ── Universal Header ──────────────────────────────────────────
-    from ui.components.core import UniversalHeader, UniversalFooter
     synced_at_str = (st.session_state.get("data_synced_at") or data_loaded_time).strftime('%d %b %Y, %I:%M %p') if (data_loaded_time or st.session_state.get("data_synced_at")) else "Unknown"
     UniversalHeader(
         client_name=sel_client,

@@ -12,7 +12,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pages.audit_intelligence import render
+from views.audit_intelligence import render
 from services.ai import generate_report
 
 

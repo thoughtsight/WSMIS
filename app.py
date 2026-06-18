@@ -568,87 +568,87 @@ def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, ale
 
     if page == "Cockpit":
         with st.spinner("Loading Cockpit..."):
-            from pages.cockpit import render
+            from views.cockpit import render
         render(df_filtered_full, pairs, alerts, comparison_mode, selected_months)
     elif page == "Overview":
         with st.spinner("Crunching numbers..."):
-            from pages.overview import render
+            from views.overview import render
         safe_render(render, df_filtered_full, pairs, alerts, comparison_mode, selected_months)
     elif page == "Labour":
         with st.spinner("Crunching numbers..."):
-            from pages.yoy import render
+            from views.yoy import render
         safe_render(render, df_filtered_full, pairs, "Net_Labour", "ly", "Labour", comparison_mode, selected_months)
     elif page == "Parts":
         with st.spinner("Crunching numbers..."):
-            from pages.yoy import render
+            from views.yoy import render
         safe_render(render, df_filtered_full, pairs, "Net_Parts", "py", "Parts", comparison_mode, selected_months)
     elif page == "Margin":
         with st.spinner("Crunching numbers..."):
-            from pages.margin import render
+            from views.margin import render
         safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
     elif page == "Discounts":
         with st.spinner("Crunching numbers..."):
-            from pages.discount import render
+            from views.discount import render
         safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
     elif page == "Leakage Center":
         with st.spinner("Crunching numbers..."):
-            from pages.leakage import render
+            from views.leakage import render
         safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
     elif page == "Sales Mix":
         with st.spinner("Crunching numbers..."):
-            from pages.sales_mix import render
+            from views.sales_mix import render
         safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
     elif page == "Advisors":
         with st.spinner("Crunching numbers..."):
-            from pages.advisor import render
+            from views.advisor import render
         safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
     elif page == "Advisor MoM":
         with st.spinner("Crunching numbers..."):
-            from pages.advisor_mom import render
+            from views.advisor_mom import render
         safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
     elif page == "Locations":
         with st.spinner("Crunching numbers..."):
-            from pages.locations import render
+            from views.locations import render
         safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
     elif page == "Trends":
         with st.spinner("Crunching numbers..."):
-            from pages.trends import render
+            from views.trends import render
         safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
     elif page == "Targets":
         with st.spinner("Crunching numbers..."):
-            from pages.targets import render
+            from views.targets import render
         safe_render(render, df_filtered_cp, targets_df, pairs)
     elif page == "Reports":
         with st.status("📄 Generating reports...", expanded=False) as _s:
-            from pages.reports import render
+            from views.reports import render
         safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
         _s.update(label="Reports ready", state="complete", expanded=False)
     elif page == "Executive":
         with st.status("📊 Building executive summary...", expanded=False) as _s:
-            from pages.executive import render
+            from views.executive import render
         safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
         _s.update(label="Executive summary ready", state="complete", expanded=False)
     elif page == "Expense Analysis":
         with st.spinner("Loading Expense Analysis..."):
-            from pages.expense import render
+            from views.expense import render
         safe_render(render, exp_df_filtered_cp, selected_months)
     elif page == "Profit & Loss":
         with st.spinner("Loading Profit & Loss..."):
-            from pages.pnl import render
+            from views.pnl import render
         safe_render(render, df_filtered_cp, exp_df_filtered_cp, selected_months)
     elif page == "Audit Intelligence":
         with st.spinner("Loading Audit Intelligence..."):
-            from pages.audit_intelligence import render
+            from views.audit_intelligence import render
         safe_render(render, df_filtered_full, pairs, alerts, comparison_mode, selected_months)
     elif page == "Internal Audit":
         with st.status("🔍 Running audit analysis...", expanded=False) as _s:
             st.caption("⏳ Exception scan · Leakage detection · Risk register")
-            from pages.internal_audit import render
+            from views.internal_audit import render
         safe_render(render, df_filtered, client_config, cp=df_filtered_cp)
         _s.update(label="Audit analysis complete", state="complete", expanded=False)
     elif page == "System Health":
         with st.spinner("Loading System Health..."):
-            from pages.system_health import render
+            from views.system_health import render
         safe_render(render, df_filtered_full, exp_df_filtered_cp)
     else:
         st.error(f"Page '{page}' not found.")

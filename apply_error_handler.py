@@ -15,7 +15,7 @@ from services.error_handler import safe_render
 content = content.replace("from ui.formatters import *", imports + "from ui.formatters import *")
 
 # Replace render(...) with safe_render(render, ...)
-content = re.sub(r'from pages\.([a-zA-Z0-9_]+) import render; render\((.*?)\)', r'from pages.\1 import render; safe_render(render, \2)', content)
+content = re.sub(r'from pages\.([a-zA-Z0-9_]+) import render; render\((.*?)\)', r'from views.\1 import render; safe_render(render, \2)', content)
 
 with open(app_path, "w", encoding="utf-8") as f:
     f.write(content)

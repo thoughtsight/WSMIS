@@ -9,10 +9,6 @@ START_TIME = time.time()
 
 import streamlit as st
 
-# Validate Environment Configuration immediately
-from config.environment import validate_environment
-validate_environment()
-
 import pandas as pd
 import numpy as np
 import plotly.express as px
@@ -629,6 +625,12 @@ def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, ale
         st.error(f"Page '{page}' not found.")
 
 def main():
+    # ── Environment Validation (once per session) ───────────────────
+    if "env_validated" not in st.session_state:
+        from config.environment import validate_environment
+        validate_environment()
+        st.session_state["env_validated"] = True
+
     # ── Pilot Access Control ────────────────────────────────────────
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False

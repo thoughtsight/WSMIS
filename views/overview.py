@@ -43,10 +43,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS, C, LOC_COLORS
+from utils.constants import ADV_COL, MP_COLORS, C, LOC_COLORS
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -164,8 +164,8 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     
     st.markdown('<div class="section-title" style="margin-top:16px; margin-bottom:8px">WS vs BS Split</div>', unsafe_allow_html=True)
     c = st.columns(6)
-    cp_ws = cp[cp["WS_BS"]=="WS"]; pp_ws = pp[pp["WS_BS"]=="WS"]
-    cp_bs = cp[cp["WS_BS"]=="BS"]; pp_bs = pp[pp["WS_BS"]=="BS"]
+    cp_ws = cp[cp["MP_PB"]=="MP"]; pp_ws = pp[pp["MP_PB"]=="MP"]
+    cp_bs = cp[cp["MP_PB"]=="PB"]; pp_bs = pp[pp["MP_PB"]=="PB"]
     with c[0]: kpi("WS JCs", fmt_num(s(cp_ws,"JC_Nos.")), cp=s(cp_ws,"JC_Nos."), pp=s(pp_ws,"JC_Nos."))
     with c[1]: kpi("WS Net Labour", fmt_inr(s(cp_ws,"Net_Labour")), cp=s(cp_ws,"Net_Labour"), pp=s(pp_ws,"Net_Labour"))
     with c[2]: kpi("WS Margin", fmt_inr(calculate_total_margin(cp_ws)), cp=calculate_total_margin(cp_ws), pp=calculate_total_margin(pp_ws))
@@ -176,15 +176,15 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     st.markdown("<br>", unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        wbs_data = cp.groupby(["Month_Sort","Month Name","WS_BS"], as_index=False, dropna=False)["Net_Labour"].sum().sort_values("Month_Sort")
-        wbs_data = wbs_data.rename(columns={"WS_BS":"Type","Month Name":"Month","Net_Labour":"Net Labour"})
+        wbs_data = cp.groupby(["Month_Sort","Month Name","MP_PB"], as_index=False, dropna=False)["Net_Labour"].sum().sort_values("Month_Sort")
+        wbs_data = wbs_data.rename(columns={"MP_PB":"Type","Month Name":"Month","Net_Labour":"Net Labour"})
         wbs_data["Label"] = wbs_data["Net Labour"].apply(fmt_inr_short)
         fig = px.line(
-            cp.groupby(["Month_Sort","Month Name","WS_BS"], as_index=False, dropna=False)["Net_Labour"].sum()
+            cp.groupby(["Month_Sort","Month Name","MP_PB"], as_index=False, dropna=False)["Net_Labour"].sum()
                .sort_values("Month_Sort")
-               .rename(columns={"WS_BS":"Type","Month Name":"Month","Net_Labour":"Net Labour (₹)"}),
+               .rename(columns={"MP_PB":"Type","Month Name":"Month","Net_Labour":"Net Labour (₹)"}),
             x="Month", y="Net Labour (₹)", color="Type", markers=True,
-            color_discrete_map={"WS":C["primary"],"BS":C["orange"]},
+            color_discrete_map={"MP":C["primary"],"PB":C["orange"]},
         )
         apply_chart(fig, "📈 Monthly Net Labour Trend", 320)
         fig.update_traces(hovertemplate="<b>%{fullData.name}</b><br>Month: %{x}<br>Net Labour: ₹%{y:,.0f}<extra></extra>")
@@ -193,9 +193,9 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
                                 "toImageButtonOptions": {"format":"png","scale":2}})
     with c2:
-        lr = cp.groupby(["Location Name","Location Group"], as_index=False, dropna=False)["Net_Labour"].sum()\
+        lr = cp.groupby(["Location Name","Model Group"], as_index=False, dropna=False)["Net_Labour"].sum()\
                .sort_values("Net_Labour",ascending=True)\
-               .rename(columns={"Net_Labour":"Net Labour (₹)","Location Name":"Location","Location Group":"Group"})
+               .rename(columns={"Net_Labour":"Net Labour (₹)","Location Name":"Location","Model Group":"Group"})
         lr["Label"] = lr["Net Labour (₹)"].apply(fmt_inr_short)
         fig = px.bar(lr, x="Net Labour (₹)", y="Location", color="Group", orientation="h",
                      color_discrete_map=LOC_COLORS, text="Label")
@@ -221,10 +221,10 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
                                 "toImageButtonOptions": {"format":"png","scale":2}})
     with c2:
-        wd = cp.groupby("WS_BS", as_index=False, dropna=False)["Net_Labour"].sum()\
-               .rename(columns={"WS_BS":"Type","Net_Labour":"Net Labour (₹)"})
+        wd = cp.groupby("MP_PB", as_index=False, dropna=False)["Net_Labour"].sum()\
+               .rename(columns={"MP_PB":"Type","Net_Labour":"Net Labour (₹)"})
         fig = px.pie(wd, values="Net Labour (₹)", names="Type", hole=0.6,
-                     color="Type", color_discrete_map=WS_COLORS)
+                     color="Type", color_discrete_map=MP_COLORS)
         fig.update_traces(
             texttemplate="%{label}<br><b>%{percent}</b>",
             hovertemplate="<b>%{label} Labour</b><br>Amount: ₹%{value:,.0f}<br>Share: %{percent}<extra></extra>"

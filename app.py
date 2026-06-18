@@ -40,9 +40,31 @@ def get_cached_audit_data():
 # CONSTANTS & CONFIG
 from utils.constants import (
     ADV_COL, CLIENTS, EXCLUDE_SERVICE_TYPES, ARENA_LOCATIONS,
-    NEXA_LOCATIONS, BS_SERVICE_TYPES, MONTH_SORT_ORDER, FY_MONTHS, SERVICE_ACCOUNT
+    NEXA_LOCATIONS, PB_SERVICE_TYPES, MONTH_SORT_ORDER, FY_MONTHS, SERVICE_ACCOUNT
 )
 from config.settings import HIGH_DISC_ALERT, YOY_DECLINE_ALERT, VOR_ALERT_THRESHOLD
+
+PAGE_CAPABILITIES = {
+    "Overview": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Executive": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Cockpit": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Profit & Loss": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Expense Analysis": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Labour": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Parts": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Advisors": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": ["Advisor"]},
+    "Advisor MoM": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": ["Advisor"]},
+    "Discounts": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Leakage Center": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Margin": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Sales Mix": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Locations": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Trends": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Targets": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Reports": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "System Health": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+}
+
 
 # PAGE CONFIG & CSS
 st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Auto LLP MIS v1.0.0-rc1", page_icon="🚗")
@@ -204,7 +226,7 @@ details[open] > summary { color: #0071E3 !important; font-weight: 600; }
 """
 st.markdown(APPLE_CSS, unsafe_allow_html=True)
 
-from utils.constants import PLY, C, LOC_COLORS, WS_COLORS
+from utils.constants import PLY, C, LOC_COLORS, MP_COLORS
 
 # FORMATTERS & UTILS
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
@@ -225,7 +247,7 @@ def classify_location(name, client_config=None):
         first = list(CLIENTS.values())[0]
         if name in first["arena_locations"]: return "Arena"
         if name in first["nexa_locations"]: return "Nexa"
-    return "Other"
+    return "Commercial"
 
 from utils.loaders import load_targets, load_unbilled_sheets, load_raw_worksheet, load_raw_expense, TARGET_COLS
 from services.financial_service import FinancialService
@@ -236,7 +258,7 @@ from services.logger import logger
 from services.error_handler import safe_render
 
 from utils.aggregations import location_summary, advisor_summary, monthly_summary
-from utils.filters import apply_month_filter, apply_location_filter, apply_location_group_filter, apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+from utils.filters import apply_month_filter, apply_location_filter, apply_location_group_filter, apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 
 # DATA LOADING
 from services.logging_service import log_performance
@@ -256,9 +278,9 @@ def load_data(client_config):
     
     # Deterministic DataFrame Cleaning
     from utils.cleaning import clean_dataframe
-    df = clean_dataframe(df, ADV_COL, MONTH_SORT_ORDER, BS_SERVICE_TYPES)
+    df = clean_dataframe(df, ADV_COL, MONTH_SORT_ORDER, PB_SERVICE_TYPES)
 
-    df['Location Group'] = df['Location Name'].apply(lambda x: classify_location(x, client_config))
+    df['Model Group'] = df['Location Name'].apply(lambda x: classify_location(x, client_config))
     
     # Load Expense data
     exp_df = load_raw_expense(sheet_id)
@@ -313,9 +335,10 @@ def build_pairs(selected_months, all_months, month_sort, comparison_mode="YoY"):
             pairs.append((cm, pm, cm_sort))
     return pairs
 
-def render_month_picker(df):
+def render_month_picker(df, page):
+    capabilities = PAGE_CAPABILITIES.get(page, {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True})
     all_months = sorted(df['Month Name'].unique(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))
-    latest_month = [all_months[-1]] if all_months else []
+    default_cp = [all_months[-1]] if all_months else []
 
     # Build preset options
     preset_options = ["Custom", "1M", "3M", "6M"]
@@ -323,14 +346,32 @@ def render_month_picker(df):
         if any(m in fy_month_list for m in all_months):
             preset_options.append(fy_label)
 
-    # Initialize state: only set if missing from session_state
+    # Apply page specific capabilities to session state if visiting for the first time
+    if st.session_state.get(f"last_visited_page") != page:
+        st.session_state.month_preset = capabilities.get("default_period", "3M")
+        st.session_state.last_preset = capabilities.get("default_period", "3M")
+        st.session_state.comparison_mode_radio = "YoY" if capabilities.get("comparison_mode") else "None"
+        
+        preset = capabilities.get("default_period", "3M")
+        if preset == "1M":
+            st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
+        elif preset == "3M":
+            st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+        elif preset == "6M":
+            st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
+        else:
+            fy_list = FY_MONTHS.get(preset, [])
+            st.session_state.selected_months_custom = [m for m in all_months if m in fy_list]
+        st.session_state.last_visited_page = page
+
+    # Initialize state
     if "month_preset" not in st.session_state:
         st.session_state.month_preset = "3M"
         st.session_state.last_preset = "3M"
-        st.session_state.selected_months_custom = latest_month
+        st.session_state.selected_months_custom = default_cp
 
     if "selected_months_custom" not in st.session_state:
-        st.session_state.selected_months_custom = latest_month
+        st.session_state.selected_months_custom = default_cp
     else:
         # On every rerun: filter invalid months, reset to latest if empty
         st.session_state.selected_months_custom = [
@@ -359,6 +400,9 @@ def render_month_picker(df):
     def on_custom_change():
         st.session_state.month_preset = "Custom"
         st.session_state.last_preset = "Custom"
+
+    if not capabilities.get("show_period_filter") and not capabilities.get("show_comparison_filter"):
+        return st.session_state.selected_months_custom, build_pairs(st.session_state.selected_months_custom, all_months, MONTH_SORT_ORDER, "YoY" if st.session_state.get("comparison_mode_radio") == "YoY" else "MoM"), capabilities.get("comparison_mode", False)
 
     st.markdown('<div class="header-bar">', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([0.8, 6.5, 1.7, 1.5])
@@ -404,77 +448,51 @@ def render_month_picker(df):
 
     return selected_months, pairs, comparison_mode
 
+def render_page_header_filters(df, page):
+    capabilities = PAGE_CAPABILITIES.get(page, {})
+    if not capabilities: return df, 0
+    
+    with st.expander("🔍 Page Filters", expanded=False):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            loc_group = st.multiselect("Model Group", ["Arena", "Nexa", "Commercial"], key="filter_model_group")
+            available_locs = sorted(df['Location Name'].dropna().unique().tolist())
+            if loc_group: available_locs = [l for l in available_locs if df[df['Location Name'] == l]['Model Group'].iloc[0] in loc_group]
+            location = st.multiselect("Location", available_locs, key="filter_location")
+        with c2:
+            svc_type = st.multiselect("Service Type", sorted(df['Service Type'].dropna().unique().tolist()), key="filter_svc_type") if capabilities.get("show_service_type_filter") else []
+            advisor = st.multiselect("Advisor", sorted(df[ADV_COL].dropna().unique().tolist()), key="filter_advisor") if "Advisor" in capabilities.get("additional_module_filters", []) else []
+        with c3:
+            mp_pb = st.radio("MP/PB", ["All", "MP", "PB"], horizontal=True, key="filter_mp_pb")
+            if st.button("Reset Filters"):
+                for k in ["filter_model_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb"]:
+                    if k in st.session_state: del st.session_state[k]
+                st.rerun()
+
+    active_count = sum([1 for k in ["filter_model_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb"] if st.session_state.get(k)])
+    d = df
+    if loc_group: d = apply_location_group_filter(d, 'Model Group', loc_group)
+    if location: d = apply_location_filter(d, 'Location Name', location)
+    if svc_type: d = apply_service_type_filter(d, 'Service Type', svc_type)
+    if advisor: d = apply_advisor_filter(d, ADV_COL, advisor)
+    if mp_pb != "All": d = apply_mp_pb_filter(d, 'MP_PB', mp_pb)
+    return d, active_count
+
 def render_global_filters(df):
-    # Read previous filter state for label
-    def _count():
-        n = 0
-        if st.session_state.get("filter_loc_group"): n += 1
-        if st.session_state.get("filter_location"): n += 1
-        if st.session_state.get("filter_svc_type"): n += 1
-        if st.session_state.get("filter_advisor"): n += 1
-        if st.session_state.get("filter_ws_bs", "All") != "All": n += 1
-        return n
-    active_count = _count()
+    active_count = 0
     with st.sidebar:
         st.markdown("---")
-        label = f"### 🔍 Global Filters ({active_count})" if active_count else "### 🔍 Global Filters"
-        st.markdown(label)
-        
-        loc_group = st.multiselect(
-            "Location Group",
-            ["Arena", "Nexa", "Other"],
-            default=[],
-            key="filter_loc_group"
-        )
-
-        available_locs = sorted(df['Location Name'].dropna().unique().tolist())
-        if loc_group:
-            available_locs = [l for l in available_locs if df[df['Location Name'] == l]['Location Group'].iloc[0] in loc_group]
-        location = st.multiselect(
-            "Location",
-            available_locs,
-            default=[],
-            key="filter_location"
-        )
-
-        svc_type = st.multiselect(
-            "Service Type",
-            sorted(df['Service Type'].dropna().unique().tolist()),
-            default=[],
-            key="filter_svc_type"
-        )
-
-        advisor = st.multiselect(
-            "Advisor",
-            sorted(df[ADV_COL].dropna().unique().tolist()),
-            default=[],
-            key="filter_advisor"
-        )
-
-        ws_bs = st.radio(
-            "WS/BS",
-            ["All", "WS", "BS"],
-            horizontal=True,
-            key="filter_ws_bs"
-        )
-        
+        st.markdown("### 🔍 Global Filters")
+        st.markdown("Use filters above specific charts to narrow down data.")
         st.markdown("---")
         st.markdown("### ⚙ Actions")
         if st.button("🧹 Reset All", use_container_width=True, key="clear_filters"):
-            for key in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_ws_bs"]:
+            for key in ["filter_model_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()
 
-    # Apply filters
-    d = df
-    d = apply_location_group_filter(d, 'Location Group', loc_group)
-    d = apply_location_filter(d, 'Location Name', location)
-    d = apply_service_type_filter(d, 'Service Type', svc_type)
-    d = apply_advisor_filter(d, ADV_COL, advisor)
-    d = apply_ws_bs_filter(d, 'WS_BS', ws_bs)
-    
-    return d, active_count
+    return df, active_count
 
 # TABS
 
@@ -771,12 +789,9 @@ def main():
         return
 
     # ── Month picker & filters ─────────────────────────────────────
-    if st.session_state.get("current_page") != "Internal Audit":
-        selected_months, pairs, comparison_mode = render_month_picker(df)
-        df_filtered, active_filter_count = render_global_filters(df)
-    else:
-        selected_months, pairs, comparison_mode = [], [], False
-        df_filtered, active_filter_count = df, 0
+    selected_months, pairs, comparison_mode = render_month_picker(df, st.session_state.get('current_page'))
+    df_filtered, active_filter_count = render_global_filters(df)
+    df_filtered, page_active_count = render_page_header_filters(df_filtered, st.session_state.get('current_page'))
 
     # ── Prepare data for tabs with comparison support ───────────────
     # For tabs that need comparison (YoY/MoM), include both CP and PP months

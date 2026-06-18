@@ -43,10 +43,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS
+from utils.constants import ADV_COL, MP_COLORS
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi

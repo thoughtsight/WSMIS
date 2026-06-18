@@ -181,7 +181,7 @@ def load_contacts(sheet_id: str) -> Tuple[List[Any], Dict[str, str], Dict[str, s
 
     return contacts, loc_map, wc_map, sort_map
 
-TARGET_TAB = "WS_BS_Targets"
+TARGET_TAB = "MP_PB_Targets"
 TARGET_COLS = ["Month Name","Location Name",
                "WS_Labour_Target","BS_Labour_Target",
                "WS_Parts_Target","BS_Parts_Target"]

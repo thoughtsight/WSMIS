@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict
 
-def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, int], bs_service_types: List[str]) -> pd.DataFrame:
+def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, int], pb_service_types: List[str]) -> pd.DataFrame:
     """
     Applies deterministic structural cleaning to the raw DataFrame.
     """
@@ -55,11 +55,13 @@ def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, 
         df['Lab_per_100_Parts']= df['Net_Labour'] / df['Net_Parts'].replace(0,np.nan) * 100
         
     if 'Month Name' in df.columns:
+        df['Month Name'] = df['Month Name'].apply(lambda x: __import__('datetime').datetime.strptime(x, "%b-%y").strftime("%B-%Y") if isinstance(x, str) and '-' in x else x)
+
         sorted_months = sorted(month_sort_order.keys(), key=lambda k: month_sort_order[k])
         df['Month Name'] = pd.Categorical(df['Month Name'], categories=sorted_months, ordered=True)
         df['Month_Sort'] = df['Month Name'].map(month_sort_order).fillna(99).astype(int)
         
     if 'Service Type' in df.columns:
-        df['WS_BS']          = df['Service Type'].apply(lambda x: 'BS' if x in bs_service_types else 'WS')
+        df['MP_PB']          = df['Service Type'].apply(lambda x: 'PB' if x in pb_service_types else 'MP')
 
     return df

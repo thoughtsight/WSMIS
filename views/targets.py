@@ -43,10 +43,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS, C
+from utils.constants import ADV_COL, MP_COLORS, C
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -79,9 +79,9 @@ def render(df_act, targets_df, pairs):
         return
 
     # aggregate actuals by location + ws/bs
-    ws_act = act[act["WS_BS"]=="WS"].groupby("Location Name", dropna=False).agg(
+    ws_act = act[act["MP_PB"]=="MP"].groupby("Location Name", dropna=False).agg(
         WS_Lab=("Net_Labour","sum"), WS_Pts=("Net_Parts","sum")).reset_index()
-    bs_act = act[act["WS_BS"]=="BS"].groupby("Location Name", dropna=False).agg(
+    bs_act = act[act["MP_PB"]=="PB"].groupby("Location Name", dropna=False).agg(
         BS_Lab=("Net_Labour","sum"), BS_Pts=("Net_Parts","sum")).reset_index()
 
     # aggregate targets
@@ -96,7 +96,7 @@ def render(df_act, targets_df, pairs):
                   .merge(bs_act, on="Location Name", how="left").fillna(0)
 
     if merged.empty:
-        st.info("No target data found for the selected period. Please check the WS_BS_Targets sheet.")
+        st.info("No target data found for the selected period. Please check the MP_PB_Targets sheet.")
         return
 
     def ach(act_v, tgt_v):

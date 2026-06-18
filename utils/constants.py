@@ -20,32 +20,32 @@ ARENA_LOCATIONS = {"ALPR","Bhavra","DN","Dhar","Dharam","GBS","Jobat","MG",
                    "Rajgarh","Simrol","Arvindo","SOW(A)","Rajod","Bagh",
                    "GANDHWANI-3S(RO)","PORT BLAIR"}
 NEXA_LOCATIONS = {"Palda","FT","NSD","SOW(N)"}
-BS_SERVICE_TYPES = {"BR"}
+PB_SERVICE_TYPES = {"BR"}
 
 # Month order and Financial Year mappings
 MONTH_SORT_ORDER = {
     # FY 24-25
-    "Jan-24":1,"Feb-24":2,"Mar-24":3,"Apr-24":4,"May-24":5,"Jun-24":6,
-    "Jul-24":7,"Aug-24":8,"Sep-24":9,"Oct-24":10,"Nov-24":11,"Dec-24":12,
+    "January-2024":1,"February-2024":2,"March-2024":3,"April-2024":4,"May-2024":5,"June-2024":6,
+    "July-2024":7,"August-2024":8,"September-2024":9,"October-2024":10,"November-2024":11,"December-2024":12,
     # FY 25-26
-    "Jan-25":13,"Feb-25":14,"Mar-25":15,"Apr-25":16,"May-25":17,"Jun-25":18,
-    "Jul-25":19,"Aug-25":20,"Sep-25":21,"Oct-25":22,"Nov-25":23,"Dec-25":24,
+    "January-2025":13,"February-2025":14,"March-2025":15,"April-2025":16,"May-2025":17,"June-2025":18,
+    "July-2025":19,"August-2025":20,"September-2025":21,"October-2025":22,"November-2025":23,"December-2025":24,
     # FY 26-27
-    "Jan-26":25,"Feb-26":26,"Mar-26":27,"Apr-26":28,"May-26":29,"Jun-26":30,
-    "Jul-26":31,"Aug-26":32,"Sep-26":33,"Oct-26":34,"Nov-26":35,"Dec-26":36,
+    "January-2026":25,"February-2026":26,"March-2026":27,"April-2026":28,"May-2026":29,"June-2026":30,
+    "July-2026":31,"August-2026":32,"September-2026":33,"October-2026":34,"November-2026":35,"December-2026":36,
     # FY 27-28
-    "Jan-27":37,"Feb-27":38,"Mar-27":39,"Apr-27":40,"May-27":41,"Jun-27":42,
-    "Jul-27":43,"Aug-27":44,"Sep-27":45,"Oct-27":46,"Nov-27":47,"Dec-27":48,
+    "January-2027":37,"February-2027":38,"March-2027":39,"April-2027":40,"May-2027":41,"June-2027":42,
+    "July-2027":43,"August-2027":44,"September-2027":45,"October-2027":46,"November-2027":47,"December-2027":48,
     # FY 28-29
-    "Jan-28":49,"Feb-28":50,"Mar-28":51,"Apr-28":52,"May-28":53,"Jun-28":54,
-    "Jul-28":55,"Aug-28":56,"Sep-28":57,"Oct-28":58,"Nov-28":59,"Dec-28":60,
+    "January-2028":49,"February-2028":50,"March-2028":51,"April-2028":52,"May-2028":53,"June-2028":54,
+    "July-2028":55,"August-2028":56,"September-2028":57,"October-2028":58,"November-2028":59,"December-2028":60,
 }
 
 FY_MONTHS = {
-    "FY 24-25": ["Apr-24","May-24","Jun-24","Jul-24","Aug-24","Sep-24","Oct-24","Nov-24","Dec-24","Jan-25","Feb-25","Mar-25"],
-    "FY 25-26": ["Apr-25","May-25","Jun-25","Jul-25","Aug-25","Sep-25","Oct-25","Nov-25","Dec-25","Jan-26","Feb-26","Mar-26"],
-    "FY 26-27": ["Apr-26","May-26","Jun-26","Jul-26","Aug-26","Sep-26","Oct-26","Nov-26","Dec-26","Jan-27","Feb-27","Mar-27"],
-    "FY 27-28": ["Apr-27","May-27","Jun-27","Jul-27","Aug-27","Sep-27","Oct-27","Nov-27","Dec-27","Jan-28","Feb-28","Mar-28"],
+    "FY 24-25": ["April-2024","May-2024","June-2024","July-2024","August-2024","September-2024","October-2024","November-2024","December-2024","January-2025","February-2025","March-2025"],
+    "FY 25-26": ["April-2025","May-2025","June-2025","July-2025","August-2025","September-2025","October-2025","November-2025","December-2025","January-2026","February-2026","March-2026"],
+    "FY 26-27": ["April-2026","May-2026","June-2026","July-2026","August-2026","September-2026","October-2026","November-2026","December-2026","January-2027","February-2027","March-2027"],
+    "FY 27-28": ["April-2027","May-2027","June-2027","July-2027","August-2027","September-2027","October-2027","November-2027","December-2027","January-2028","February-2028","March-2028"],
 }
 
 SERVICE_ACCOUNT = "service_account.json"
@@ -69,4 +69,4 @@ PLY = dict(
 C = {"primary":"#0071E3", "green":"#34C759", "red":"#FF3B30", "orange":"#FF9500",
      "gray":"#8E8E93", "gold":"#C8860A", "purple":"#AF52DE", "pink":"#FF2D55", "teal":"#5AC8FA"}
 LOC_COLORS = {"Arena": "#0071E3", "Nexa": "#34C759", "Other": "#8E8E93"}
-WS_COLORS  = {"WS": "#0071E3", "BS": "#FF9500"}
+MP_COLORS  = {"MP": "#0071E3", "PB": "#FF9500"}

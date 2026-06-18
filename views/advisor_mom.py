@@ -43,10 +43,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS, C
+from utils.constants import ADV_COL, MP_COLORS, C
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -76,21 +76,18 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.warning("No advisors with 5+ JCs in the selected period.")
         return
 
-    c1, c2, c3 = st.columns([2, 2, 2])
-    with c1:
-        sel_adv = st.selectbox("Select Advisor", valid_advisors, key="mom_sel_adv")
+    c1, c2, c3 = st.columns([1, 2, 1])
     with c2:
-        adv_locs = sorted(cp[cp[ADV_COL] == sel_adv]["Location Name"].dropna().unique().tolist())
-        sel_locs = st.multiselect("Locations", adv_locs, default=adv_locs, key="mom_sel_locs")
-    with c3:
         metric = st.radio("Metric", ["Net Labour", "Net Parts", "Discount%", "Oil Qty"], horizontal=True, key="mom_metric")
 
-    if not sel_locs:
-        st.info("Please select at least one location.")
+    selected_advs = st.session_state.get("filter_advisor", [])
+    if len(selected_advs) != 1:
+        st.info("Please select exactly **one Advisor** from the Page Filters above to view the Advisor MoM report.")
         return
-
-    adv_data = cp[(cp[ADV_COL] == sel_adv) & (cp["Location Name"].isin(sel_locs))]
-    all_adv_data = cp[cp["Location Name"].isin(sel_locs)]
+        
+    sel_adv = selected_advs[0]
+    adv_data = cp[(cp[ADV_COL] == sel_adv)]
+    all_adv_data = cp
 
     metric_col = {"Net Labour": "Net_Labour", "Net Parts": "Net_Parts", "Oil Qty": "Oil_Sale_Qty"}.get(metric, "Net_Labour")
 

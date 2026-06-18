@@ -38,8 +38,8 @@ from utils.aggregations import (
 from utils.filters import apply_month_filter
 from utils.constants import (
     ADV_COL, CLIENTS, EXCLUDE_SERVICE_TYPES, ARENA_LOCATIONS,
-    NEXA_LOCATIONS, BS_SERVICE_TYPES, MONTH_SORT_ORDER, FY_MONTHS, SERVICE_ACCOUNT,
-    WS_COLORS
+    NEXA_LOCATIONS, PB_SERVICE_TYPES, MONTH_SORT_ORDER, FY_MONTHS, SERVICE_ACCOUNT,
+    MP_COLORS
 )
 
 # Import shared UI helpers from app
@@ -255,13 +255,13 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     # ── WS vs BS Split ───────────────────────────────────────────
     with c2:
         st.markdown('<div class="section-card"><div class="section-title">⚖️ WS vs BS Split</div>', unsafe_allow_html=True)
-        wbs_data = cp.groupby("WS_BS", as_index=False, dropna=False).agg(
+        wbs_data = cp.groupby("MP_PB", as_index=False, dropna=False).agg(
             Labour=("Net_Labour", "sum"), Parts=("Net_Parts", "sum")
-        ).rename(columns={"WS_BS": "Type"})
+        ).rename(columns={"MP_PB": "Type"})
         wbs_data["Revenue"] = wbs_data["Labour"] + wbs_data["Parts"]
         if not wbs_data.empty:
             fig = px.pie(wbs_data, values="Revenue", names="Type", hole=0.6,
-                         color="Type", color_discrete_map=WS_COLORS)
+                         color="Type", color_discrete_map=MP_COLORS)
             fig.update_traces(texttemplate="%{label}<br><b>%{percent}</b>",
                               hovertemplate="<b>%{label}</b><br>Revenue: ₹%{value:,.0f}<br>Share: %{percent}<extra></extra>")
             apply_chart(fig, "Revenue Split", 280)
@@ -325,7 +325,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         M=("Total Margin","sum"),
         DL=("Labour Discount","sum"),
         PL=("Pre-GST Labour","sum"),
-        Grp=("Location Group", "first")
+        Grp=("Model Group", "first")
     ).reset_index()
     loc_pp = location_summary(pp, as_index=True)["Net_Labour"].sum().reset_index()
     loc_pp.columns = ["Location Name", "PP_NL"]

@@ -38,10 +38,10 @@ def create_synthetic_data(n=500):
 
         data.append({
             'Location Name': loc,
-            'Location Group': 'Arena' if loc in ['ALPR', 'Palda', 'Dhar'] else 'Nexa',
+            'Model Group': 'Arena' if loc in ['ALPR', 'Palda', 'Dhar'] else 'Nexa',
             'Advisior Name': adv,
             'Service Type': rng.choice(['PMS', 'FR', 'BR']),
-            'WS_BS': rng.choice(['WS', 'BS']),
+            'MP_PB': rng.choice(['MP', 'PB']),
             'Month Name': month,
             'Month_Sort': month_sort[month],
             'JC_Nos.': jcs,

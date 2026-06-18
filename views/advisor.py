@@ -43,10 +43,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS, LOC_COLORS, PLY
+from utils.constants import ADV_COL, MP_COLORS, LOC_COLORS, PLY
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -75,7 +75,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         PL=("Pre-GST Labour","sum"),
         Loc=("Location Name", lambda x: ", ".join(sorted(x.unique())) if len(x.unique()) > 1 else x.iloc[0]),
         Loc_Count=("Location Name", "nunique"),
-        Grp=("Location Group", "first")
+        Grp=("Model Group", "first")
     )
     
     # Filter by min JCs
@@ -167,9 +167,15 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     
     # Advisor drill-down
     st.markdown('<div class="section-card"><div class="section-title">🔍 Advisor Drill-Down</div>', unsafe_allow_html=True)
-    sel_adv = st.selectbox("Select Advisor", sorted(aa[ADV_COL].unique()), key="scorecard_drill")
     
-    adv_data = cp[cp[ADV_COL] == sel_adv]
+    selected_advs = st.session_state.get("filter_advisor", [])
+    if len(selected_advs) == 1:
+        sel_adv = selected_advs[0]
+        adv_data = cp[cp[ADV_COL] == sel_adv]
+    else:
+        st.info("Select exactly **one Advisor** from the Page Filters above to view the drill-down chart.")
+        adv_data = pd.DataFrame()
+        
     if not adv_data.empty:
         adv_monthly = monthly_summary(adv_data, as_index=True).agg(
             JCs=("JC_Nos.","sum"),

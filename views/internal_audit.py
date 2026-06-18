@@ -43,10 +43,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS
+from utils.constants import ADV_COL, MP_COLORS
 from config.settings import LABOUR_DISC_BENCH, PARTS_DISC_BENCH, HIGH_DISC_ALERT, DISC_CONCERN_PCT
 
 # Import shared UI helpers from app
@@ -435,22 +435,7 @@ def render(df_jctat, client_config, cp=None):
                 report_data = app.get_cached_audit_data()
                 miss_df_raw = report_data["missed"]
 
-                # ── Compact filter row — one line, no heading ──
-                all_months    = sorted([str(m) for m in miss_df_raw['_month'].dropna().unique()], reverse=True)
-                default_month = [all_months[0]] if all_months else []
-
-                f1, f2, f3, f4 = st.columns(4)
-                with f1:
-                    sel_months = st.multiselect("📅 Month", options=all_months, default=default_month, label_visibility="collapsed", placeholder="Month(s)")
-                with f2:
-                    loc_opts = sorted(miss_df_raw['Location'].dropna().unique()) if 'Location' in miss_df_raw.columns else []
-                    sel_locs = st.multiselect("📍 Location", options=loc_opts, label_visibility="collapsed", placeholder="Location(s)")
-                with f3:
-                    adv_opts = sorted(miss_df_raw['Advisor Name'].dropna().unique()) if 'Advisor Name' in miss_df_raw.columns else []
-                    sel_advs = st.multiselect("👤 Advisor", options=adv_opts, label_visibility="collapsed", placeholder="Advisor(s)")
-                with f4:
-                    svc_opts = sorted(miss_df_raw['Service Type'].dropna().unique()) if 'Service Type' in miss_df_raw.columns else []
-                    sel_svcs = st.multiselect("🔧 Service", options=svc_opts, label_visibility="collapsed", placeholder="Service Type(s)")
+                # Internal Audit now inherits Month, Location, Advisor, and Service filters from the Global/Module level.
 
                 # ── Advanced filters — collapsed by default; methodology hidden here ──
                 with st.expander("⚙️ Advanced Filters", expanded=False):
@@ -458,16 +443,21 @@ def render(df_jctat, client_config, cp=None):
                     sel_mods = st.multiselect("Model", options=mod_opts)
                     st.caption("ℹ️ Revenue loss is calculated using average billed labour for the same model and service at the same location and month.")
 
-                # ── Apply Filters ──
+                # ── Apply Advanced & Global Filters ──
                 miss_df = miss_df_raw.copy()
-                if sel_months:
-                    miss_df = miss_df[miss_df['_month'].astype(str).isin(sel_months)]
-                if sel_locs:
-                    miss_df = miss_df[miss_df['Location'].isin(sel_locs)]
-                if sel_advs:
-                    miss_df = miss_df[miss_df['Advisor Name'].isin(sel_advs)]
-                if sel_svcs and 'Service Type' in miss_df.columns:
-                    miss_df = miss_df[miss_df['Service Type'].isin(sel_svcs)]
+                
+                # Apply Global/Module Filters
+                if st.session_state.get('filter_model_group'):
+                    miss_df = miss_df[miss_df['Location'].apply(lambda x: app.classify_location(x, client_config) if x else None).isin(st.session_state['filter_model_group'])]
+                if st.session_state.get('filter_location'):
+                    miss_df = miss_df[miss_df['Location'].isin(st.session_state['filter_location'])]
+                if st.session_state.get('filter_advisor'):
+                    miss_df = miss_df[miss_df['Advisor Name'].isin(st.session_state['filter_advisor'])]
+                if st.session_state.get('filter_svc_type') and 'Service Type' in miss_df.columns:
+                    miss_df = miss_df[miss_df['Service Type'].isin(st.session_state['filter_svc_type'])]
+                if st.session_state.get('selected_months_custom'):
+                    miss_df = miss_df[miss_df['_month'].astype(str).isin(st.session_state['selected_months_custom'])]
+
                 if sel_mods and 'Model' in miss_df.columns:
                     miss_df = miss_df[miss_df['Model'].isin(sel_mods)]
 

@@ -43,10 +43,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS, MONTH_SORT_ORDER
+from utils.constants import ADV_COL, MP_COLORS, MONTH_SORT_ORDER
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -140,8 +140,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     oil_jcs = cp[cp["Oil_Sale_Qty"] > 0]["JC_Nos."].count()
     total_jcs = len(cp[cp["JC_Nos."] > 0])
     oil_pen = calc_ratio(oil_jcs, total_jcs, multiplier=100, fill_value=0)
-    ws_jcs = cp[cp["WS_BS"] == "WS"]["JC_Nos."].sum()
-    bs_jcs = cp[cp["WS_BS"] == "BS"]["JC_Nos."].sum()
+    ws_jcs = cp[cp["MP_PB"] == "MP"]["JC_Nos."].sum()
+    bs_jcs = cp[cp["MP_PB"] == "PB"]["JC_Nos."].sum()
     ws_ratio = calc_ratio(ws_jcs, ws_jcs + bs_jcs, multiplier=100, fill_value=0)
 
     with kpi1:

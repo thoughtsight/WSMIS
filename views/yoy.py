@@ -43,10 +43,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS, C, PLY
+from utils.constants import ADV_COL, MP_COLORS, C, PLY
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -82,9 +82,9 @@ def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, sele
     with c[0]: kpi(f"CP {title_prefix}", fmt_inr(cp_val))
     with c[1]: kpi(f"PP {title_prefix}", fmt_inr(pp_val))
     with c[2]: kpi(f"Overall {mode_str}", growth_label, cp=cp_val, pp=pp_val)
-    ws_bs_sums = cp.groupby("WS_BS")[val_col].sum()
-    with c[3]: kpi("WS CP", fmt_inr(ws_bs_sums.get("WS", 0)))
-    with c[4]: kpi("BS CP", fmt_inr(ws_bs_sums.get("BS", 0)))
+    mp_pb_sums = cp.groupby("MP_PB")[val_col].sum()
+    with c[3]: kpi("WS CP", fmt_inr(mp_pb_sums.get("MP", 0)))
+    with c[4]: kpi("BS CP", fmt_inr(mp_pb_sums.get("PB", 0)))
     with c[5]: kpi(f"Best: {best_loc[:13]}", fmt_pct(best_val, True) if best_val else "—")
 
     st.markdown(f'<div class="section-card"><div class="section-title">📊 Location × Month — {title_prefix} {mode_str}</div>', unsafe_allow_html=True)
@@ -160,12 +160,12 @@ def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, sele
         
     c1, c2 = st.columns(2)
     with c1:
-        wbs = cp.groupby(["Month_Sort","Month Name","WS_BS"], as_index=False, dropna=False)[val_col].sum()\
+        wbs = cp.groupby(["Month_Sort","Month Name","MP_PB"], as_index=False, dropna=False)[val_col].sum()\
                  .sort_values("Month_Sort")\
-                 .rename(columns={"WS_BS":"Type","Month Name":"Month",val_col:"Amount (₹)"})
+                 .rename(columns={"MP_PB":"Type","Month Name":"Month",val_col:"Amount (₹)"})
         wbs["Label"] = wbs["Amount (₹)"].apply(fmt_inr_short)
         fig = px.bar(wbs, x="Month", y="Amount (₹)", color="Type",
-                     color_discrete_map={"WS":C["primary"],"BS":C["orange"]},
+                     color_discrete_map={"MP":C["primary"],"PB":C["orange"]},
                      text="Label", barmode="stack")
         apply_chart(fig, f"🏢 {title_prefix} by Type & Month — CP", 340, text_col="Label", bar_text_pos="inside")
         fig.update_traces(

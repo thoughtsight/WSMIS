@@ -2,7 +2,7 @@ import pandas as pd
 from typing import List, Tuple, Optional
 
 def apply_location_group_filter(df: pd.DataFrame, group_col: str, loc_groups: Optional[List[str]]) -> pd.DataFrame:
-    """Filters a DataFrame by Location Group."""
+    """Filters a DataFrame by Model Group."""
     if loc_groups and group_col in df.columns:
         return df[df[group_col].isin(loc_groups)]
     return df
@@ -25,10 +25,10 @@ def apply_advisor_filter(df: pd.DataFrame, adv_col: str, advisors: Optional[List
         return df[df[adv_col].isin(advisors)]
     return df
 
-def apply_ws_bs_filter(df: pd.DataFrame, ws_bs_col: str, ws_bs_val: Optional[str]) -> pd.DataFrame:
+def apply_mp_pb_filter(df: pd.DataFrame, mp_pb_col: str, mp_pb_val: Optional[str]) -> pd.DataFrame:
     """Filters a DataFrame by WS/BS flag."""
-    if ws_bs_val and ws_bs_val != "All" and ws_bs_col in df.columns:
-        return df[df[ws_bs_col] == ws_bs_val]
+    if mp_pb_val and mp_pb_val != "All" and mp_pb_col in df.columns:
+        return df[df[mp_pb_col] == mp_pb_val]
     return df
 
 def apply_month_filter(df: pd.DataFrame, month_col: str, months: Optional[List[str]]) -> pd.DataFrame:

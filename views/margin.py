@@ -44,10 +44,10 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_ws_bs_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, WS_COLORS, PLY, C
+from utils.constants import ADV_COL, MP_COLORS, PLY, C
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -196,8 +196,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.markdown('</div>', unsafe_allow_html=True)
     with c2:
         st.markdown('<div class="section-card"><div class="section-title">⚖️ WS vs BS Margin</div>', unsafe_allow_html=True)
-        wbs = cp.groupby(["Month_Sort", "Month Name", "WS_BS"], as_index=False, dropna=False)["Total Margin"].sum().sort_values("Month_Sort")
-        fig = px.bar(wbs, x="Month Name", y="Total Margin", color="WS_BS", color_discrete_map=WS_COLORS)
+        wbs = cp.groupby(["Month_Sort", "Month Name", "MP_PB"], as_index=False, dropna=False)["Total Margin"].sum().sort_values("Month_Sort")
+        fig = px.bar(wbs, x="Month Name", y="Total Margin", color="MP_PB", color_discrete_map=MP_COLORS)
         fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="", yaxis_title="")
         st.plotly_chart(fig, width='stretch', key="ma_wsbs",
                         config={"displayModeBar": True, "displaylogo": False,

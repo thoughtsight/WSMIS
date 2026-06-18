@@ -271,15 +271,18 @@ def render_month_picker(df, page):
     col_idx += 1
     
     with cols[col_idx]:
-        mode_label = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="comparison_mode_radio")
+        if hasattr(st, "segmented_control"):
+            mode_label = st.segmented_control("Comparison", ["YoY", "MoM"], default="YoY", key="comparison_mode_radio")
+        else:
+            mode_label = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="comparison_mode_radio")
         comparison_mode = (mode_label == "YoY")
     col_idx += 1
     
     if show_svc:
         with cols[col_idx]:
-            svc_type_opts = ["All"] + sorted(df['Service Type'].dropna().unique().tolist())
-            svc_type = st.selectbox("Service Type", svc_type_opts, key="filter_svc_type_single")
-            st.session_state.filter_svc_type = [svc_type] if svc_type != "All" else []
+            svc_type_opts = sorted(df['Service Type'].dropna().unique().tolist())
+            svc_type = st.multiselect("Service Type", svc_type_opts, default=[], key="filter_svc_type_single", placeholder="All")
+            st.session_state.filter_svc_type = svc_type
         col_idx += 1
         
     if show_adv:
@@ -470,8 +473,8 @@ def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, ale
         safe_render(render, df_filtered_full, pairs, alerts, comparison_mode, selected_months)
     elif page == "Labour":
         with st.spinner("Crunching numbers..."):
-            from views.yoy import render
-        safe_render(render, df_filtered_full, pairs, "Net_Labour", "ly", "Labour", comparison_mode, selected_months)
+            from views.labour import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
     elif page == "Parts":
         with st.spinner("Crunching numbers..."):
             from views.yoy import render

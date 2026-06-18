@@ -328,18 +328,14 @@ def render_month_picker(df):
         st.session_state.month_preset = "3M"
         st.session_state.last_preset = "3M"
         st.session_state.selected_months_custom = default_cp
-        st.session_state.user_modified_period = False  # Track if user explicitly changed selection
 
     if "selected_months_custom" not in st.session_state:
         st.session_state.selected_months_custom = default_cp
-        st.session_state.user_modified_period = False
     else:
         # Prevent crash if dataset changed and session state contains invalid months
-        # Only reset if user hasn't explicitly modified the selection
         valid_months = [m for m in st.session_state.selected_months_custom if m in all_months]
         if len(valid_months) != len(st.session_state.selected_months_custom):
-            if not st.session_state.get("user_modified_period", False):
-                st.session_state.selected_months_custom = valid_months if valid_months else default_cp
+            st.session_state.selected_months_custom = valid_months
 
     # Callback for when user clicks a radio button
     def on_preset_change():
@@ -355,13 +351,11 @@ def render_month_picker(df):
                 fy_list = FY_MONTHS.get(preset, [])
                 st.session_state.selected_months_custom = [m for m in all_months if m in fy_list]
         st.session_state.last_preset = preset
-        st.session_state.user_modified_period = True  # User explicitly changed selection
 
     # Callback for when user manually changes the multiselect
     def on_custom_change():
         st.session_state.month_preset = "Custom"
         st.session_state.last_preset = "Custom"
-        st.session_state.user_modified_period = True  # User explicitly changed selection
 
     st.markdown('<div class="header-bar">', unsafe_allow_html=True)
     c1, c2, c3, c4 = st.columns([0.8, 6.5, 1.7, 1.5])
@@ -375,7 +369,7 @@ def render_month_picker(df):
         comparison_mode = (mode_label == "YoY")
     with c4:
         if st.button("🔄 Reset All", width='stretch', key="clear_all"):
-            for key in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_adv", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset", "user_modified_period"]:
+            for key in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_adv", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
                 if key in st.session_state: del st.session_state[key]
             st.rerun()
 

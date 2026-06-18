@@ -315,7 +315,7 @@ def build_pairs(selected_months, all_months, month_sort, comparison_mode="YoY"):
 
 def render_month_picker(df):
     all_months = sorted(df['Month Name'].unique(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))
-    default_cp = all_months[-3:] if len(all_months) >= 3 else all_months
+    latest_month = [all_months[-1]] if all_months else []
 
     # Build preset options
     preset_options = ["Custom", "1M", "3M", "6M"]
@@ -323,19 +323,22 @@ def render_month_picker(df):
         if any(m in fy_month_list for m in all_months):
             preset_options.append(fy_label)
 
-    # Initialize state
+    # Initialize state: only set if missing from session_state
     if "month_preset" not in st.session_state:
         st.session_state.month_preset = "3M"
         st.session_state.last_preset = "3M"
-        st.session_state.selected_months_custom = default_cp
+        st.session_state.selected_months_custom = latest_month
 
     if "selected_months_custom" not in st.session_state:
-        st.session_state.selected_months_custom = default_cp
+        st.session_state.selected_months_custom = latest_month
     else:
-        # Prevent crash if dataset changed and session state contains invalid months
-        valid_months = [m for m in st.session_state.selected_months_custom if m in all_months]
-        if len(valid_months) != len(st.session_state.selected_months_custom):
-            st.session_state.selected_months_custom = valid_months
+        # On every rerun: filter invalid months, reset to latest if empty
+        st.session_state.selected_months_custom = [
+            m for m in st.session_state.selected_months_custom
+            if m in all_months
+        ]
+        if not st.session_state.selected_months_custom:
+            st.session_state.selected_months_custom = latest_month
 
     # Callback for when user clicks a radio button
     def on_preset_change():

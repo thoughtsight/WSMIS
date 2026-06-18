@@ -15,7 +15,7 @@ def dummy_df():
     return pd.DataFrame({
         "Month Name": ["Jan", "Feb", "Mar", "Jan"],
         "Location Name": ["Loc A", "Loc B", "Loc A", "Loc C"],
-        "Model Group": ["Arena", "Nexa", "Arena", "Other"],
+        "Location Group": ["Arena", "Nexa", "Arena", "Other"],
         "Service Type": ["Running Repair", "Bodyshop", "Free Service", "Running Repair"],
         "Advisor": ["Adv 1", "Adv 2", "Adv 1", "Adv 3"],
         "MP_PB": ["MP", "PB", "MP", "MP"],
@@ -36,7 +36,7 @@ def test_apply_location_filter(dummy_df):
     assert res["Value"].sum() == 40
 
 def test_apply_location_group_filter(dummy_df):
-    res = apply_location_group_filter(dummy_df, "Model Group", ["Arena"])
+    res = apply_location_group_filter(dummy_df, "Location Group", ["Arena"])
     assert len(res) == 2
     assert res["Value"].sum() == 40
 

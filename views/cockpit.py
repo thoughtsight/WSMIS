@@ -325,7 +325,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         M=("Total Margin","sum"),
         DL=("Labour Discount","sum"),
         PL=("Pre-GST Labour","sum"),
-        Grp=("Model Group", "first")
+        Grp=("Location Group", "first")
     ).reset_index()
     loc_pp = location_summary(pp, as_index=True)["Net_Labour"].sum().reset_index()
     loc_pp.columns = ["Location Name", "PP_NL"]

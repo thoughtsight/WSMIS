@@ -55,7 +55,7 @@ def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, 
         df['Lab_per_100_Parts']= df['Net_Labour'] / df['Net_Parts'].replace(0,np.nan) * 100
         
     if 'Month Name' in df.columns:
-        df['Month Name'] = df['Month Name'].apply(lambda x: __import__('datetime').datetime.strptime(x, "%b-%y").strftime("%B-%Y") if isinstance(x, str) and '-' in x else x)
+        df['Month Name'] = df['Month Name'].apply(lambda x: __import__('datetime').datetime.strptime(x, "%b-%y").strftime("%b-%Y") if isinstance(x, str) and '-' in x else x)
 
         sorted_months = sorted(month_sort_order.keys(), key=lambda k: month_sort_order[k])
         df['Month Name'] = pd.Categorical(df['Month Name'], categories=sorted_months, ordered=True)

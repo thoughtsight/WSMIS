@@ -75,7 +75,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         PL=("Pre-GST Labour","sum"),
         Loc=("Location Name", lambda x: ", ".join(sorted(x.unique())) if len(x.unique()) > 1 else x.iloc[0]),
         Loc_Count=("Location Name", "nunique"),
-        Grp=("Model Group", "first")
+        Grp=("Location Group", "first")
     )
     
     # Filter by min JCs

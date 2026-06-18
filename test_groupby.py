@@ -4,7 +4,7 @@ import numpy as np
 
 df = pd.DataFrame({
     'Location Name': np.random.choice(['A', 'B', 'C', 'D'], 200000),
-    'Model Group': np.random.choice(['G1', 'G2'], 200000),
+    'Location Group': np.random.choice(['G1', 'G2'], 200000),
     'Pre-GST Labour': np.random.rand(200000),
     'Labour Discount': np.random.rand(200000)
 })

@@ -2,7 +2,7 @@ import pandas as pd
 from typing import List, Tuple, Optional
 
 def apply_location_group_filter(df: pd.DataFrame, group_col: str, loc_groups: Optional[List[str]]) -> pd.DataFrame:
-    """Filters a DataFrame by Model Group."""
+    """Filters a DataFrame by Location Group."""
     if loc_groups and group_col in df.columns:
         return df[df[group_col].isin(loc_groups)]
     return df

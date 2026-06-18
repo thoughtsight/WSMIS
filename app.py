@@ -247,7 +247,7 @@ def classify_location(name, client_config=None):
         first = list(CLIENTS.values())[0]
         if name in first["arena_locations"]: return "Arena"
         if name in first["nexa_locations"]: return "Nexa"
-    return "Commercial"
+    return "Other"
 
 from utils.loaders import load_targets, load_unbilled_sheets, load_raw_worksheet, load_raw_expense, TARGET_COLS
 from services.financial_service import FinancialService
@@ -280,7 +280,7 @@ def load_data(client_config):
     from utils.cleaning import clean_dataframe
     df = clean_dataframe(df, ADV_COL, MONTH_SORT_ORDER, PB_SERVICE_TYPES)
 
-    df['Model Group'] = df['Location Name'].apply(lambda x: classify_location(x, client_config))
+    df['Location Group'] = df['Location Name'].apply(lambda x: classify_location(x, client_config))
     
     # Load Expense data
     exp_df = load_raw_expense(sheet_id)
@@ -455,9 +455,9 @@ def render_page_header_filters(df, page):
     with st.expander("🔍 Page Filters", expanded=False):
         c1, c2, c3 = st.columns(3)
         with c1:
-            loc_group = st.multiselect("Model Group", ["Arena", "Nexa", "Commercial"], key="filter_model_group")
+            loc_group = st.multiselect("Location Group", ["Arena", "Nexa", "Other"], key="filter_loc_group")
             available_locs = sorted(df['Location Name'].dropna().unique().tolist())
-            if loc_group: available_locs = [l for l in available_locs if df[df['Location Name'] == l]['Model Group'].iloc[0] in loc_group]
+            if loc_group: available_locs = [l for l in available_locs if df[df['Location Name'] == l]['Location Group'].iloc[0] in loc_group]
             location = st.multiselect("Location", available_locs, key="filter_location")
         with c2:
             svc_type = st.multiselect("Service Type", sorted(df['Service Type'].dropna().unique().tolist()), key="filter_svc_type") if capabilities.get("show_service_type_filter") else []
@@ -465,13 +465,13 @@ def render_page_header_filters(df, page):
         with c3:
             mp_pb = st.radio("MP/PB", ["All", "MP", "PB"], horizontal=True, key="filter_mp_pb")
             if st.button("Reset Filters"):
-                for k in ["filter_model_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb"]:
+                for k in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb"]:
                     if k in st.session_state: del st.session_state[k]
                 st.rerun()
 
-    active_count = sum([1 for k in ["filter_model_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb"] if st.session_state.get(k)])
+    active_count = sum([1 for k in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb"] if st.session_state.get(k)])
     d = df
-    if loc_group: d = apply_location_group_filter(d, 'Model Group', loc_group)
+    if loc_group: d = apply_location_group_filter(d, 'Location Group', loc_group)
     if location: d = apply_location_filter(d, 'Location Name', location)
     if svc_type: d = apply_service_type_filter(d, 'Service Type', svc_type)
     if advisor: d = apply_advisor_filter(d, ADV_COL, advisor)
@@ -487,7 +487,7 @@ def render_global_filters(df):
         st.markdown("---")
         st.markdown("### ⚙ Actions")
         if st.button("🧹 Reset All", use_container_width=True, key="clear_filters"):
-            for key in ["filter_model_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
+            for key in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
                 if key in st.session_state:
                     del st.session_state[key]
             st.rerun()

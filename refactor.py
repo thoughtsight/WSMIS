@@ -12,7 +12,7 @@ def refactor():
                 content = file.read()
         
         new_content = content.replace('MP_PB', 'MP_PB')
-        new_content = new_content.replace('Model Group', 'Model Group')
+        new_content = new_content.replace('Location Group', 'Location Group')
         new_content = new_content.replace('pb_service_types', 'pb_service_types')
         new_content = new_content.replace('PB_SERVICE_TYPES', 'PB_SERVICE_TYPES')
         new_content = new_content.replace('MP_COLORS', 'MP_COLORS')

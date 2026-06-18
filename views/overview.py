@@ -193,9 +193,9 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
                                 "toImageButtonOptions": {"format":"png","scale":2}})
     with c2:
-        lr = cp.groupby(["Location Name","Model Group"], as_index=False, dropna=False)["Net_Labour"].sum()\
+        lr = cp.groupby(["Location Name","Location Group"], as_index=False, dropna=False)["Net_Labour"].sum()\
                .sort_values("Net_Labour",ascending=True)\
-               .rename(columns={"Net_Labour":"Net Labour (₹)","Location Name":"Location","Model Group":"Group"})
+               .rename(columns={"Net_Labour":"Net Labour (₹)","Location Name":"Location","Location Group":"Group"})
         lr["Label"] = lr["Net Labour (₹)"].apply(fmt_inr_short)
         fig = px.bar(lr, x="Net Labour (₹)", y="Location", color="Group", orientation="h",
                      color_discrete_map=LOC_COLORS, text="Label")

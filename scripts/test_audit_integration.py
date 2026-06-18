@@ -38,7 +38,7 @@ def create_synthetic_data(n=500):
 
         data.append({
             'Location Name': loc,
-            'Model Group': 'Arena' if loc in ['ALPR', 'Palda', 'Dhar'] else 'Nexa',
+            'Location Group': 'Arena' if loc in ['ALPR', 'Palda', 'Dhar'] else 'Nexa',
             'Advisior Name': adv,
             'Service Type': rng.choice(['PMS', 'FR', 'BR']),
             'MP_PB': rng.choice(['MP', 'PB']),

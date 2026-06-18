@@ -46,7 +46,8 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, MP_COLORS, C, PLY
+from utils.constants import ADV_COL, MP_COLORS, C, PLY, MONTH_SORT_ORDER
+from sklearn.linear_model import LinearRegression
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -56,7 +57,11 @@ from ui.helpers import apply_chart, clean_hover, _render_finding
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    if df.empty: return
+    with st.spinner("Loading Trends..."): pass
+    if df.empty:
+        from ui.components.core import EmptyState
+        EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
+        return
     
     # Auto Insights
     c1, c2 = st.columns([3, 7])

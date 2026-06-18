@@ -53,7 +53,10 @@ from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Advisor Scorecard..."):
-        if df.empty: return
+        if df.empty:
+            from ui.components.core import EmptyState
+            EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
+            return
     # df is already filtered by selected_months at main level, use it directly for current period
     cp = df.copy()
     

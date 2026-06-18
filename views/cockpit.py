@@ -54,7 +54,10 @@ from ui.components import PageHeader, KPIGrid, AlertBanner, ChartCard
 
 def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     with st.spinner("Loading Cockpit..."):
-        if df.empty: return
+        if df.empty:
+            from ui.components.core import EmptyState
+            EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
+            return
 
     cp_months = [p[0] for p in pairs]
     pp_months = [p[1] for p in pairs]

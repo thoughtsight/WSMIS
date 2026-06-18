@@ -147,6 +147,7 @@ def _render_docx_download(markdown: str, filename: str = "audit_intelligence_rep
 
 
 def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
+    with st.spinner("Loading Audit Intelligence..."): pass
     st.markdown('<div class="section-card"><div class="section-title">🧠 Audit Intelligence</div>', unsafe_allow_html=True)
 
     if df is None or df.empty:

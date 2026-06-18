@@ -46,7 +46,8 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, MP_COLORS, C
+from utils.constants import ADV_COL, MP_COLORS, C, MONTH_SORT_ORDER
+from utils.loaders import TARGET_TAB
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -56,7 +57,11 @@ from ui.helpers import apply_chart, clean_hover, _render_finding, csv_btn
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df_act, targets_df, pairs):
-    if df_act.empty: return
+    with st.spinner("Loading Targets..."): pass
+    if df_act.empty:
+        from ui.components.core import EmptyState
+        EmptyState("No data available.")
+        return
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     if targets_df.empty:
         st.info(

@@ -53,7 +53,11 @@ from utils.constants import ADV_COL, MP_COLORS, PLY, C
 from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    if df.empty: return
+    with st.spinner("Loading Margin..."): pass
+    if df.empty:
+        from ui.components.core import EmptyState
+        EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
+        return
     # df is already filtered by selected_months at main level, use it directly for current period
     cp = df.copy()
     

@@ -58,7 +58,10 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Reports..."):
-        if df.empty: return
+        if df.empty:
+            from ui.components.core import EmptyState
+            EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
+            return
     pp_months = [p[1] for p in pairs]
     # df is already filtered by selected_months at main level, use it directly for current period
     cp = df.copy()

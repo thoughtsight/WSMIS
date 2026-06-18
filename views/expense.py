@@ -57,6 +57,7 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(exp_df, selected_months):
     """Expense Analysis Executive Dashboard - uses EXP worksheet."""
+    with st.spinner("Loading Expense..."): pass
     import streamlit.components.v1 as components
     import exp_report
 

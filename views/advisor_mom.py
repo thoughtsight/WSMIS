@@ -52,7 +52,11 @@ from utils.constants import ADV_COL, MP_COLORS, C
 from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    if df.empty: return
+    with st.spinner("Loading Advisor Mom..."): pass
+    if df.empty:
+        from ui.components.core import EmptyState
+        EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
+        return
     pp_months = [p[1] for p in pairs]
     # df is already filtered by selected_months at main level, use it directly for current period
     cp = df.copy()
@@ -174,6 +178,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     # 3.5 — MoM delta table
     st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     PageHeader("Advisor MoM Delta Table", icon="📋")
+    sel_locs = adv_data["Location Name"].unique().tolist()
     all_adv_monthly = cp[cp["Location Name"].isin(sel_locs)].groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
         JCs=("JC_Nos.","sum"), NL=("Net_Labour","sum"), DL=("Labour Discount","sum"), PL=("Pre-GST Labour","sum")
     ).sort_values([ADV_COL, "Month_Sort"])

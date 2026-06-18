@@ -57,7 +57,8 @@ def get_test_count():
         return "Not available"
 
 def render(df_full, exp_df):
-    st.markdown('<div class="brand-title" style="margin-bottom:20px;">⚙️ Operations & Diagnostics Dashboard</div>', unsafe_allow_html=True)
+    with st.spinner("Loading System Health..."): pass
+    st.markdown('<div class="section-title">🩺 System Health & Diagnostics</div>', unsafe_allow_html=True)
     
     metrics, data_metrics, health_status = check_health(df_full, exp_df)
     

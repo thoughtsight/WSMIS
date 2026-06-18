@@ -57,7 +57,10 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, selected_months=None):
     with st.spinner(f"Computing {title_prefix}..."):
-        if df.empty: return
+        if df.empty:
+            from ui.components.core import EmptyState
+            EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
+            return
     cp_months = [p[0] for p in pairs]
     pp_months = [p[1] for p in pairs]
     # df contains both CP and PP months, filter appropriately

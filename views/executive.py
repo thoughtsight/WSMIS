@@ -52,7 +52,11 @@ from utils.constants import ADV_COL, MP_COLORS, MONTH_SORT_ORDER
 from ui.components import PageHeader, KPIGrid, AlertBanner
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    if df.empty: return
+    with st.spinner("Loading Executive..."): pass
+    if df.empty:
+        from ui.components.core import EmptyState
+        EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
+        return
     pp_months = [p[1] for p in pairs]
     # df is already filtered by selected_months at main level, use it directly for current period
     cp = df.copy()
@@ -288,4 +292,3 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         except Exception as e:
             st.warning(f"AI enhancement unavailable: {e}. Showing rule-based summary.")
 
-    st.markdown('</div>', unsafe_allow_html=True)

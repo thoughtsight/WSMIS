@@ -64,7 +64,6 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     cp = apply_month_filter(df, "Month Name", cp_months)
     pp = apply_month_filter(df, "Month Name", pp_months)
     
-    render_neg_labour_alert(cp)
 
     def s(d, c): return d[c].sum() if not d.empty else 0
 
@@ -112,33 +111,33 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     jc_color = get_color(jc_score, 20)
     alert_color = get_color(alert_score, 10)
 
-    bhs_html = f"""<div class="kpi-card" style="background:#fff; border-radius:12px; padding:16px 24px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); display:flex; align-items:center; gap:32px; margin-bottom:16px;">
-    <div style="text-align:center; min-width:140px;">
-        <div style="font-size:13px; color:#6E6E73; font-weight:500; margin-bottom:8px;">Workshop Health</div>
-        <div style="font-size:48px; font-weight:700; color:{bhs_color}; line-height:1;">{bhs}</div>
-        <div style="font-size:14px; font-weight:600; color:{bhs_color}; margin-top:8px;">{bhs_icon} {bhs_label}</div>
+    bhs_html = f"""<div class="kpi-card" style="background:#fff; border-radius:12px; padding:12px 20px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); display:flex; align-items:center; gap:24px; margin-bottom:12px;">
+    <div style="text-align:center; min-width:120px;">
+        <div style="font-size:12px; color:#6E6E73; font-weight:500; margin-bottom:2px;">Workshop Health</div>
+        <div style="font-size:36px; font-weight:700; color:{bhs_color}; line-height:1;">{bhs}</div>
+        <div style="font-size:13px; font-weight:600; color:{bhs_color}; margin-top:4px;">{bhs_icon} {bhs_label}</div>
     </div>
-    <div style="width:1px; height:80px; background:#e5e5ea;"></div>
+    <div style="width:1px; height:50px; background:#e5e5ea;"></div>
     <div style="flex-grow:1; display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px;">
         <div>
-            <div style="font-size:12px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Revenue Growth</div>
-            <div style="font-size:18px; font-weight:600; color:#1d1d1f; margin-top:4px;">{rev_growth_pct:+.1f}%</div>
-            <div style="font-size:13px; font-weight:500; color:{rev_color}; margin-top:4px;">{rev_score} / 35 pts</div>
+            <div style="font-size:11px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Revenue Growth</div>
+            <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-top:2px;">{rev_growth_pct:+.1f}%</div>
+            <div style="font-size:12px; font-weight:500; color:{rev_color}; margin-top:2px;">{rev_score} / 35 pts</div>
         </div>
         <div>
-            <div style="font-size:12px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Labour Discount</div>
-            <div style="font-size:18px; font-weight:600; color:#1d1d1f; margin-top:4px;">{avg_disc:.1f}%</div>
-            <div style="font-size:13px; font-weight:500; color:{disc_color}; margin-top:4px;">{disc_score} / 35 pts</div>
+            <div style="font-size:11px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Labour Discount</div>
+            <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-top:2px;">{avg_disc:.1f}%</div>
+            <div style="font-size:12px; font-weight:500; color:{disc_color}; margin-top:2px;">{disc_score} / 35 pts</div>
         </div>
         <div>
-            <div style="font-size:12px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Volume (JC)</div>
-            <div style="font-size:18px; font-weight:600; color:#1d1d1f; margin-top:4px;">{jc_growth_pct:+.1f}%</div>
-            <div style="font-size:13px; font-weight:500; color:{jc_color}; margin-top:4px;">{jc_score} / 20 pts</div>
+            <div style="font-size:11px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Volume (JC)</div>
+            <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-top:2px;">{jc_growth_pct:+.1f}%</div>
+            <div style="font-size:12px; font-weight:500; color:{jc_color}; margin-top:2px;">{jc_score} / 20 pts</div>
         </div>
         <div>
-            <div style="font-size:12px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Alert Penalty</div>
-            <div style="font-size:18px; font-weight:600; color:#1d1d1f; margin-top:4px;">{red_count_bhs} Critical</div>
-            <div style="font-size:13px; font-weight:500; color:{alert_color}; margin-top:4px;">{alert_score} / 10 pts</div>
+            <div style="font-size:11px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Alert Penalty</div>
+            <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-top:2px;">{red_count_bhs} Critical</div>
+            <div style="font-size:12px; font-weight:500; color:{alert_color}; margin-top:2px;">{alert_score} / 10 pts</div>
         </div>
     </div>
 </div>"""

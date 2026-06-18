@@ -48,6 +48,7 @@ from utils.filters import (
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C, LOC_COLORS
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+from ui.helpers import render_alerts
 
 # Import new Phase B UI Components
 from ui.components import KPIGrid, ChartCard, TableCard

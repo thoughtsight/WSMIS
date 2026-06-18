@@ -87,174 +87,201 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         {"label": "YoY Growth %", "value": fmt_pct(calc_growth_pct(cp_rev, pp_rev, fill_value=0), True), "cp": cp_rev, "pp": pp_rev}
     ])
 
-    # ── Business Health Score ────────────────────────────────────
-    rev_growth_pct = calc_growth_pct(cp_rev, pp_rev, fill_value=0) if pp_rev > 0 else 0
-    jc_growth_pct  = calc_growth_pct(cp_jc, pp_jc, fill_value=0) if pp_jc > 0 else 0
-    red_count_bhs  = sum(1 for sv, _ in alerts if sv == "red") if alerts else 0
-
-    rev_score  = 35 if rev_growth_pct > 5 else (25 if rev_growth_pct >= 0 else (15 if rev_growth_pct >= -5 else 0))
-    disc_score = 35 if avg_disc <= LABOUR_DISC_BENCH else (22 if avg_disc <= 20 else (10 if avg_disc <= HIGH_DISC_ALERT else 0))
-    jc_score   = 20 if jc_growth_pct >= 0 else (12 if jc_growth_pct >= -5 else 0)
-    alert_score = max(0, 10 - red_count_bhs * 5)
-    bhs = rev_score + disc_score + jc_score + alert_score
-
-    if bhs >= 75:   bhs_label, bhs_color, bhs_icon = "Excellent", "#34C759", "🟢"
-    elif bhs >= 55: bhs_label, bhs_color, bhs_icon = "Good",      "#30B0C7", "🟦"
-    elif bhs >= 35: bhs_label, bhs_color, bhs_icon = "Fair",      "#FF9F0A", "🟡"
-    else:           bhs_label, bhs_color, bhs_icon = "Poor",      "#FF3B30", "🔴"
-
-    def get_color(score, max_score):
-        return "#34C759" if score >= max_score * 0.7 else ("#FF9F0A" if score >= max_score * 0.4 else "#FF3B30")
-
-    rev_color = get_color(rev_score, 35)
-    disc_color = get_color(disc_score, 35)
-    jc_color = get_color(jc_score, 20)
-    alert_color = get_color(alert_score, 10)
-
-    bhs_html = f"""<div class="kpi-card" style="background:#fff; border-radius:12px; padding:12px 20px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); display:flex; align-items:center; gap:24px; margin-bottom:12px;">
-    <div style="text-align:center; min-width:120px;">
-        <div style="font-size:12px; color:#6E6E73; font-weight:500; margin-bottom:2px;">Workshop Health</div>
-        <div style="font-size:36px; font-weight:700; color:{bhs_color}; line-height:1;">{bhs}</div>
-        <div style="font-size:13px; font-weight:600; color:{bhs_color}; margin-top:4px;">{bhs_icon} {bhs_label}</div>
-    </div>
-    <div style="width:1px; height:50px; background:#e5e5ea;"></div>
-    <div style="flex-grow:1; display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:16px;">
-        <div>
-            <div style="font-size:11px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Revenue Growth</div>
-            <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-top:2px;">{rev_growth_pct:+.1f}%</div>
-            <div style="font-size:12px; font-weight:500; color:{rev_color}; margin-top:2px;">{rev_score} / 35 pts</div>
-        </div>
-        <div>
-            <div style="font-size:11px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Labour Discount</div>
-            <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-top:2px;">{avg_disc:.1f}%</div>
-            <div style="font-size:12px; font-weight:500; color:{disc_color}; margin-top:2px;">{disc_score} / 35 pts</div>
-        </div>
-        <div>
-            <div style="font-size:11px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Volume (JC)</div>
-            <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-top:2px;">{jc_growth_pct:+.1f}%</div>
-            <div style="font-size:12px; font-weight:500; color:{jc_color}; margin-top:2px;">{jc_score} / 20 pts</div>
-        </div>
-        <div>
-            <div style="font-size:11px; color:#86868b; text-transform:uppercase; letter-spacing:0.5px;">Alert Penalty</div>
-            <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-top:2px;">{red_count_bhs} Critical</div>
-            <div style="font-size:12px; font-weight:500; color:{alert_color}; margin-top:2px;">{alert_score} / 10 pts</div>
+    from datetime import datetime
+    from services.benchmark_provider import DefaultBenchmarkProvider
+    from services.executive_alert_engine import ExecutiveAlertEngine
+    
+    # ── Executive Summary Strip ──────────────────────────────────
+    rev_trend = "↑" if cp_rev >= pp_rev else "↓"
+    mar_trend = "↑" if cp_mar >= pp_mar else "↓"
+    jc_trend = "↑" if cp_jc >= pp_jc else "↓"
+    disc_trend = "↓" if avg_disc <= LABOUR_DISC_BENCH else "↑"
+    
+    engine = ExecutiveAlertEngine(DefaultBenchmarkProvider())
+    structured_alerts = engine.evaluate(cp, pp)
+    critical_count = len(structured_alerts["critical"])
+    
+    exec_strip_html = f"""
+    <div style="background:#fff; border-radius:8px; padding:0 20px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; height:60px;">
+        <div style="font-size:14px; font-weight:600; color:#1d1d1f; display:flex; gap:24px; width:100%; justify-content:space-evenly;">
+            <span>Revenue {rev_trend}</span>
+            <span>Margin {mar_trend}</span>
+            <span>JC Vol {jc_trend}</span>
+            <span>Discount {disc_trend}</span>
         </div>
     </div>
-</div>"""
-    st.markdown(bhs_html.replace('\n', ''), unsafe_allow_html=True)
+    """
+    st.markdown(exec_strip_html.replace('\n', ''), unsafe_allow_html=True)
 
-    # ── Alert Summary ────────────────────────────────────────────
-    if alerts:
-        red_count = sum(1 for s, _ in alerts if s == "red")
-        yellow_count = sum(1 for s, _ in alerts if s == "yellow")
-        blue_count = sum(1 for s, _ in alerts if s == "blue")
-        alert_html = f"""<div style="background:#fff; border-radius:12px; padding:16px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-    <div style="display:flex; flex-direction:column; align-items:center; flex:1; border-right:1px solid #e5e5ea;">
-        <div style="font-size:13px; color:#6E6E73; font-weight:500;">Critical Alerts</div>
-        <div style="font-size:24px; font-weight:700; color:#FF3B30;">🚨 {red_count}</div>
-    </div>
-    <div style="display:flex; flex-direction:column; align-items:center; flex:1; border-right:1px solid #e5e5ea;">
-        <div style="font-size:13px; color:#6E6E73; font-weight:500;">Warning Alerts</div>
-        <div style="font-size:24px; font-weight:700; color:#FF9F0A;">⚠️ {yellow_count}</div>
-    </div>
-    <div style="display:flex; flex-direction:column; align-items:center; flex:1;">
-        <div style="font-size:13px; color:#6E6E73; font-weight:500;">Opportunity Alerts</div>
-        <div style="font-size:24px; font-weight:700; color:#007AFF;">💡 {blue_count}</div>
-    </div>
-</div>"""
-        st.markdown(alert_html.replace('\n', ''), unsafe_allow_html=True)
-    else:
-        st.info("No alerts for this period")
+    # ── Session State for Alert Tab ──────────────────────────────
+    if 'cockpit_alert_tab' not in st.session_state:
+        st.session_state.cockpit_alert_tab = 'critical'
+        
+    def set_alert_tab(tab_name):
+        st.session_state.cockpit_alert_tab = tab_name
 
-    # ── Action Area (Two-Column Layout) ──────────────────────────
-    problems = []
-
-    # Problem 1: High discount locations
-    loc_disc = location_summary(cp, as_index=True).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum"))
-    loc_disc['D%'] = calc_ratio(loc_disc['D'], loc_disc['L'], multiplier=100, fill_value=np.nan)
-    high_disc = loc_disc[loc_disc['D%'] > HIGH_DISC_ALERT].nlargest(1, 'D%')
-    if not high_disc.empty:
-        loc = high_disc.index[0]
-        disc_pct = high_disc.iloc[0]['D%']
-        leak_amt = (disc_pct - LABOUR_DISC_BENCH) / 100 * high_disc.iloc[0]['L'] if disc_pct > LABOUR_DISC_BENCH else 0
-        problems.append(("High Labour Discount", loc, f"₹{leak_amt:,.0f} leakage vs {LABOUR_DISC_BENCH}% benchmark", "Review advisor discounts"))
-
-    # Problem 2: YoY decline locations
-    loc_cp = location_summary(cp, as_index=True)['Net_Labour'].sum()
-    loc_pp = location_summary(pp, as_index=True)['Net_Labour'].sum()
-    yoy_declines = []
-    for loc in loc_cp.index:
-        if loc in loc_pp.index and loc_pp[loc] > 50000:
-            yoy = calc_growth_pct(loc_cp[loc], loc_pp[loc], fill_value=np.nan) if loc_pp[loc] and not np.isnan(loc_pp[loc]) else np.nan
-            if not np.isnan(yoy) and yoy < -YOY_DECLINE_ALERT:
-                yoy_declines.append((loc, yoy, loc_cp[loc]))
-    if yoy_declines:
-        worst_yoy = min(yoy_declines, key=lambda x: x[1])
-        revenue_lost = loc_pp[worst_yoy[0]] - loc_cp[worst_yoy[0]]
-        problems.append(("YoY Revenue Decline", worst_yoy[0], f"{abs(worst_yoy[1]):.1f}% decline | ₹{revenue_lost:,.0f} lost vs PP", "Investigate location performance"))
-
-    # Problem 3: VOR charges
-    vor = get_vor_charges(cp)
-    if vor < -VOR_ALERT_THRESHOLD:
-        problems.append(("Elevated VOR Charges", "Group", f"₹{abs(vor):,.0f} excess stock", "Review parts inventory"))
-
-    opportunities = []
-
-    # A. Discount Recovery Opportunity
-    disc_rec = loc_disc[loc_disc['D%'] > LABOUR_DISC_BENCH].copy()
-    if not disc_rec.empty:
-        total_recovery = ((disc_rec['D%'] - LABOUR_DISC_BENCH) / 100 * disc_rec['L']).sum()
-        if total_recovery > 0:
-            opportunities.append(("Discount Recovery", "Group", f"₹{total_recovery:,.0f} potential", "Group Service Head"))
-
-    # B. Labour/JC Opportunity (below median)
-    loc_lab_jc = location_summary(cp, as_index=True).agg(JCs=("JC_Nos.","sum"), NL=("Net_Labour","sum"))
-    loc_lab_jc['Avg_Lab_JC'] = loc_lab_jc['NL'] / loc_lab_jc['JCs'].replace(0,np.nan)
-    median_lab_jc = loc_lab_jc['Avg_Lab_JC'].median()
-    low_lab_jc = loc_lab_jc[loc_lab_jc['Avg_Lab_JC'] < median_lab_jc]
-    if not low_lab_jc.empty:
-        potential = (median_lab_jc - low_lab_jc['Avg_Lab_JC']) * low_lab_jc['JCs']
-        if potential.sum() > 0:
-            opportunities.append(("Labour/JC Uplift", "Below Median", f"₹{potential.sum():,.0f} potential", "Location Managers"))
-
-    # C. Oil Attach Opportunity
-    loc_oil = location_summary(cp, as_index=True).agg(JCs=("JC_Nos.","sum"), OQ=("Oil_Sale_Qty","sum"))
-    loc_oil['Oil_Attach'] = loc_oil['OQ'] / loc_oil['JCs'].replace(0,np.nan)
-    median_oil = loc_oil['Oil_Attach'].median()
-    low_oil = loc_oil[loc_oil['Oil_Attach'] < median_oil]
-    if not low_oil.empty:
-        potential_qty = (median_oil - low_oil['Oil_Attach']) * low_oil['JCs']
-        if potential_qty.sum() > 0:
-            avg_oil_price = get_oil_sales(cp) / cp['Oil_Sale_Qty'].replace(0, np.nan).sum() if cp['Oil_Sale_Qty'].sum() > 0 else 0
-            oil_opp_value = potential_qty.sum() * avg_oil_price
-            opportunities.append(("Oil Attach Uplift", "Below Median", f"₹{oil_opp_value:,.0f} potential", "Service Advisors"))
-
-    action_cols = st.columns(2)
-    with action_cols[0]:
-        st.markdown("<div style='font-size:16px; font-weight:600; margin-bottom:12px; color:#1d1d1f;'>⚡ Immediate Actions</div>", unsafe_allow_html=True)
-        if problems:
-            for title, loc, impact, action in problems[:3]:
-                html = f'''<div style="background:#fff;border:1px solid #e5e5ea;border-left:4px solid #FF3B30;border-radius:8px;padding:12px;margin-bottom:8px;">
-    <div style="font-weight:600;color:#1d1d1f;font-size:14px;">{title}</div>
-    <div style="color:#6E6E73;font-size:13px;margin-top:4px;">📍 {loc} | 💰 {impact}</div>
-    <div style="color:#FF3B30;font-size:12px;margin-top:4px;font-weight:500;">✅ {action}</div>
-</div>'''
-                st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
+    # ── Executive Alert Center ───────────────────────────────────
+    st.markdown("<div style='margin-bottom:12px;'></div>", unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        st.markdown(f"**🔴 Critical Alerts ({critical_count})**")
+        if structured_alerts['critical']:
+            for i, a in enumerate(structured_alerts['critical']):
+                if i < 3:
+                    st.markdown(f"• {a['rule']}")
+            if critical_count > 3:
+                st.markdown(f"<div style='font-size:12px; color:#6E6E73;'>+ {critical_count - 3} More...</div>", unsafe_allow_html=True)
         else:
-            st.info("No critical problems detected")
+            st.markdown("<div style='font-size:13px; color:#1d1d1f;'>✓ No critical rules triggered.</div>", unsafe_allow_html=True)
+            
+        st.button("View All →", key="btn_crit", on_click=set_alert_tab, args=('critical',), use_container_width=True, type="primary" if st.session_state.cockpit_alert_tab == 'critical' else "secondary")
 
-    with action_cols[1]:
-        st.markdown("<div style='font-size:16px; font-weight:600; margin-bottom:12px; color:#1d1d1f;'>💡 Opportunities</div>", unsafe_allow_html=True)
-        if opportunities:
-            for name, loc, impact, owner in opportunities[:3]:
-                html = f'''<div style="background:#fff;border:1px solid #e5e5ea;border-left:4px solid #007AFF;border-radius:8px;padding:12px;margin-bottom:8px;">
-    <div style="font-weight:600;color:#1d1d1f;font-size:14px;">{name}</div>
-    <div style="color:#6E6E73;font-size:13px;margin-top:4px;">📍 {loc} | 💰 {impact}</div>
-    <div style="color:#007AFF;font-size:12px;margin-top:4px;font-weight:500;">👤 Owner: {owner}</div>
-</div>'''
-                st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
+    with col2:
+        warning_count = len(structured_alerts['warning'])
+        st.markdown(f"**🟡 Warning Alerts ({warning_count})**")
+        if warning_count > 0:
+            for i, a in enumerate(structured_alerts['warning']):
+                if i < 3:
+                    st.markdown(f"• {a['rule']}")
+            if warning_count > 3:
+                st.markdown(f"<div style='font-size:12px; color:#6E6E73;'>+ {warning_count - 3} More...</div>", unsafe_allow_html=True)
         else:
-            st.info("No significant opportunities identified")
+            st.markdown("<div style='font-size:13px; color:#1d1d1f;'>✓ No warning rules triggered.</div><div style='font-size:12px; color:#6E6E73; margin-top:4px;'>All configured warning rules evaluated successfully.</div>", unsafe_allow_html=True)
+            
+        st.button("View All →", key="btn_warn", on_click=set_alert_tab, args=('warning',), use_container_width=True, type="primary" if st.session_state.cockpit_alert_tab == 'warning' else "secondary")
+
+    with col3:
+        opp_count = len(structured_alerts['opportunities'])
+        st.markdown(f"**🔵 Opportunities ({opp_count})**")
+        if opp_count > 0:
+            for i, a in enumerate(structured_alerts['opportunities']):
+                if i < 3:
+                    st.markdown(f"• {a['opportunity']}")
+            if opp_count > 3:
+                st.markdown(f"<div style='font-size:12px; color:#6E6E73;'>+ {opp_count - 3} More...</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div style='font-size:13px; color:#1d1d1f;'>No new opportunities identified.</div>", unsafe_allow_html=True)
+            
+        st.button("View Details →", key="btn_opp", on_click=set_alert_tab, args=('opportunities',), use_container_width=True, type="primary" if st.session_state.cockpit_alert_tab == 'opportunities' else "secondary")
+
+    # ── KPI Explainability ───────────────────────────────────────
+    st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+    with st.expander("🔍 KPI Details & Explainability", expanded=False):
+        kpi_choice = st.selectbox("Select KPI to explain:", ["Total Revenue", "Total Margin", "Total JCs", "Avg Discount %", "YoY Growth %"], label_visibility="collapsed")
+        
+        if kpi_choice == "Total Revenue":
+            ex_def = "Total recognized revenue after discounts and before taxes."
+            ex_form = "Sum(Net_Labour) + Sum(Net_Parts)"
+            ex_curr = fmt_inr(cp_rev)
+            ex_prev = fmt_inr(pp_rev)
+            ex_var = fmt_inr(cp_rev - pp_rev)
+            ex_bus = "Primary indicator of business volume and throughput."
+            ex_src = "DMS Invoice Register (Labour & Parts)"
+        elif kpi_choice == "Total Margin":
+            ex_def = "Total gross margin generated from operations."
+            ex_form = "Sum(Total Margin)"
+            ex_curr = fmt_inr(cp_mar)
+            ex_prev = fmt_inr(pp_mar)
+            ex_var = fmt_inr(cp_mar - pp_mar)
+            ex_bus = "Indicates profitability and pricing power."
+            ex_src = "DMS Invoice Register"
+        elif kpi_choice == "Total JCs":
+            ex_def = "Total Job Cards opened/invoiced."
+            ex_form = "Sum(JC_Nos.)"
+            ex_curr = fmt_num(cp_jc)
+            ex_prev = fmt_num(pp_jc)
+            ex_var = fmt_num(cp_jc - pp_jc)
+            ex_bus = "Measures workshop footfall and capacity utilization."
+            ex_src = "DMS Job Card Register"
+        elif kpi_choice == "Avg Discount %":
+            ex_def = "Average discount given on Labour."
+            ex_form = "Sum(Labour Discount) / Sum(Pre-GST Labour)"
+            ex_curr = f"{avg_disc:.2f}%"
+            ex_prev = f"{calculate_labour_discount_pct(pp):.2f}%"
+            ex_var = f"{avg_disc - calculate_labour_discount_pct(pp):+.2f}%"
+            ex_bus = "Indicates pricing discipline and revenue leakage."
+            ex_src = "DMS Invoice Register"
+        elif kpi_choice == "YoY Growth %":
+            ex_def = "Year-over-Year Revenue Growth."
+            ex_form = "(Current Revenue - Previous Revenue) / Previous Revenue"
+            pct = calc_growth_pct(cp_rev, pp_rev, fill_value=0)
+            ex_curr = f"{pct:.2f}%"
+            ex_prev = "N/A"
+            ex_var = "N/A"
+            ex_bus = "Measures overall business expansion."
+            ex_src = "DMS Invoice Register"
+            
+        ex_html = f"""
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; font-size:13px; color:#1d1d1f; margin-top:8px;">
+            <div><span style="color:#6E6E73;">Definition:</span> {ex_def}</div>
+            <div><span style="color:#6E6E73;">Formula:</span> <code style="font-size:11px; color:#CF222E; background:#FFEBE9; padding:2px 4px; border-radius:4px;">{ex_form}</code></div>
+            <div><span style="color:#6E6E73;">Current:</span> <b>{ex_curr}</b></div>
+            <div><span style="color:#6E6E73;">Previous:</span> {ex_prev}</div>
+            <div><span style="color:#6E6E73;">Variance:</span> <span style="color:{'#34C759' if not '-' in str(ex_var) and not 'N/A' in str(ex_var) else '#FF3B30'};">{ex_var}</span></div>
+            <div><span style="color:#6E6E73;">Business Meaning:</span> {ex_bus}</div>
+            <div><span style="color:#6E6E73;">Data Source:</span> {ex_src}</div>
+            <div><span style="color:#6E6E73;">Last Refresh:</span> {datetime.now().strftime('%H:%M')}</div>
+        </div>
+        """
+        st.markdown(ex_html.replace('\n', ''), unsafe_allow_html=True)
+
+    # ── Executive Alert Engine ───────────────────────────────────
+    st.markdown("<div style='font-size:18px; font-weight:700; margin-top:24px; margin-bottom:12px;'>Executive Alert Details</div>", unsafe_allow_html=True)
+    
+    def render_alert_card(alert, color_border):
+        html = f'''<div style="background:#fff;border:1px solid #e5e5ea;border-left:4px solid {color_border};border-radius:8px;padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <div style="font-weight:600;font-size:15px;color:#1d1d1f;">{alert.get('rule', alert.get('opportunity'))}</div>
+                <div style="font-weight:600;font-size:14px;color:{color_border};">Impact: {alert.get('impact', alert.get('gain'))}</div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;color:#48484A;margin-bottom:12px;">
+                <div><span style="color:#86868B;">Current Value:</span> <b>{alert.get('current', alert.get('situation'))}</b></div>
+                <div><span style="color:#86868B;">Benchmark:</span> {alert.get('benchmark', alert.get('basis'))}</div>
+                <div><span style="color:#86868B;">Variance:</span> <b style="color:{color_border};">{alert.get('variance', alert.get('benefit'))}</b></div>
+                <div><span style="color:#86868B;">Owner:</span> 👤 {alert['owner']}</div>
+            </div>
+            <div style="font-size:13px;color:#1d1d1f;margin-bottom:4px;"><span style="color:#86868B;">Reason:</span> {alert.get('reason', alert.get('situation'))}</div>
+            <div style="font-size:13px;color:#1d1d1f;margin-bottom:12px;"><span style="color:#86868B;">Action:</span> ✅ {alert['action']}</div>
+        </div>'''
+        st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
+        if 'why' in alert:
+            with st.expander("Why?", expanded=False):
+                w = alert['why']
+                st.markdown(f"""<div style="font-size:12px; color:#48484A; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                    <div><b>Rule:</b> {w['rule']}</div>
+                    <div><b>Threshold:</b> {w['threshold']}</div>
+                    <div><b>Current:</b> {w['current']}</div>
+                    <div><b>Calculation:</b> <code>{w['calculation']}</code></div>
+                    <div><b>Rows Involved:</b> {w['rows']}</div>
+                    <div><b>Rationale:</b> {w['impact_rationale']}</div>
+                </div>""", unsafe_allow_html=True)
+
+    active_tab = st.session_state.cockpit_alert_tab
+    if active_tab == 'critical':
+        st.markdown("<div style='font-size:15px; font-weight:600; margin-bottom:8px; color:#CF222E;'>🔴 Critical Alerts Details</div>", unsafe_allow_html=True)
+        if structured_alerts["critical"]:
+            for a in structured_alerts["critical"]:
+                render_alert_card(a, "#FF3B30")
+        else:
+            st.markdown("<div style='font-size:13px; color:#6E6E73; margin-bottom:16px;'>✓ No critical rules triggered.</div>", unsafe_allow_html=True)
+            
+    elif active_tab == 'warning':
+        st.markdown("<div style='font-size:15px; font-weight:600; margin-bottom:8px; color:#E65100;'>🟡 Warning Alerts Details</div>", unsafe_allow_html=True)
+        if structured_alerts["warning"]:
+            for a in structured_alerts["warning"]:
+                render_alert_card(a, "#FF9F0A")
+        else:
+            st.markdown("<div style='font-size:13px; color:#6E6E73; margin-bottom:16px;'>✓ No warning rules triggered.</div>", unsafe_allow_html=True)
+            
+    elif active_tab == 'opportunities':
+        st.markdown("<div style='font-size:15px; font-weight:600; margin-bottom:8px; color:#185FA5;'>🔵 Opportunities Details</div>", unsafe_allow_html=True)
+        if structured_alerts["opportunities"]:
+            for a in structured_alerts["opportunities"]:
+                render_alert_card(a, "#007AFF")
+        else:
+            st.markdown("<div style='font-size:13px; color:#6E6E73; margin-bottom:16px;'>No major opportunities identified for this period.</div>", unsafe_allow_html=True)
     # ── Revenue Trend ─────────────────────────────────────────────
     c1, c2 = st.columns(2)
     with c1:

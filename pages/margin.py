@@ -57,7 +57,15 @@ from ui.helpers import apply_chart, clean_hover, _render_finding
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    if df.empty: return
+    # ── [DEBUG] Stage 3: render() entry ───────────────────────────────────────
+    from services.logger import logger as _log
+    _log.debug(f"[RENDER] margin.render: entered | df.shape={df.shape} | pairs={len(pairs)} | df.empty={df.empty}")
+    st.caption(f"[DEBUG] margin.render: entered · df.shape={df.shape} · pairs={len(pairs)}")
+    # ─────────────────────────────────────────────────────────────────────────
+    if df.empty:
+        st.caption("[DEBUG] margin.render: early return — df is empty")
+        return
+    st.caption("[DEBUG] margin.render: past empty guard")
     # df is already filtered by selected_months at main level, use it directly for current period
     cp = df.copy()
     

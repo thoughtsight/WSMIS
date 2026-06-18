@@ -569,6 +569,9 @@ def sidebar_navigation():
 
 def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, alerts, comparison_mode, selected_months, targets_df, client_config, exp_df_filtered_cp=None):
     page = st.session_state.get("current_page", "Cockpit")
+    # ── [DEBUG] Render pipeline trace ─────────────────────────────────────────
+    logger.debug(f"[RENDER] router entered: page='{page}' | df_full={len(df_filtered_full) if df_filtered_full is not None else 'None'} rows | pairs={len(pairs)} | selected_months={selected_months}")
+    st.caption(f"[DEBUG] Router: page=`{page}` · df_full={len(df_filtered_full) if df_filtered_full is not None else 'None'} rows · pairs={len(pairs)} · selected_months={selected_months}")
 
     if page == "Cockpit":
         with st.spinner("Loading Cockpit..."):
@@ -600,12 +603,14 @@ def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, ale
         with st.spinner("Crunching numbers..."): from pages.targets import render; safe_render(render, df_filtered_cp, targets_df, pairs)
     elif page == "Reports":
         with st.status("📄 Generating reports...", expanded=False) as _s:
-            from pages.reports import render; safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
-            _s.update(label="Reports ready", state="complete", expanded=False)
+            from pages.reports import render
+        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
+        _s.update(label="Reports ready", state="complete", expanded=False)
     elif page == "Executive":
         with st.status("📊 Building executive summary...", expanded=False) as _s:
-            from pages.executive import render; safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
-            _s.update(label="Executive summary ready", state="complete", expanded=False)
+            from pages.executive import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
+        _s.update(label="Executive summary ready", state="complete", expanded=False)
     elif page == "Expense Analysis":
         with st.spinner("Loading Expense Analysis..."): from pages.expense import render; safe_render(render, exp_df_filtered_cp, selected_months)
     elif page == "Profit & Loss":
@@ -615,8 +620,9 @@ def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, ale
     elif page == "Internal Audit":
         with st.status("🔍 Running audit analysis...", expanded=False) as _s:
             st.caption("⏳ Exception scan · Leakage detection · Risk register")
-            from pages.internal_audit import render; safe_render(render, df_filtered, client_config, cp=df_filtered_cp)
-            _s.update(label="Audit analysis complete", state="complete", expanded=False)
+            from pages.internal_audit import render
+        safe_render(render, df_filtered, client_config, cp=df_filtered_cp)
+        _s.update(label="Audit analysis complete", state="complete", expanded=False)
     elif page == "System Health":
         with st.spinner("Loading System Health..."): from pages.system_health import render; safe_render(render, df_filtered_full, exp_df_filtered_cp)
     else:
@@ -789,6 +795,19 @@ def main():
             f'</div>',
             unsafe_allow_html=True
         )
+
+    # ── [DEBUG] Pre-router data-shape summary ──────────────────────────────────
+    logger.debug(
+        f"[RENDER] pre-router: page='{st.session_state.get('current_page')}' "
+        f"| df_full={len(df_filtered_full)} | df_cp={len(df_filtered_cp)} "
+        f"| df_filtered={len(df_filtered)} | pairs={pairs} "
+        f"| selected_months={selected_months} | comparison_mode={comparison_mode}"
+    )
+    st.caption(
+        f"[DEBUG] pre-router: df_full={len(df_filtered_full)} rows · df_cp={len(df_filtered_cp)} rows · "
+        f"pairs={len(pairs)} · selected_months={selected_months}"
+    )
+    # ─────────────────────────────────────────────────────────────────────────
 
     # ── Page Router ───────────────────────────────────────────────
     render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, alerts, comparison_mode, selected_months, targets_df, CLIENTS[sel_client], exp_df_filtered_cp)

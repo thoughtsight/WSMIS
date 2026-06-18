@@ -431,7 +431,8 @@ def render(df_jctat, client_config, cp=None):
 
         with st.spinner("Calculating missed labour..."):
             try:
-                report_data = get_cached_audit_data()
+                import app
+                report_data = app.get_cached_audit_data()
                 miss_df_raw = report_data["missed"]
 
                 # ── Compact filter row — one line, no heading ──
@@ -507,7 +508,8 @@ def render(df_jctat, client_config, cp=None):
         import streamlit.components.v1 as components
         import internal_audit_app
         try:
-            data = get_cached_audit_data()
+            import app
+            data = app.get_cached_audit_data()
             
             # Build available months from audit data (Revenue Leakage pattern)
             all_months = set()

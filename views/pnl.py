@@ -57,7 +57,6 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df_filtered, exp_df_filtered, selected_months):
     """Profit & Loss Executive Dashboard - uses existing filtered WSMIS and EXP dataframes."""
-    with st.spinner("Loading P&L..."): pass
     import pnl_report
 
     # Build period label

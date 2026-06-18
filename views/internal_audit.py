@@ -59,7 +59,6 @@ from ui.export_buttons import render_export_buttons
 from services.export_service import ExportMeta
 
 def render(df_jctat, client_config, cp=None):
-    with st.spinner("Loading Internal Audit..."): pass
     """Internal Dealer Audit Report V2 — Investigation layer + native dashboard."""
     ia_tabs = st.tabs(["⚠️ Exception Audit", "💰 Revenue Leakage Dashboard", "🔧 Dealer Audit (Operational)"])
 

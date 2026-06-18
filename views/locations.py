@@ -56,7 +56,6 @@ from ui.helpers import apply_chart, clean_hover, _render_finding
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    with st.spinner("Loading Locations..."): pass
     if df.empty:
         from ui.components.core import EmptyState
         EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')

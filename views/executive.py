@@ -52,7 +52,6 @@ from utils.constants import ADV_COL, MP_COLORS, MONTH_SORT_ORDER
 from ui.components import PageHeader, KPIGrid, AlertBanner
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    with st.spinner("Loading Executive..."): pass
     if df.empty:
         from ui.components.core import EmptyState
         EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')

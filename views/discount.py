@@ -52,7 +52,6 @@ from utils.constants import ADV_COL, MP_COLORS, C
 from ui.components import PageHeader, KPIGrid, ChartCard, TableCard
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
-    with st.spinner("Loading Discount..."): pass
     if df.empty:
         from ui.components.core import EmptyState
         EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')

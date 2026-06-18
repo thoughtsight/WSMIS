@@ -51,18 +51,8 @@ def safe_render(render_func, *args, **kwargs):
     preventing the entire application from crashing.
     Displays friendly UI errors based on the structured exception type.
     """
-    # ── [DEBUG] Render pipeline trace ─────────────────────────────────────────
-    import traceback as _tb
-    fn_name = getattr(render_func, "__name__", str(render_func))
-    logger.debug(f"[RENDER] safe_render: calling '{fn_name}' with {len(args)} positional args")
-    st.caption(f"[DEBUG] safe_render: → calling `{fn_name}()`")
-    # ─────────────────────────────────────────────────────────────────────────
     try:
         render_func(*args, **kwargs)
-        # ── [DEBUG] Confirm render returned without exception ────────────────
-        logger.debug(f"[RENDER] safe_render: '{fn_name}' returned OK")
-        st.caption(f"[DEBUG] safe_render: ← `{fn_name}()` returned (no exception)")
-        # ─────────────────────────────────────────────────────────────────────
     except ConfigurationError as e:
         logger.error(f"Configuration Error rendering page: {str(e)}")
         st.error(f"⚠️ **Configuration Error**: {str(e)}")
@@ -81,8 +71,6 @@ def safe_render(render_func, *args, **kwargs):
         st.error(f"🚨 **Unexpected Application Error**: {str(e)}")
         with st.expander("View Error Details"):
             st.code(traceback.format_exc())
-    except BaseException as e:
-        # Catches Streamlit-internal StopException / RerunException — log & re-raise
-        logger.error(f"[RENDER] safe_render: BaseException (type={type(e).__name__}) escaping '{fn_name}' — re-raising")
-        st.caption(f"[DEBUG] safe_render: BaseException `{type(e).__name__}` from `{fn_name}` — propagating (this is normal for st.rerun/st.stop)")
+    except BaseException:
+        # Catches Streamlit-internal StopException / RerunException
         raise

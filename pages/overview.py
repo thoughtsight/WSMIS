@@ -56,30 +56,15 @@ from ui.helpers import apply_chart, clean_hover, _render_finding, csv_btn, rende
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
-    # ── [DEBUG] Stage 3: render() entry ───────────────────────────────────────
-    from services.logger import logger as _log
-    _log.debug(f"[RENDER] overview.render: entered | df.shape={df.shape} | pairs={len(pairs)} | df.empty={df.empty}")
-    st.caption(f"[DEBUG] overview.render: entered · df.shape={df.shape} · pairs={len(pairs)}")
-    # ─────────────────────────────────────────────────────────────────────────
     with st.spinner("Computing Overview..."):
         if df.empty:
-            st.caption("[DEBUG] overview.render: early return — df is empty")
             return
 
-    # ── [DEBUG] Past empty guard ──────────────────────────────────────────────
-    st.caption("[DEBUG] overview.render: past empty guard")
-    # ─────────────────────────────────────────────────────────────────────────
-
-    # Render alerts
     if alerts:
         render_alerts(alerts)
 
     cp_months = [p[0] for p in pairs]
     pp_months = [p[1] for p in pairs]
-    # ── [DEBUG] Pairs built ────────────────────────────────────────────────────
-    st.caption(f"[DEBUG] overview.render: cp_months={cp_months} | pp_months={pp_months}")
-    # ─────────────────────────────────────────────────────────────────────────
-    # df contains both CP and PP months, filter appropriately
     cp = apply_month_filter(df, "Month Name", cp_months)
     pp = apply_month_filter(df, "Month Name", pp_months)
     

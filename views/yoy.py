@@ -46,7 +46,7 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, MP_COLORS, C, PLY
+from utils.constants import ADV_COL, MP_COLORS, C, PLY, get_ply_layout
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -137,7 +137,7 @@ def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, sele
         gb["PP"] = gb["Location Name"].map(pp_locs).fillna(0)
         gb_m = gb.melt(id_vars="Location Name", value_vars=["CP", "PP"], var_name="Period", value_name="Val")
         fig = px.bar(gb_m, x="Location Name", y="Val", color="Period", barmode="group", color_discrete_map={"CP":C["primary"], "PP":C["gold"]})
-        fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="", yaxis_title="Amount (₹)")
+        fig.update_layout(**get_ply_layout(height=320, xaxis_title="", yaxis_title="Amount (₹)"))
         st.plotly_chart(fig, width='stretch', key=f"bar_{tab_key}",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -156,7 +156,7 @@ def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, sele
             tdf = pd.DataFrame(t_rows).sort_values("Sort")
             fig = px.line(tdf, x="Month", y="YoY%", color="Location Name", markers=True)
             fig.add_hline(y=0, line_dash="dash", line_color=C["gray"])
-            fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="")
+            fig.update_layout(**get_ply_layout(height=320, xaxis_title=""))
             st.plotly_chart(fig, width='stretch', key=f"line_{tab_key}",
                             config={"displayModeBar": True, "displaylogo": False,
                                     "modeBarButtonsToRemove": ["select2d","lasso2d"],

@@ -46,7 +46,7 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, MP_COLORS, LOC_COLORS, PLY
+from utils.constants import ADV_COL, MP_COLORS, LOC_COLORS, PLY, get_ply_layout
 
 # Import new Phase B UI Components
 from ui.components import KPIGrid, ChartCard, TableCard
@@ -123,7 +123,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         color_discrete_map=LOC_COLORS,
         size_max=30
     )
-    fig.update_layout(**PLY, height=400, xaxis_title="Total JCs", yaxis_title="Avg Labour / JC")
+    fig.update_layout(**get_ply_layout(height=400, xaxis_title="Total JCs", yaxis_title="Avg Labour / JC"))
     ChartCard("📊 Performance Scatter", fig, height=400)
     
     # Full table

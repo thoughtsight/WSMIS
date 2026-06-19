@@ -67,6 +67,22 @@ PLY = dict(
 # Plotly title styling (used separately to avoid duplicate key errors)
 PLY_TITLE = dict(font=dict(size=14, color="#1D1D1F", family="Inter"), x=0.01, xanchor="left", pad=dict(t=4))
 
+
+def get_ply_layout(**kwargs):
+    """
+    Get a clean PLY layout dict with additional kwargs merged in.
+    Removes any conflicting keys to avoid duplicate argument errors.
+    
+    Usage:
+        fig.update_layout(**get_ply_layout(title="My Title", height=300))
+    """
+    layout_cfg = dict(PLY)
+    # Remove keys that might conflict with passed kwargs
+    layout_cfg.pop("title", None)
+    layout_cfg.pop("title_text", None)
+    layout_cfg.update(kwargs)
+    return layout_cfg
+
 # Color palettes
 C = {"primary":"#0071E3", "green":"#34C759", "red":"#FF3B30", "orange":"#FF9500",
      "gray":"#8E8E93", "gold":"#C8860A", "purple":"#AF52DE", "pink":"#FF2D55", "teal":"#5AC8FA"}

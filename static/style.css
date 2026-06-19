@@ -249,3 +249,34 @@ details[open] > summary { color: #0071E3 !important; font-weight: 600; }
     justify-content: space-between;
     color: #D2D2D7;
 }
+
+/* === Labour Dashboard v2 additions — append below existing rules === */
+
+.ai-band {
+    background: #E5F4FB; border-left: 4px solid #007AFF;
+    border-radius: 10px; padding: 12px 18px; margin-bottom: 12px;
+    font-size: 13px; color: #0A2540; font-weight: 500; line-height: 1.6;
+}
+.period-badge {
+    background: #F5F5F7; border: 1px solid #E5E5EA; border-radius: 20px;
+    padding: 6px 14px; font-size: 12px; font-weight: 600; color: #1D1D1F;
+    display: inline-block; white-space: nowrap;
+}
+.filter-chips-bar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 0; margin-bottom: 8px; flex-wrap: wrap;
+}
+.filter-chip {
+    background: #E8F0FE; color: #185FA5; border: 1px solid #B5D4F4;
+    border-radius: 16px; padding: 3px 10px; font-size: 11px; font-weight: 600;
+}
+@media (max-width: 1400px) {
+    [data-testid="stHorizontalBlock"] > div:nth-child(n+3) {
+        min-width: 48% !important; flex: 1 1 48% !important;
+    }
+}
+@media (min-width: 1800px) {
+    .kpi-value { font-size: 28px !important; }
+    .kpi-label { font-size: 13px !important; }
+    .section-title { font-size: 18px !important; }
+}

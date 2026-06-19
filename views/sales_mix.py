@@ -46,7 +46,7 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, MP_COLORS, C, PLY
+from utils.constants import ADV_COL, MP_COLORS, C, PLY, get_ply_layout
 
 # Import shared UI helpers from app
 from ui.kpi_cards import kpi
@@ -104,7 +104,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         fig = go.Figure()
         fig.add_trace(go.Bar(x=ot["Month Name"], y=ot["S"], name="₹", marker_color=C["primary"]))
         fig.add_trace(go.Scatter(x=ot["Month Name"], y=ot["Q"], name="Ltrs", yaxis="y2", marker_color=C["orange"], mode="lines+markers"))
-        fig.update_layout(**PLY); fig.update_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), yaxis2=dict(overlaying="y", side="right"), showlegend=False)
+        fig.update_layout(**get_ply_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), yaxis2=dict(overlaying="y", side="right"), showlegend=False))
         st.plotly_chart(fig, width='stretch', key="sm_oil",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -114,7 +114,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.markdown('<div class="section-card"><div class="section-title">Batt + Tyre</div>', unsafe_allow_html=True)
         bt = monthly_summary(cp, as_index=False).agg(B=("Battery_Sale","sum"), T=("Tyre_Sale","sum")).sort_values("Month_Sort")
         fig = px.bar(bt, x="Month Name", y=["B", "T"], barmode="group", color_discrete_sequence=[C["green"], C["purple"]])
-        fig.update_layout(**PLY); fig.update_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), showlegend=False)
+        fig.update_layout(**get_ply_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), showlegend=False))
         st.plotly_chart(fig, width='stretch', key="sm_bt",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -124,7 +124,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.markdown('<div class="section-card"><div class="section-title">Oil Ranking</div>', unsafe_allow_html=True)
         orank = location_summary(cp, as_index=False)["Oil_Sale"].sum().sort_values("Oil_Sale", ascending=True).tail(10)
         fig = px.bar(orank, x="Oil_Sale", y="Location Name", orientation="h", color_discrete_sequence=[C["primary"]])
-        fig.update_layout(**PLY); fig.update_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), xaxis_title="", yaxis_title="")
+        fig.update_layout(**get_ply_layout(height=250, margin=dict(l=0,r=0,t=0,b=0), xaxis_title="", yaxis_title=""))
         st.plotly_chart(fig, width='stretch', key="sm_or",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -134,7 +134,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.markdown('<div class="section-card"><div class="section-title">Mix (Acc vs Pts)</div>', unsafe_allow_html=True)
         md = pd.DataFrame({"Cat": ["Accessory", "Parts"], "Val": [get_accessory_sales(cp), cp["Parts_Sale"].sum()]})
         fig = px.pie(md, values="Val", names="Cat", hole=0.6, color_discrete_sequence=[C["pink"], C["teal"]])
-        fig.update_layout(**PLY); fig.update_layout(height=250, margin=dict(l=0,r=0,t=0,b=0))
+        fig.update_layout(**get_ply_layout(height=250, margin=dict(l=0,r=0,t=0,b=0)))
         st.plotly_chart(fig, width='stretch', key="sm_mix",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -147,7 +147,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     oil_per_litre["Per Litre"] = np.where(oil_per_litre["Q"]>0, oil_per_litre["S"]/oil_per_litre["Q"], 0)
     oil_per_litre = oil_per_litre.sort_values("Per Litre", ascending=False)
     fig = px.bar(oil_per_litre, x="Per Litre", y="Location Name", orientation="h", color_discrete_sequence=[C["primary"]])
-    fig.update_layout(**PLY); fig.update_layout(height=300, xaxis_title="₹ per Litre", yaxis_title="")
+    fig.update_layout(**get_ply_layout(height=300, xaxis_title="₹ per Litre", yaxis_title=""))
     st.plotly_chart(fig, width='stretch', key="sm_oil_per_litre",
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -167,7 +167,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         ]
     })
     fig = px.bar(cons_margin, x="Category", y="Margin%", color_discrete_sequence=[C["green"], C["orange"], C["purple"]])
-    fig.update_layout(**PLY); fig.update_layout(height=300, xaxis_title="", yaxis_title="Margin %")
+    fig.update_layout(**get_ply_layout(height=300, xaxis_title="", yaxis_title="Margin %"))
     st.plotly_chart(fig, width='stretch', key="sm_cons_margin",
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d","lasso2d"],

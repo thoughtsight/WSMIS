@@ -46,7 +46,7 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, MP_COLORS, C, PLY, MONTH_SORT_ORDER
+from utils.constants import ADV_COL, MP_COLORS, C, PLY, MONTH_SORT_ORDER, get_ply_layout
 from sklearn.linear_model import LinearRegression
 
 # Import shared UI helpers from app
@@ -113,7 +113,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         both = pd.concat([cp.assign(P="This FY"), pp.assign(P="Last FY")])
         tr = both.groupby(["Month_Sort", "Month Name", "P"], as_index=False, dropna=False)["Net_Labour"].sum().sort_values("Month_Sort")
         fig = px.area(tr, x="Month Name", y="Net_Labour", color="P", color_discrete_map={"This FY":C["primary"], "Last FY":C["gold"]})
-        fig.update_layout(**PLY); fig.update_layout(height=450, xaxis_title="", yaxis_title="")
+        fig.update_layout(**get_ply_layout(height=450, xaxis_title="", yaxis_title=""))
         st.plotly_chart(fig, width='stretch', key="tr_area",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -127,7 +127,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         mom = mom.sort_values(["P", "Month_Sort"])
         mom["MoM"] = mom.groupby("P", dropna=False)["Net_Labour"].pct_change() * 100
         fig = px.bar(mom, x="Month Name", y="MoM", color="P", barmode="group", color_discrete_map={"This FY":C["green"], "Last FY":C["gray"]})
-        fig.update_layout(**PLY); fig.update_layout(height=300, xaxis_title="", yaxis_title="% Growth")
+        fig.update_layout(**get_ply_layout(height=300, xaxis_title="", yaxis_title="% Growth"))
         st.plotly_chart(fig, width='stretch', key="tr_mom",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -139,7 +139,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         l1["L100P"] = np.where(l1["NP"]>0, l1["NL"]/l1["NP"]*100, 0)
         fig = px.line(l1, x="Month Name", y="L100P", color="Location Name", markers=True)
         fig.add_hline(y=100, line_dash="dash", line_color=C["red"])
-        fig.update_layout(**PLY); fig.update_layout(height=300, xaxis_title="", yaxis_title="")
+        fig.update_layout(**get_ply_layout(height=300, xaxis_title="", yaxis_title=""))
         st.plotly_chart(fig, width='stretch', key="tr_l100p",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -149,7 +149,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     st.markdown('<div class="section-card"><div class="section-title">🏢 WS vs BS Trend (Stacked Area)</div>', unsafe_allow_html=True)
     wbs = cp.groupby(["Month_Sort", "Month Name", "MP_PB"], as_index=False, dropna=False)["Net_Labour"].sum().sort_values("Month_Sort")
     fig = px.area(wbs, x="Month Name", y="Net_Labour", color="MP_PB", color_discrete_map=MP_COLORS)
-    fig.update_layout(**PLY); fig.update_layout(height=350, xaxis_title="", yaxis_title="")
+    fig.update_layout(**get_ply_layout(height=350, xaxis_title="", yaxis_title=""))
     st.plotly_chart(fig, width='stretch', key="tr_wsbs",
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d","lasso2d"],
@@ -216,7 +216,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                     opacity=0.7
                 ))
         
-        fig.update_layout(**PLY, height=350, xaxis_title="", yaxis_title="Value", hovermode="x unified")
+        fig.update_layout(**get_ply_layout(height=350, xaxis_title="", yaxis_title="Value", hovermode="x unified"))
         st.plotly_chart(fig, width='stretch', key="tr_forecast",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],

@@ -47,7 +47,7 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, MP_COLORS, PLY, C
+from utils.constants import ADV_COL, MP_COLORS, PLY, C, get_ply_layout
 
 # Import new Phase B UI Components
 from ui.components import KPIGrid, ChartCard, TableCard
@@ -142,7 +142,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     c1, c2 = st.columns(2)
     with c1:
         fig = px.area(m_data, x="Month Name", y="Total Margin", markers=True, color_discrete_sequence=[C["primary"]])
-        fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="", yaxis_title="Total Margin (₹)")
+        fig.update_layout(**get_ply_layout(height=320, xaxis_title="", yaxis_title="Total Margin (₹)"))
         ChartCard("📈 Total Margin Trend", fig, height=320)
     with c2:
         md = m_data[["Parts_Margin", "Oil_Margin", "Net_Labour", "OTC Income", "FSC Income"]].sum().reset_index()
@@ -150,17 +150,17 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         md.loc[md["Cat"] == "Net_Labour", "Cat"] = "Net Labour"
         md = md[md["Val"] > 0]
         fig = px.pie(md, values="Val", names="Cat", hole=0.5, color_discrete_sequence=px.colors.qualitative.Set2)
-        fig.update_layout(**PLY); fig.update_layout(height=320, margin=dict(t=0,b=0,l=0,r=0))
+        fig.update_layout(**get_ply_layout(height=320, margin=dict(t=0,b=0,l=0,r=0)))
         ChartCard("🍰 Margin Mix", fig, height=320)
         
     c1, c2 = st.columns(2)
     with c1:
         lm = location_summary(cp, as_index=False)["Total Margin"].sum().sort_values("Total Margin", ascending=True)
         fig = px.bar(lm, x="Total Margin", y="Location Name", orientation="h", color_discrete_sequence=[C["green"]])
-        fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="", yaxis_title="")
+        fig.update_layout(**get_ply_layout(height=320, xaxis_title="", yaxis_title=""))
         ChartCard("🏢 Location Margin", fig, height=320)
     with c2:
         wbs = cp.groupby(["Month_Sort", "Month Name", "MP_PB"], as_index=False, dropna=False)["Total Margin"].sum().sort_values("Month_Sort")
         fig = px.bar(wbs, x="Month Name", y="Total Margin", color="MP_PB", color_discrete_map=MP_COLORS)
-        fig.update_layout(**PLY); fig.update_layout(height=320, xaxis_title="", yaxis_title="")
+        fig.update_layout(**get_ply_layout(height=320, xaxis_title="", yaxis_title=""))
         ChartCard("⚖️ WS vs BS Margin", fig, height=320)

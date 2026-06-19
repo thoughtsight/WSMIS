@@ -519,7 +519,7 @@ def _render_executive_table(datasets, active_pairs, mode_str):
     tdf = pd.DataFrame(rows)
     
     # Add Rank column (excluding TOTAL)
-    tdf["Rank"] = range(1, len(tdf))
+    tdf["Rank"] = range(1, len(tdf) + 1)
     tdf.loc[tdf["Location"] == "TOTAL", "Rank"] = ""
     
     # Sort by Growth % descending (excluding TOTAL which stays at bottom)

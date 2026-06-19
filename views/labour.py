@@ -13,6 +13,9 @@ from utils.filters import filter_valid_advisors
 from utils.calculations.common import calc_growth_pct, calc_ratio
 from ui.formatters import fmt_inr, fmt_inr_short, fmt_inr_full, fmt_pct, fmt_num
 from ui.components.theme import EXECUTIVE_THEME_CSS
+from ui.chart_formatters import fmt_inr_full as chart_fmt_inr_full, fmt_pct as chart_fmt_pct
+from ui.executive_tooltip import get_revenue_tooltip, prepare_customdata
+from utils.chart_theme import get_chart_theme, get_chart_height, get_growth_color, get_marker_colors
 from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout
 from services.ai_service import get_narrative, get_actions
 from ui.components.core import EmptyState
@@ -423,53 +426,53 @@ def _render_neg_labour_audit(data):
 def _render_charts(datasets, active_pairs, mode_str):
     data = datasets["combined"]
 
-    # Revenue Trend - Full width, scaled typography
+    # Revenue Trend - Full width, responsive typography
     months = [p[0] for p in active_pairs]
     cp_vals = [data["cp_month_sum"].get(m, 0) for m in months]
     pp_vals = [data["pp_month_sum"].get(p[1], 0) for p in active_pairs]
     growth = [calc_growth_pct(c, p, fill_value=0) for c, p in zip(cp_vals, pp_vals)]
 
+    # Get responsive chart theme for full-width chart
+    theme = get_chart_theme("full")
+    chart_height = get_chart_height("full")
+
     # Determine growth line color based on overall trend
     overall_growth = sum(growth) / len(growth) if growth else 0
-    growth_line_color = C["green"] if overall_growth >= 0 else C["red"]
+    growth_line_color = get_growth_color(overall_growth)
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
         name=f"CP ({mode_str})", x=months, y=cp_vals,
         marker_color=C["primary"],
         text=[fmt_inr_short(v) for v in cp_vals], textposition="outside",
-        textfont=dict(size=15, family="Arial", weight=600),
-        customdata=list(zip(months, cp_vals, pp_vals, growth)),
-        hovertemplate=("<b>%{customdata[0]}</b><br><br>"
-                       "CP Revenue: \u20b9%{customdata[1]:,.0f}<br>"
-                       "PP Revenue: \u20b9%{customdata[2]:,.0f}<br>"
-                       "Difference: \u20b9%{customdata[1] - customdata[2]:,.0f}<br>"
-                       "Growth: %{customdata[3]:.1f}%<extra></extra>")))
+        textfont=theme["revenue_label_font"],
+        customdata=prepare_customdata(months, cp_vals, pp_vals, growth),
+        hovertemplate=get_revenue_tooltip(months, cp_vals, pp_vals, growth)))
     fig.add_trace(go.Bar(
         name="PP", x=months, y=pp_vals, marker_color=C["gray"], opacity=0.7,
         text=[fmt_inr_short(v) for v in pp_vals], textposition="outside",
-        textfont=dict(size=15, family="Arial", weight=600)))
+        textfont=theme["revenue_label_font"]))
     fig.add_trace(go.Scatter(
         name="Growth %", x=months, y=growth,
         mode="lines+markers+text", yaxis="y2",
-        line=dict(color=growth_line_color, width=4),
+        line=dict(color=growth_line_color, width=theme["line_width"]),
         text=[f"{g:+.1f}%" for g in growth], textposition="top center",
-        textfont=dict(size=14, family="Arial", weight=500,
-                      color=[C["green"] if g >= 0 else C["red"] for g in growth]),
-        marker=dict(size=12, color=[C["green"] if g >= 0 else C["red"] for g in growth],
+        textfont=dict(size=theme["growth_label_font"]["size"], family="Arial", weight=500,
+                      color=get_marker_colors(growth)),
+        marker=dict(size=theme["marker_size"], color=get_marker_colors(growth),
                     line=dict(width=2, color="white"))))
     fig.update_layout(**get_ply_layout(
-        barmode="group", height=420,
-        title=dict(text=f"Revenue Trend \u2014 {mode_str}", font=dict(size=20, family="Arial", weight=600)),
-        margin=dict(t=60, b=60, l=60, r=60),
-        yaxis=dict(title="Revenue (\u20b9)", title_font=dict(size=16, family="Arial", weight=600),
-                   tickfont=dict(size=13, family="Arial")),
+        barmode="group", height=chart_height,
+        title=dict(text=f"Revenue Trend \u2014 {mode_str}", font=theme["title_font"]),
+        margin=theme["margin"],
+        yaxis=dict(title="Revenue (\u20b9)", title_font=theme["axis_title_font"],
+                   tickfont=theme["axis_tick_font"]),
         yaxis2=dict(title="Growth %", overlaying="y", side="right",
-                    tickformat=".1f", showgrid=False, title_font=dict(size=16, family="Arial", weight=600),
-                    tickfont=dict(size=13, family="Arial")),
-        xaxis=dict(title_font=dict(size=16, family="Arial", weight=600),
-                   tickfont=dict(size=14, family="Arial", weight=500)),
-        legend=dict(font=dict(size=14, family="Arial", weight=500), orientation="h", y=1.02)))
+                    tickformat=".1f", showgrid=False, title_font=theme["axis_title_font"],
+                    tickfont=theme["axis_tick_font"]),
+        xaxis=dict(title_font=theme["axis_title_font"],
+                   tickfont=theme["axis_tick_font"]),
+        legend=dict(font=theme["legend_font"], orientation="h", y=1.02)))
 
     ev = st.plotly_chart(fig, use_container_width=True,
                          on_select="rerun", selection_mode="points",

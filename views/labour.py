@@ -19,8 +19,6 @@ _SVC_COLORS = {"PMP": C["primary"], "RR": C["green"], "Accessories": C["orange"]
                "BR": C["purple"], "Bodyshop Repair": C["purple"]}
 
 DEFAULTS = {
-    "lab_period": None,
-    "lab_comparison": None,
     "lab_business_view": "All",
     "lab_loc_mode": "single",
     "lab_location": "All",
@@ -37,15 +35,10 @@ DEFAULTS = {
 }
 
 
-def _init_state(comparison_mode, pairs):
+def _init_state():
     for k, v in DEFAULTS.items():
         if k not in st.session_state:
             st.session_state[k] = v
-    if st.session_state.lab_comparison is None:
-        st.session_state.lab_comparison = "YoY" if comparison_mode else "MoM"
-    if st.session_state.lab_period is None:
-        n = len(set(p[0] for p in pairs)) if pairs else 3
-        st.session_state.lab_period = {1: "1M", 3: "3M", 6: "6M"}.get(n, "3M")
 
 
 _CSS_INJECTED = False
@@ -66,39 +59,6 @@ def _inject_responsive_css():
 .lab-summary { font-size: 12px; color: #6E6E73; padding: 2px 0 8px 0; }
 .lab-drill { border: 2px dashed #E5E5EA; border-radius: 12px; padding: 16px; margin: 8px 0; }
 </style>""", unsafe_allow_html=True)
-
-
-def _resolve_period(df, period_str, comparison_str):
-    all_months = sorted(df["Month Name"].unique(),
-                        key=lambda m: MONTH_SORT_ORDER.get(m, 999))
-    if period_str == "Custom":
-        cp_months = all_months
-    else:
-        n = {"1M": 1, "3M": 3, "6M": 6, "FY": 999}.get(period_str, 3)
-        cp_months = all_months[-n:] if len(all_months) >= n else all_months
-
-    if comparison_str == "YoY":
-        pp_months = []
-        for m in cp_months:
-            parts = m.split("-")
-            if len(parts) == 2:
-                try:
-                    pp_m = f"{parts[0]}-{int(parts[1]) - 1}"
-                    pp_months.append(pp_m if pp_m in all_months else m)
-                except ValueError:
-                    pp_months.append(m)
-    else:
-        pp_months = []
-        for m in cp_months:
-            idx = all_months.index(m) if m in all_months else 0
-            pp_months.append(all_months[idx - 1] if idx > 0 else m)
-
-    pairs = [(cm, pm, 0) for cm, pm in zip(cp_months, pp_months)]
-    cp_label = (f"{cp_months[0]} \u2192 {cp_months[-1]}" if len(cp_months) > 1
-                else cp_months[0] if cp_months else "\u2014")
-    pp_label = (f"{pp_months[0]} \u2192 {pp_months[-1]}" if len(pp_months) > 1
-                else pp_months[0] if pp_months else "\u2014")
-    return pairs, comparison_str, cp_label, pp_label
 
 
 def _apply_filters(df, active_pairs):
@@ -128,17 +88,17 @@ def _apply_filters(df, active_pairs):
     if cross_svc:
         filtered = filtered[filtered["Service Type"] == cross_svc]
 
-    cp_months = [p[0] for p in active_pairs]
-    pp_months = [p[1] for p in active_pairs]
-    cross_month = st.session_state.get("lab_cross_month")
-    if cross_month and cross_month in cp_months:
-        paired = next((p[1] for p in active_pairs if p[0] == cross_month), None)
-        cp_months = [cross_month]
-        if paired:
-            pp_months = [paired]
+    cp_months_active = [p[0] for p in active_pairs]
+    pp_months_active = [p[1] for p in active_pairs]
+    click_month = st.session_state.get("lab_cross_month")
+    if click_month:
+        # Cross filter restricts the data to just that month and its paired prior month
+        paired_pm = next((p[1] for p in active_pairs if p[0] == click_month), None)
+        cp_months_active = [click_month]
+        pp_months_active = [paired_pm] if paired_pm else []
 
-    cp = filtered[filtered["Month Name"].isin(cp_months)]
-    pp = filtered[filtered["Month Name"].isin(pp_months)]
+    cp = filtered[filtered["Month Name"].isin(cp_months_active)]
+    pp = filtered[filtered["Month Name"].isin(pp_months_active)]
     return cp, pp
 
 
@@ -223,47 +183,44 @@ def _compute_metrics(cp, pp, df, val_col="Net_Labour"):
 
 
 def _prepare_datasets(cp, pp, df):
-    is_ws = cp["Service Type"] != "BR"
-    is_bs = cp["Service Type"] == "BR"
-    pp_ws = pp[pp["Service Type"] != "BR"]
-    pp_bs = pp[pp["Service Type"] == "BR"]
-    return {
-        "combined": _compute_metrics(cp, pp, df),
-        "workshop": _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"]),
-        "bodyshop": _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"]),
-    }
+    biz = st.session_state.get("lab_business_view", "All")
+    
+    if biz == "Workshop":
+        is_ws = cp["Service Type"] != "BR"
+        pp_ws = pp[pp["Service Type"] != "BR"]
+        return {
+            "combined": _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"]),
+            "workshop": _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"]),
+            "bodyshop": None,
+        }
+    elif biz == "Bodyshop":
+        is_bs = cp["Service Type"] == "BR"
+        pp_bs = pp[pp["Service Type"] == "BR"]
+        return {
+            "combined": _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"]),
+            "workshop": None,
+            "bodyshop": _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"]),
+        }
+    else:
+        is_ws = cp["Service Type"] != "BR"
+        is_bs = cp["Service Type"] == "BR"
+        pp_ws = pp[pp["Service Type"] != "BR"]
+        pp_bs = pp[pp["Service Type"] == "BR"]
+        return {
+            "combined": _compute_metrics(cp, pp, df),
+            "workshop": _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"]),
+            "bodyshop": _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"]),
+        }
 
 
-def _render_control_bar(df, active_pairs, mode_str, cp_label, pp_label, n_rows, n_locs):
-    all_months = sorted(df["Month Name"].unique(),
-                        key=lambda m: MONTH_SORT_ORDER.get(m, 999))
+def _render_control_bar(df, n_rows, n_locs):
     all_svc = sorted(df["Service Type"].dropna().unique().tolist())
     all_locs = sorted(df["Location Name"].dropna().unique().tolist())
-    cur_period = st.session_state.lab_period
-    cur_comp = st.session_state.lab_comparison
     cur_biz = st.session_state.lab_business_view
 
-    c1, c2, c3, c4, c5, c6 = st.columns([2, 2, 3, 5, 3, 1])
+    c1, c2, c3, c4, c5 = st.columns([3, 5, 3, 1, 1])
 
     with c1:
-        opts = ["1M", "3M", "6M", "FY"]
-        idx = opts.index(cur_period) if cur_period in opts else 1
-        new_p = st.selectbox("Period", opts, index=idx, label_visibility="collapsed",
-                             key="ctrl_period")
-        if new_p != cur_period:
-            st.session_state.lab_period = new_p
-            st.rerun()
-
-    with c2:
-        comp_opts = ["YoY", "MoM"]
-        new_c = st.radio("Comparison", comp_opts, index=comp_opts.index(cur_comp),
-                         horizontal=True, label_visibility="collapsed",
-                         key="ctrl_comparison")
-        if new_c != cur_comp:
-            st.session_state.lab_comparison = new_c
-            st.rerun()
-
-    with c3:
         biz_opts = ["All", "Workshop", "Bodyshop"]
         new_b = st.radio("Business View", biz_opts, index=biz_opts.index(cur_biz),
                          horizontal=True, label_visibility="collapsed",
@@ -272,7 +229,7 @@ def _render_control_bar(df, active_pairs, mode_str, cp_label, pp_label, n_rows, 
             st.session_state.lab_business_view = new_b
             st.rerun()
 
-    with c4:
+    with c2:
         loc_mode = st.session_state.lab_loc_mode
         loc_val = st.session_state.lab_location
         loc_cols = st.columns([10, 1])
@@ -306,7 +263,7 @@ def _render_control_bar(df, active_pairs, mode_str, cp_label, pp_label, n_rows, 
                     st.session_state.lab_location = []
                 st.rerun()
 
-    with c5:
+    with c3:
         cur_svc = st.session_state.lab_service_types
         default_svc = cur_svc if cur_svc else all_svc
         new_svc = st.multiselect("Service Types", all_svc, default=default_svc,
@@ -317,7 +274,7 @@ def _render_control_bar(df, active_pairs, mode_str, cp_label, pp_label, n_rows, 
             st.session_state.lab_service_types = active_svc
             st.rerun()
 
-    with c6:
+    with c4:
         if st.button("\u27f3 Reset", key="lab_reset"):
             keys_to_clear = [k for k in st.session_state if k.startswith("lab_")]
             for k in keys_to_clear:
@@ -325,8 +282,7 @@ def _render_control_bar(df, active_pairs, mode_str, cp_label, pp_label, n_rows, 
             st.rerun()
 
     st.markdown(
-        f'<div class="lab-summary">Showing: {cp_label} vs {pp_label} '
-        f'({mode_str}) \u00b7 {n_rows} rows \u00b7 {n_locs} locations</div>',
+        f'<div class="lab-summary">{n_rows} rows \u00b7 {n_locs} locations</div>',
         unsafe_allow_html=True)
 
 
@@ -931,7 +887,7 @@ def _render_opportunities_actions(datasets, mode_str):
         "rpc_growth": round(d["rpc_growth"], 2),
         "declining_locs": opps_data,
     }
-    if st.session_state.get("lab_business_view") == "All":
+    if st.session_state.get("lab_business_view") == "All" and ws and bs:
         payload["workshop_summary"] = {
             "cp": fmt_inr(ws["cp_val"]),
             "growth": round(ws["growth_pct"], 2),
@@ -987,14 +943,21 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         EmptyState("No data available for the selected period.")
         return
 
-    _init_state(comparison_mode, pairs)
-    period_str = st.session_state.lab_period
-    comp_str = st.session_state.lab_comparison
-
-    active_pairs, mode_str, cp_label, pp_label = _resolve_period(df, period_str, comp_str)
+    _init_state()
+    
+    mode_str = "YoY" if comparison_mode else "MoM"
+    active_pairs = pairs if pairs else []
+    
     if not active_pairs:
         EmptyState("No matching prior period data for the selected comparison mode.")
         return
+
+    cp_months = [p[0] for p in active_pairs]
+    pp_months = [p[1] for p in active_pairs]
+    cp_label = (f"{cp_months[0]} \u2192 {cp_months[-1]}" if len(cp_months) > 1
+                else cp_months[0] if cp_months else "\u2014")
+    pp_label = (f"{pp_months[0]} \u2192 {pp_months[-1]}" if len(pp_months) > 1
+                else pp_months[0] if pp_months else "\u2014")
 
     cp, pp = _apply_filters(df, active_pairs)
     if cp.empty and pp.empty:
@@ -1003,15 +966,13 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     datasets = _prepare_datasets(cp, pp, df)
     d = datasets["combined"]
-    cp_months = [p[0] for p in active_pairs]
-    pp_months = [p[1] for p in active_pairs]
     n_rows = len(cp) + len(pp)
     n_locs = d["n_total"]
 
     UniversalHeader("Rukmani Motors", "Labour Revenue",
                     f"{cp_label} vs {pp_label}", "")
 
-    _render_control_bar(df, active_pairs, mode_str, cp_label, pp_label, n_rows, n_locs)
+    _render_control_bar(df, n_rows, n_locs)
     _render_cross_filter_bar()
     _render_ai_narrative(datasets, mode_str, cp_label, pp_label)
     _render_kpi_tier_1(datasets, mode_str)

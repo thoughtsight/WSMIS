@@ -5,6 +5,7 @@ import threading
 from typing import Dict, Any, Union, List, Optional
 from services.error_handler import with_error_context, AggregationError
 from config.settings import VERSION
+from utils.filters import filter_valid_advisors
 
 # Cache architecture:
 # _CACHE[hash] = {
@@ -119,7 +120,7 @@ def get_location_summary(df: pd.DataFrame, as_index: bool = False, dropna: bool 
 @with_error_context(AggregationError)
 def get_advisor_summary(df: pd.DataFrame, as_index: bool = False, dropna: bool = False, **kwargs) -> Union[pd.DataFrame, pd.core.groupby.DataFrameGroupBy]:
     adv_col = "Advisor Name" if "Advisor Name" in df.columns else "Advisor"
-    valid_df = df[df[adv_col] != "Unassigned"] if adv_col in df.columns else df
+    valid_df = filter_valid_advisors(df, adv_col)
     return group_summary(valid_df, adv_col, as_index=as_index, dropna=dropna, **kwargs)
 
 @with_error_context(AggregationError)

@@ -43,7 +43,8 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp,
+    filter_valid_advisors
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C
@@ -94,7 +95,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     else:
         loc_merged = pd.DataFrame()
 
-    adv_lab = cp[cp[ADV_COL] != "Unassigned"].groupby([ADV_COL, "Location Name"], dropna=False).agg(
+    adv_lab = filter_valid_advisors(cp, ADV_COL).groupby([ADV_COL, "Location Name"], dropna=False).agg(
         JCs=("JC_Nos.", "sum"), Revenue=("Pre-GST Labour", "sum"), DiscRs=("Labour Discount", "sum")
     ).reset_index()
     adv_lab = adv_lab[adv_lab["Revenue"] > 0].copy()

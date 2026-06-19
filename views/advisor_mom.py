@@ -43,7 +43,8 @@ from utils.aggregations import (
 )
 from utils.filters import (
     apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
+    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp,
+    filter_valid_advisors
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C
@@ -178,7 +179,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     
     sel_locs = adv_data["Location Name"].unique().tolist()
-    all_adv_monthly = cp[cp["Location Name"].isin(sel_locs) & (cp[ADV_COL] != "Unassigned")].groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
+    all_adv_monthly = filter_valid_advisors(cp[cp["Location Name"].isin(sel_locs)], ADV_COL).groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
         JCs=("JC_Nos.","sum"), NL=("Net_Labour","sum"), DL=("Labour Discount","sum"), PL=("Pre-GST Labour","sum")
     ).sort_values([ADV_COL, "Month_Sort"])
     all_adv_monthly["Disc%"] = calc_ratio(all_adv_monthly["DL"], all_adv_monthly["PL"], multiplier=100, fill_value=0)

@@ -9,6 +9,7 @@ import plotly.graph_objects as go
 import re
 
 from utils.calculations.fact_metrics import get_net_labour, get_jobcard_count
+from utils.filters import filter_valid_advisors
 from utils.calculations.common import calc_growth_pct, calc_ratio
 from ui.formatters import fmt_inr, fmt_pct, fmt_inr_short
 from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout
@@ -152,9 +153,9 @@ def _compute_metrics(cp, pp, df, val_col="Net_Labour"):
         sdf["Delta"] = sdf["CP"] - sdf["PP"]
         return sdf["Delta"].idxmax() if not sdf.empty else "volume"
 
-    adv_cp = cp[cp[ADV_COL] != "Unassigned"].groupby([ADV_COL, "Location Name", "Service Type"],
+    adv_cp = filter_valid_advisors(cp, ADV_COL).groupby([ADV_COL, "Location Name", "Service Type"],
                         as_index=False)[val_col].sum()
-    adv_pp = pp[pp[ADV_COL] != "Unassigned"].groupby([ADV_COL, "Location Name", "Service Type"],
+    adv_pp = filter_valid_advisors(pp, ADV_COL).groupby([ADV_COL, "Location Name", "Service Type"],
                         as_index=False)[val_col].sum()
     neg_advs = adv_cp[adv_cp[val_col] < 0].copy()
     neg_count = len(neg_advs)
@@ -220,83 +221,8 @@ def _render_control_bar(df, n_rows, n_locs):
     client = st.session_state.get("sel_client", "Rukmani Motors")
     all_locs, all_svc, all_months = _get_master_lists(client)
 
-    preset_options = ["Custom", "1M", "3M", "6M"]
-    for fy_label, fy_month_list in FY_MONTHS.items():
-        if any(m in fy_month_list for m in all_months):
-            preset_options.append(fy_label)
-
-    st.markdown('<div class="filter-toolbar" style="background:#f9f9fb; padding:12px 16px; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:16px;">', unsafe_allow_html=True)
-    c1, c2, c3, c4, c5 = st.columns([2, 2, 3, 4, 1])
-
-    with c1:
-        cur_preset = st.session_state.get("month_preset", "3M")
-        new_preset = st.selectbox("Period", preset_options, index=preset_options.index(cur_preset) if cur_preset in preset_options else 1, key="lab_month_preset_ui", label_visibility="visible")
-        if new_preset != cur_preset:
-            st.session_state.month_preset = new_preset
-            st.session_state.last_preset = new_preset
-            if new_preset == "1M":
-                st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
-            elif new_preset == "3M":
-                st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
-            elif new_preset == "6M":
-                st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
-            elif new_preset != "Custom":
-                st.session_state.selected_months_custom = [m for m in all_months if m in FY_MONTHS.get(new_preset, [])]
-            st.rerun()
-
-    with c2:
-        cur_comp = st.session_state.get("comparison_mode_radio", "YoY")
-        if hasattr(st, "segmented_control"):
-            new_comp = st.segmented_control("Comparison", ["YoY", "MoM"], default=cur_comp, key="lab_comp_ui")
-        else:
-            new_comp = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="lab_comp_ui")
-        if new_comp and new_comp != cur_comp:
-            st.session_state.comparison_mode_radio = new_comp
-            st.rerun()
-
-    with c3:
-        cur_svc = st.session_state.get("filter_svc_type", [])
-        new_svc = st.multiselect("Service Type", all_svc, default=cur_svc, placeholder=f"All Service Types ({len(all_svc)})", key="lab_svc_ui", label_visibility="visible")
-        if set(new_svc) != set(cur_svc):
-            st.session_state.filter_svc_type = new_svc
-            st.rerun()
-
-    with c4:
-        cur_biz = st.session_state.get("lab_business_view", "All")
-        st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Business View</div>', unsafe_allow_html=True)
-        if hasattr(st, "segmented_control"):
-            new_b = st.segmented_control("Business View", ["All", "Workshop", "Bodyshop"], default=cur_biz, key="lab_biz_ui", label_visibility="collapsed")
-        else:
-            new_b = st.radio("Business View", ["All", "Workshop", "Bodyshop"], index=["All", "Workshop", "Bodyshop"].index(cur_biz), horizontal=True, key="lab_biz_ui", label_visibility="collapsed")
-        if new_b and new_b != cur_biz:
-            st.session_state.lab_business_view = new_b
-            st.rerun()
-
-    with c5:
-        st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
-        if st.button("🔄 Reset Page", key="lab_reset_ui"):
-            st.session_state.month_preset = "3M"
-            st.session_state.last_preset = "3M"
-            st.session_state.comparison_mode_radio = "YoY"
-            st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
-            st.session_state.lab_business_view = "All"
-            
-            keys_to_clear = ["filter_svc_type", "lab_cross_loc", "lab_cross_month", "lab_cross_svc"]
-            for k in keys_to_clear:
-                if k in st.session_state:
-                    del st.session_state[k]
-            st.rerun()
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    cur_preset = st.session_state.get("month_preset", "3M")
-    if cur_preset == "Custom":
-        cur_sel = st.session_state.get("selected_months_custom", [])
-        new_sel = st.multiselect("Custom Months", all_months, default=cur_sel, key="lab_custom_months_ui")
-        if set(new_sel) != set(cur_sel):
-            st.session_state.selected_months_custom = new_sel
-            st.rerun()
-
+    client = st.session_state.get("sel_client", "Rukmani Motors")
+    all_locs, all_svc, all_months = _get_master_lists(client)
 
 
 def _render_cross_filter_bar():

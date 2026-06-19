@@ -52,7 +52,7 @@ PAGE_CAPABILITIES = {
     "Cockpit": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
     "Profit & Loss": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
     "Expense Analysis": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
-    "Labour": {"default_period": "3M", "comparison_mode": True, "show_period_filter": False, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Labour": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
     "Parts": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
     "Advisors": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": ["Advisor"]},
     "Advisor MoM": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": ["Advisor"]},
@@ -220,7 +220,17 @@ def render_month_picker(df, page):
         st.session_state.selected_months_custom = default_cp
 
     if "selected_months_custom" not in st.session_state:
-        st.session_state.selected_months_custom = default_cp
+        preset = st.session_state.get("month_preset", "3M")
+        if preset == "1M":
+            st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
+        elif preset == "3M":
+            st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+        elif preset == "6M":
+            st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
+        elif preset != "Custom":
+            st.session_state.selected_months_custom = [m for m in all_months if m in FY_MONTHS.get(preset, [])]
+        else:
+            st.session_state.selected_months_custom = default_cp
     else:
         # On every rerun: filter invalid months, reset to latest if empty
         st.session_state.selected_months_custom = [
@@ -228,7 +238,17 @@ def render_month_picker(df, page):
             if m in all_months
         ]
         if not st.session_state.selected_months_custom:
-            st.session_state.selected_months_custom = default_cp
+            preset = st.session_state.get("month_preset", "3M")
+            if preset == "1M":
+                st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
+            elif preset == "3M":
+                st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+            elif preset == "6M":
+                st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
+            elif preset != "Custom":
+                st.session_state.selected_months_custom = [m for m in all_months if m in FY_MONTHS.get(preset, [])]
+            else:
+                st.session_state.selected_months_custom = default_cp
 
     # Callback for when user clicks a radio button
     def on_preset_change():
@@ -259,9 +279,11 @@ def render_month_picker(df, page):
     # We figure out how many columns we need
     show_svc = capabilities.get("show_service_type_filter", False)
     show_adv = "Advisor" in capabilities.get("additional_module_filters", [])
+    is_labour = (page == "Labour")
     col_count = 3 # Period, Comparison Mode, Reset
     if show_svc: col_count += 1
     if show_adv: col_count += 1
+    if is_labour: col_count += 1
     
     cols = st.columns(col_count)
     col_idx = 0
@@ -290,6 +312,19 @@ def render_month_picker(df, page):
             adv_opts = ["All"] + sorted(df[ADV_COL].dropna().unique().tolist())
             advisor = st.selectbox("Advisor", adv_opts, key="filter_adv_single")
             st.session_state.filter_advisor = [advisor] if advisor != "All" else []
+        col_idx += 1
+
+    if is_labour:
+        with cols[col_idx]:
+            cur_biz = st.session_state.get("lab_business_view", "All")
+            st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Business View</div>', unsafe_allow_html=True)
+            if hasattr(st, "segmented_control"):
+                new_b = st.segmented_control("Business View", ["All", "Workshop", "Bodyshop"], default=cur_biz, key="lab_biz_ui", label_visibility="collapsed")
+            else:
+                new_b = st.radio("Business View", ["All", "Workshop", "Bodyshop"], index=["All", "Workshop", "Bodyshop"].index(cur_biz), horizontal=True, key="lab_biz_ui", label_visibility="collapsed")
+            if new_b and new_b != cur_biz:
+                st.session_state.lab_business_view = new_b
+                st.rerun()
         col_idx += 1
 
     with cols[col_idx]:

@@ -42,3 +42,10 @@ def split_cp_pp(df: pd.DataFrame, month_col: str, cp_months: List[str], pp_month
     cp = apply_month_filter(df, month_col, cp_months)
     pp = apply_month_filter(df, month_col, pp_months)
     return cp, pp
+
+def filter_valid_advisors(df: pd.DataFrame, adv_col: str = "Advisor Name") -> pd.DataFrame:
+    """Filters out invalid advisors ('Unassigned') from the DataFrame for advisor-specific reports."""
+    actual_col = adv_col if adv_col in df.columns else "Advisor"
+    if actual_col in df.columns:
+        return df[df[actual_col] != "Unassigned"]
+    return df

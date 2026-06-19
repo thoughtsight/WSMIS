@@ -182,14 +182,14 @@ def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
     pms_stats = {
         "cp_jobs": pms_jobs_cp, "pp_jobs": pms_jobs_pp,
         "cp_rev": pms_rev_cp, "pp_rev": pms_rev_pp,
-        "cp_rpc": calc_ratio(pms_rev_cp, pms_jobs_cp, 0) if pms_jobs_cp > 0 else 0,
-        "pp_rpc": calc_ratio(pms_rev_pp, pms_jobs_pp, 0) if pms_jobs_pp > 0 else 0,
+        "cp_rpc": calc_ratio(pms_rev_cp, pms_jobs_cp) if pms_jobs_cp > 0 else 0,
+        "pp_rpc": calc_ratio(pms_rev_pp, pms_jobs_pp) if pms_jobs_pp > 0 else 0,
     }
     br_stats = {
         "cp_jobs": br_jobs_cp, "pp_jobs": br_jobs_pp,
         "cp_rev": br_rev_cp, "pp_rev": br_rev_pp,
-        "cp_rpc": calc_ratio(br_rev_cp, br_jobs_cp, 0) if br_jobs_cp > 0 else 0,
-        "pp_rpc": calc_ratio(br_rev_pp, br_jobs_pp, 0) if br_jobs_pp > 0 else 0,
+        "cp_rpc": calc_ratio(br_rev_cp, br_jobs_cp) if br_jobs_cp > 0 else 0,
+        "pp_rpc": calc_ratio(br_rev_pp, br_jobs_pp) if br_jobs_pp > 0 else 0,
     }
 
     return {

@@ -446,10 +446,10 @@ def _render_charts(datasets, active_pairs, mode_str):
     fig.update_layout(**get_ply_layout(
         barmode="group", height=400,
         title=dict(text=f"Revenue Trend \u2014 {mode_str}", font=dict(size=16)),
-        yaxis=dict(**PLY["yaxis"], title="Revenue (\u20b9)", titlefont=dict(size=14)),
+        yaxis=dict(**PLY["yaxis"], title="Revenue (\u20b9)", title_font=dict(size=14)),
         yaxis2=dict(title="Growth %", overlaying="y", side="right",
-                    tickformat=".1f", showgrid=False, titlefont=dict(size=14)),
-        xaxis=dict(titlefont=dict(size=14), tickfont=dict(size=12)),
+                    tickformat=".1f", showgrid=False, title_font=dict(size=14)),
+        xaxis=dict(title_font=dict(size=14), tickfont=dict(size=12)),
         legend=dict(font=dict(size=12))))
 
     ev = st.plotly_chart(fig, use_container_width=True,

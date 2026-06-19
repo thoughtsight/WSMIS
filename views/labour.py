@@ -310,104 +310,98 @@ def _render_ai_narrative(datasets, mode_str, cp_label, pp_label):
         unsafe_allow_html=True)
 
 
-def _render_kpi_tier_1(datasets, mode_str):
+def _render_executive_panel(datasets, mode_str):
     d = datasets["combined"]
-    c1, c2, c3 = st.columns(3)
+    
+    rev_cp = fmt_inr(d["cp_val"])
+    rev_pp = fmt_inr(d["pp_val"])
+    rev_g = d["growth_pct"]
+    
+    rpc_cp = fmt_inr(d["cp_rpc"])
+    rpc_pp = fmt_inr(d["pp_rpc"])
+    rpc_g = d["rpc_growth"]
+    
+    load_cp = f"{int(d['cp_jc']):,}"
+    load_pp = f"{int(d['pp_jc']):,}"
+    load_g = calc_growth_pct(d["cp_jc"], d["pp_jc"], fill_value=0)
+    
+    def _arrow(val):
+        if val > 0: return f'<span style="color:#34C759;">▲ +{val:.1f}%</span>'
+        if val < 0: return f'<span style="color:#FF3B30;">▼ {val:.1f}%</span>'
+        return ""
 
-    def _card(col, label, value, delta_pct, delta_pos, what, why, so_what):
-        dc = "kpi-delta-pos" if delta_pos else "kpi-delta-neg"
-        ds = (f"(+{delta_pct:.2f}%)" if delta_pos and delta_pct > 0
-              else f"({delta_pct:.2f}%)" if delta_pct != 0 else "")
-        with col:
-            st.markdown(
-                f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
-                f'<div class="kpi-value">{value}</div>'
-                f'<div class="{dc}">{ds}</div></div>',
-                unsafe_allow_html=True)
-            if hasattr(st, "popover"):
-                with st.popover("What \u00b7 Why \u00b7 So What"):
-                    st.markdown(f"**What:** {what}")
-                    st.markdown(f"**Why:** {why}")
-                    st.markdown(f"**So What:** {so_what}")
-
-    abs_growth = d["cp_val"] - d["pp_val"]
-    _card(c1, f"CP Labour Revenue ({mode_str})", fmt_inr(d["cp_val"]),
-          d["growth_pct"], d["growth_pct"] >= 0,
-          what=f"Total net labour billed: {fmt_inr(d['cp_val'])}.",
-          why=f"Top contributor: {d['best_loc']} ({fmt_pct(d['best_growth'], True)}). "
-              f"Driver: {d['best_driver']}.",
-          so_what=f"{'Above' if d['growth_pct'] > 0 else 'Below'} prior by "
-                  f"{fmt_inr(abs(abs_growth))}. "
-                  f"{'Sustain momentum.' if d['growth_pct'] > 0 else 'Immediate review.'}")
-
-    _card(c2, f"PP Labour Revenue ({mode_str})", fmt_inr(d["pp_val"]),
-          0, True,
-          what=f"Prior period labour: {fmt_inr(d['pp_val'])}.",
-          why=f"{'Same months prior year' if mode_str == 'YoY' else 'Preceding months'}.",
-          so_what=f"Gap: {fmt_inr(abs(abs_growth))}.")
-
-    _card(c3, "Revenue per Jobcard", fmt_inr(d["cp_rpc"]),
-          d["rpc_growth"], d["rpc_growth"] >= 0,
-          what=f"Average realised per jobcard: {fmt_inr(d['cp_rpc'])}.",
-          why=f"{'Higher-value mix (' + d['top_svc_driver'] + ').' if d['rpc_growth'] >= 0 else 'Lower-value mix. ' + d['top_svc_driver'] + ' volume up.'}",
-          so_what=f"{'Realisation improving.' if d['rpc_growth'] >= 0 else 'Push attach rates.'}")
-
-
-def _render_kpi_tier_2(datasets):
-    d = datasets["combined"]
-    loc_count = len(d["loc_df"])
-    global_locations = st.session_state.get("filter_location", [])
-    single_loc = len(global_locations) == 1
-
-    c1, c2, c3, c4 = st.columns(4)
-
-    with c1:
-        if single_loc:
-            st.markdown(
-                '<div class="kpi-card"><div class="kpi-label">Best Location</div>'
-                '<div class="kpi-meta" style="padding:12px 0">Only 1 location in view \u2014 widen filters</div></div>',
-                unsafe_allow_html=True)
-        else:
-            badge = "badge-pos" if d["best_growth"] > 0 else "badge-neg"
-            st.markdown(
-                f'<div class="kpi-card"><div class="kpi-label">Best Location</div>'
-                f'<div class="kpi-value">{d["best_loc"]}</div>'
-                f'<div class="{badge}">({fmt_pct(d["best_growth"], True)})</div>'
-                f'<div class="kpi-meta">{d["best_driver"]}</div></div>',
-                unsafe_allow_html=True)
-
-    with c2:
-        if single_loc:
-            st.markdown(
-                '<div class="kpi-card"><div class="kpi-label">Worst Location</div>'
-                '<div class="kpi-meta" style="padding:12px 0">Only 1 location in view \u2014 widen filters</div></div>',
-                unsafe_allow_html=True)
-        else:
-            badge = "badge-neg" if d["worst_growth"] < 0 else "badge-pos"
-            st.markdown(
-                f'<div class="kpi-card"><div class="kpi-label">Worst Location</div>'
-                f'<div class="kpi-value">{d["worst_loc"]}</div>'
-                f'<div class="{badge}">({fmt_pct(d["worst_growth"], True)})</div>'
-                f'<div class="kpi-meta">{d["worst_driver"]}</div></div>',
-                unsafe_allow_html=True)
-
-    with c3:
-        hp = calc_ratio(d["n_growing"], d["n_total"], multiplier=100, fill_value=0)
-        hb = ("badge-pos" if hp >= 70 else "badge-warn" if hp >= 50 else "badge-neg")
-        st.markdown(
-            f'<div class="kpi-card"><div class="kpi-label">Locations Growing</div>'
-            f'<div class="kpi-value">{d["n_growing"]} / {d["n_total"]}</div>'
-            f'<div class="{hb}">{hp:.0f}% healthy</div></div>',
-            unsafe_allow_html=True)
-
-    with c4:
-        svc_names = d["svc_df"].sort_values("CP", ascending=False).head(2).index.tolist()
-        top2 = ", ".join(svc_names) if svc_names else "\u2014"
-        st.markdown(
-            f'<div class="kpi-card"><div class="kpi-label">Active Service Types</div>'
-            f'<div class="kpi-value">{d["active_svc_count"]}</div>'
-            f'<div class="kpi-meta">Top 2: {top2}</div></div>',
-            unsafe_allow_html=True)
+    html = f"""
+    <div style="background:#ffffff; border:1px solid #e5e5ea; border-radius:16px; margin-bottom:24px; box-shadow:0 1px 4px rgba(0,0,0,0.05); overflow:hidden;">
+        <!-- Top Row -->
+        <div style="display:flex; border-bottom:1px solid #e5e5ea;">
+            <!-- Top Left: Labour Revenue -->
+            <div style="flex:1; padding:20px; border-right:1px solid #e5e5ea;">
+                <div style="color:#8e8e93; font-size:12px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:12px;">
+                    LABOUR REVENUE
+                </div>
+                <div style="display:flex; align-items:baseline; gap:16px; margin-bottom:4px;">
+                    <div style="font-size:28px; font-weight:700; color:#1d1d1f; line-height:1.2;">
+                        {rev_cp}
+                    </div>
+                    <div style="font-size:16px; font-weight:600;">
+                        {_arrow(rev_g)}
+                    </div>
+                </div>
+                <div style="font-size:14px; color:#8e8e93; font-weight:500;">
+                    PP {rev_pp}
+                </div>
+            </div>
+            
+            <!-- Top Right: Revenue / Jobcard -->
+            <div style="flex:1; padding:20px;">
+                <div style="color:#8e8e93; font-size:12px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:12px;">
+                    REVENUE / JOBCARD
+                </div>
+                <div style="display:flex; align-items:baseline; gap:16px; margin-bottom:4px;">
+                    <div style="font-size:28px; font-weight:700; color:#1d1d1f; line-height:1.2;">
+                        {rpc_cp}
+                    </div>
+                    <div style="font-size:16px; font-weight:600;">
+                        {_arrow(rpc_g)}
+                    </div>
+                </div>
+                <div style="font-size:14px; color:#8e8e93; font-weight:500;">
+                    PP {rpc_pp}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Row -->
+        <div style="display:flex;">
+            <!-- Bottom Left: Load -->
+            <div style="flex:1; padding:20px; border-right:1px solid #e5e5ea;">
+                <div style="color:#8e8e93; font-size:12px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:12px;">
+                    LOAD
+                </div>
+                <div style="font-size:24px; font-weight:700; color:#1d1d1f; line-height:1.2; margin-bottom:6px;">
+                    {load_cp}
+                </div>
+                <div style="display:flex; align-items:baseline; gap:12px; font-size:14px; color:#8e8e93; font-weight:500;">
+                    PP {load_pp} <span style="font-size:14px; font-weight:600;">{_arrow(load_g)}</span>
+                </div>
+            </div>
+            
+            <!-- Bottom Right: Avg Labour -->
+            <div style="flex:1; padding:20px;">
+                <div style="color:#8e8e93; font-size:12px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:12px;">
+                    AVG LABOUR
+                </div>
+                <div style="font-size:24px; font-weight:700; color:#1d1d1f; line-height:1.2; margin-bottom:6px;">
+                    {rpc_cp}
+                </div>
+                <div style="display:flex; align-items:baseline; gap:12px; font-size:14px; color:#8e8e93; font-weight:500;">
+                    PP {rpc_pp} <span style="font-size:14px; font-weight:600;">{_arrow(rpc_g)}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def _render_neg_labour_audit(data):
@@ -913,8 +907,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     _render_control_bar(df, n_rows, n_locs)
     _render_cross_filter_bar()
     _render_ai_narrative(datasets, mode_str, cp_label, pp_label)
-    _render_kpi_tier_1(datasets, mode_str)
-    _render_kpi_tier_2(datasets)
+    _render_executive_panel(datasets, mode_str)
     _render_neg_labour_audit(d)
     _render_charts(datasets, active_pairs, mode_str)
     _render_heatmap(datasets, active_pairs, mode_str)

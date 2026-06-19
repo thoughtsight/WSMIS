@@ -43,7 +43,7 @@ def fmt_inr_short(v):
     neg = v < 0; a = abs(v)
     if a >= 1e7:   s = f"₹{a/1e7:.2f}Cr"
     elif a >= 1e5: s = f"₹{a/1e5:.1f}L"
-    elif a >= 1e3: s = f"₹{a/1e3:.0f}K"
+    elif a >= 1e3: s = f"₹{a/1e3:.2f}K"
     else:          s = f"₹{a:.0f}"
     return f"-{s}" if neg else s
 

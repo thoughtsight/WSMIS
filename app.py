@@ -228,7 +228,7 @@ def render_month_picker(df, page):
             if m in all_months
         ]
         if not st.session_state.selected_months_custom:
-            st.session_state.selected_months_custom = latest_month
+            st.session_state.selected_months_custom = default_cp
 
     # Callback for when user clicks a radio button
     def on_preset_change():
@@ -691,8 +691,9 @@ def main():
     pp = apply_month_filter(df_filtered_full, "Month Name", pp_months)
     alerts = compute_alerts(cp, pp)
 
-    # Negative labour — always visible
-    render_neg_labour_alert(cp)
+    # Negative labour — shown on all pages except Labour (Labour has its own Section G audit)
+    if st.session_state.get("current_page") != "Labour":
+        render_neg_labour_alert(cp)
 
     # Period summary pill
     if selected_months and pp_months:

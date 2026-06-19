@@ -30,6 +30,7 @@ DEFAULTS = {
     "lab_ai_hash": None,
     "lab_ai_narrative": None,
     "lab_ai_opps": None,
+    "lab_ai_opps_hash": None,
 }
 
 
@@ -175,23 +176,19 @@ def _compute_metrics(cp, pp, df, val_col="Net_Labour"):
 
 def _prepare_datasets(cp, pp, df):
     biz = st.session_state.get("lab_business_view", "All")
-    
+
     if biz == "Workshop":
         is_ws = cp["Service Type"] != "BR"
         pp_ws = pp[pp["Service Type"] != "BR"]
-        return {
-            "combined": _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"]),
-            "workshop": _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"]),
-            "bodyshop": None,
-        }
+        metrics = _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"])
+        return {"combined": metrics, "workshop": metrics, "bodyshop": None}
+
     elif biz == "Bodyshop":
         is_bs = cp["Service Type"] == "BR"
         pp_bs = pp[pp["Service Type"] == "BR"]
-        return {
-            "combined": _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"]),
-            "workshop": None,
-            "bodyshop": _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"]),
-        }
+        metrics = _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"])
+        return {"combined": metrics, "workshop": None, "bodyshop": metrics}
+
     else:
         is_ws = cp["Service Type"] != "BR"
         is_bs = cp["Service Type"] == "BR"
@@ -373,8 +370,8 @@ def _render_kpi_tier_1(datasets, mode_str):
 def _render_kpi_tier_2(datasets):
     d = datasets["combined"]
     loc_count = len(d["loc_df"])
-    single_loc = (st.session_state.get("lab_loc_mode") == "single"
-                  and st.session_state.get("lab_location", "All") != "All")
+    global_locations = st.session_state.get("filter_location", [])
+    single_loc = len(global_locations) == 1
 
     c1, c2, c3, c4 = st.columns(4)
 
@@ -859,11 +856,12 @@ def _render_opportunities_actions(datasets, mode_str):
             "top_svc": bs["top_svc_driver"],
         }
 
-    content_hash = str(hash(str(sorted(payload.items()))))
-    if content_hash != st.session_state.get("lab_ai_hash"):
+    opps_hash = str(hash(str(sorted(payload.items()))))
+    if opps_hash != st.session_state.get("lab_ai_opps_hash"):
         with st.spinner("Generating recommendations..."):
             text = get_actions(payload)
         st.session_state.lab_ai_opps = text
+        st.session_state.lab_ai_opps_hash = opps_hash
     else:
         text = st.session_state.lab_ai_opps or ""
 

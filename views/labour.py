@@ -11,7 +11,7 @@ import re
 from utils.calculations.fact_metrics import get_jobcard_count
 from utils.filters import filter_valid_advisors
 from utils.calculations.common import calc_growth_pct, calc_ratio
-from ui.formatters import fmt_inr, fmt_inr_short
+from ui.formatters import fmt_inr, fmt_inr_short, fmt_inr_full, fmt_pct, fmt_num
 from ui.components.theme import EXECUTIVE_THEME_CSS
 from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout
 from services.ai_service import get_narrative, get_actions
@@ -545,25 +545,42 @@ def _render_executive_table(datasets, active_pairs, mode_str):
     # Re-rank after sorting
     tdf.loc[tdf["Location"] != "TOTAL", "Rank"] = range(1, len(loc_rows) + 1)
     
-    # Column configuration with Indian formatting
+    # Basic configuration without formatting overrides
     cc = {
-        "Rank": st.column_config.NumberColumn("Rank", format="%d"),
+        "Rank": st.column_config.NumberColumn("Rank"),
         "Location": st.column_config.TextColumn("Location"),
-        "Labour CP": st.column_config.NumberColumn("Labour CP", format="\u20b9%,.0f"),
-        "Labour PP": st.column_config.NumberColumn("Labour PP", format="\u20b9%,.0f"),
-        "Difference ₹": st.column_config.NumberColumn("Difference ₹", format="\u20b9%,.0f"),
-        "Growth %": st.column_config.NumberColumn("Growth %", format="%.1f%%"),
-        "Job Cards": st.column_config.NumberColumn("Job Cards", format="%d"),
-        "Avg Labour": st.column_config.NumberColumn("Avg Labour", format="\u20b9%,.0f"),
+        "Labour CP": st.column_config.NumberColumn("Labour CP"),
+        "Labour PP": st.column_config.NumberColumn("Labour PP"),
+        "Difference ₹": st.column_config.NumberColumn("Difference ₹"),
+        "Growth %": st.column_config.NumberColumn("Growth %"),
+        "Job Cards": st.column_config.NumberColumn("Job Cards"),
+        "Avg Labour": st.column_config.NumberColumn("Avg Labour"),
     }
     
-    # Style with color coding for Growth and Difference
+    # Style with Indian formatting and color coding
     def _bold_total(row):
         if row["Location"] == "TOTAL":
             return ["font-weight: 700"] * len(row)
         return [""] * len(row)
+        
+    def _color_growth(val):
+        if pd.isna(val) or val == 0: return ""
+        return "color: #10b981;" if val > 0 else "color: #ef4444;"
     
     styled = tdf.style.apply(_bold_total, axis=1)
+    
+    # Map colors to growth and delta
+    styled = styled.map(_color_growth, subset=["Growth %", "Difference ₹"])
+    
+    # Apply Indian formatting
+    styled = styled.format({
+        "Labour CP": fmt_inr_full,
+        "Labour PP": fmt_inr_full,
+        "Difference ₹": fmt_inr_full,
+        "Growth %": lambda x: fmt_pct(x, sign=True),
+        "Job Cards": fmt_num,
+        "Avg Labour": fmt_inr_full,
+    })
     
     st.dataframe(styled, column_config=cc, use_container_width=True, hide_index=True)
 
@@ -604,14 +621,33 @@ def _render_monthly_detail(datasets, active_pairs, mode_str):
 
         t2df = pd.DataFrame(t2_rows)
         t2cc = {"Location": st.column_config.TextColumn("Location")}
+        
+        format_dict = {}
+        color_subset = []
         for cm, _, _ in active_pairs:
-            t2cc[f"{cm[:3]} Lab_CP"] = st.column_config.NumberColumn(
-                f"{cm[:3]} Lab_CP", format="\u20b9%.0f")
-            t2cc[f"{cm[:3]} Lab_PP"] = st.column_config.NumberColumn(
-                f"{cm[:3]} Lab_PP", format="\u20b9%.0f")
-            t2cc[f"{cm[:3]} YoY%"] = st.column_config.NumberColumn(
-                f"{cm[:3]} YoY%", format="%.1f%%")
-        st.dataframe(t2df, column_config=t2cc, use_container_width=True, hide_index=True)
+            t2cc[f"{cm[:3]} Lab_CP"] = st.column_config.NumberColumn(f"{cm[:3]} Lab_CP")
+            t2cc[f"{cm[:3]} Lab_PP"] = st.column_config.NumberColumn(f"{cm[:3]} Lab_PP")
+            t2cc[f"{cm[:3]} YoY%"] = st.column_config.NumberColumn(f"{cm[:3]} YoY%")
+            
+            format_dict[f"{cm[:3]} Lab_CP"] = fmt_inr_full
+            format_dict[f"{cm[:3]} Lab_PP"] = fmt_inr_full
+            format_dict[f"{cm[:3]} YoY%"] = lambda x: fmt_pct(x, sign=True)
+            color_subset.append(f"{cm[:3]} YoY%")
+            
+        def _bold_total_m(row):
+            if row["Location"] == "TOTAL":
+                return ["font-weight: 700"] * len(row)
+            return [""] * len(row)
+            
+        def _color_growth(val):
+            if pd.isna(val) or val == 0: return ""
+            return "color: #10b981;" if val > 0 else "color: #ef4444;"
+            
+        styled2 = t2df.style.apply(_bold_total_m, axis=1)
+        styled2 = styled2.map(_color_growth, subset=color_subset)
+        styled2 = styled2.format(format_dict)
+            
+        st.dataframe(styled2, column_config=t2cc, use_container_width=True, hide_index=True)
 
 
 def _render_opportunities_actions(datasets, mode_str):

@@ -45,8 +45,8 @@ def get_revenue_tooltip(
         "<b>%{customdata[0]}</b><br><br>"
         f"<b>Current Period:</b> {currency_symbol}%{{customdata[1]:,.0f}}<br>"
         f"<b>Previous Period:</b> {currency_symbol}%{{customdata[2]:,.0f}}<br>"
-        f"<b>Difference:</b> {currency_symbol}%{{customdata[1] - customdata[2]:,.0f}}<br>"
-        "<b>Growth:</b> %{customdata[3]:.1f}%<extra></extra>"
+        f"<b>Difference:</b> {currency_symbol}%{{customdata[3]:,.0f}}<br>"
+        "<b>Growth:</b> %{customdata[4]:.1f}%<extra></extra>"
     )
 
 
@@ -138,17 +138,18 @@ def prepare_customdata(
     cp_values: List[float],
     pp_values: List[float],
     growth_values: List[float]
-) -> List[Tuple[str, float, float, float]]:
+) -> List[Tuple[str, float, float, float, float]]:
     """
     Prepare customdata for use with revenue tooltip template.
-    
+
     Args:
         months: List of month labels
         cp_values: List of current period values
         pp_values: List of previous period values
         growth_values: List of growth values
-    
+
     Returns:
-        List of tuples (month, cp, pp, growth) for customdata
+        List of tuples (month, cp, pp, difference, growth) for customdata
     """
-    return list(zip(months, cp_values, pp_values, growth_values))
+    differences = [cp - pp for cp, pp in zip(cp_values, pp_values)]
+    return list(zip(months, cp_values, pp_values, differences, growth_values))

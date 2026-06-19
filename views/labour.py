@@ -13,7 +13,7 @@ from utils.calculations.common import calc_growth_pct, calc_ratio
 from ui.formatters import fmt_inr, fmt_pct, fmt_inr_short
 from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout
 from services.ai_service import get_narrative, get_actions
-from ui.components.core import UniversalHeader, UniversalFooter, EmptyState
+from ui.components.core import EmptyState
 
 _SVC_COLORS = {"PMP": C["primary"], "RR": C["green"], "Accessories": C["orange"],
                "BR": C["purple"], "Bodyshop Repair": C["purple"]}
@@ -923,8 +923,6 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     n_rows = len(cp) + len(pp)
     n_locs = d["n_total"]
 
-    UniversalHeader("Rukmani Motors", "Labour Revenue",
-                    f"{cp_label} vs {pp_label}", "")
 
     _render_control_bar(df, n_rows, n_locs)
     _render_cross_filter_bar()
@@ -938,4 +936,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     _render_drill_down(datasets)
     _render_executive_table(datasets, active_pairs, mode_str)
     _render_opportunities_actions(datasets, mode_str)
-    UniversalFooter()
+

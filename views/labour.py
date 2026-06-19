@@ -8,27 +8,20 @@ import pandas as pd
 import plotly.graph_objects as go
 import re
 
-from utils.calculations.fact_metrics import get_net_labour, get_jobcard_count
+from utils.calculations.fact_metrics import get_jobcard_count
 from utils.filters import filter_valid_advisors
 from utils.calculations.common import calc_growth_pct, calc_ratio
-from ui.formatters import fmt_inr, fmt_pct, fmt_inr_short
+from ui.formatters import fmt_inr, fmt_inr_short
 from ui.components.theme import EXECUTIVE_THEME_CSS
 from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout
 from services.ai_service import get_narrative, get_actions
 from ui.components.core import EmptyState
 
-_SVC_COLORS = {"PMP": C["primary"], "RR": C["green"], "Accessories": C["orange"],
-               "BR": C["purple"], "Bodyshop Repair": C["purple"]}
 
 DEFAULTS = {
     "lab_business_view": "All",
     "lab_service_types": [],
-    "lab_cross_loc": None,
     "lab_cross_month": None,
-    "lab_cross_svc": None,
-    "lab_drill_open": False,
-    "lab_drill_type": None,
-    "lab_drill_value": None,
     "lab_ai_hash": None,
     "lab_ai_narrative": None,
     "lab_ai_opps": None,
@@ -71,7 +64,6 @@ def _inject_responsive_css():
 }
 .kpi-card { height: 140px; display: flex; flex-direction: column; justify-content: space-between; }
 .lab-summary { font-size: 12px; color: #6E6E73; padding: 2px 0 8px 0; }
-.lab-drill { border: 2px dashed #E5E5EA; border-radius: 12px; padding: 16px; margin: 8px 0; }
 </style>""", unsafe_allow_html=True)
 
 
@@ -88,13 +80,6 @@ def _apply_filters(df, active_pairs):
     if svc_types:
         filtered = filtered[filtered["Service Type"].isin(svc_types)]
 
-    cross_loc = st.session_state.get("lab_cross_loc")
-    if cross_loc:
-        filtered = filtered[filtered["Location Name"] == cross_loc]
-
-    cross_svc = st.session_state.get("lab_cross_svc")
-    if cross_svc:
-        filtered = filtered[filtered["Service Type"] == cross_svc]
 
     cp_months_active = [p[0] for p in active_pairs]
     pp_months_active = [p[1] for p in active_pairs]
@@ -172,6 +157,10 @@ def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
     cp_month_sum = cp.groupby("Month Name")[val_col].sum()
     pp_month_sum = pp.groupby("Month Name")[val_col].sum()
     loc_6m_avg = df.groupby("Location Name")[val_col].sum() / max(df["Month Name"].nunique(), 1)
+    
+    # Aggregate actual Job Cards by Location
+    cp_loc_jc = cp.groupby("Location Name")["JC_Nos."].sum() if "JC_Nos." in cp.columns else pd.Series(dtype=float)
+    pp_loc_jc = pp.groupby("Location Name")["JC_Nos."].sum() if "JC_Nos." in pp.columns else pd.Series(dtype=float)
 
     active_svc_count = len(cp["Service Type"].dropna().unique())
 
@@ -217,6 +206,7 @@ def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
         "loc_svc_cp": loc_svc_cp, "loc_svc_pp": loc_svc_pp,
         "cp_loc_month_piv": cp_loc_piv, "pp_loc_month_piv": pp_loc_piv,
         "cp_month_sum": cp_month_sum, "pp_month_sum": pp_month_sum,
+        "cp_loc_jc": cp_loc_jc, "pp_loc_jc": pp_loc_jc,
         "active_svc_count": active_svc_count,
         "pms_stats": pms_stats, "br_stats": br_stats,
     }
@@ -249,24 +239,13 @@ def _prepare_datasets(cp, pp, df):
         }
 
 
-def _render_control_bar(df, n_rows, n_locs):
-    from utils.constants import FY_MONTHS
-    
-    client = st.session_state.get("sel_client", "Rukmani Motors")
-    all_locs, all_svc, all_months = _get_master_lists(client)
 
 
 def _render_cross_filter_bar():
     chips = []
-    cross_loc = st.session_state.get("lab_cross_loc")
     cross_month = st.session_state.get("lab_cross_month")
-    cross_svc = st.session_state.get("lab_cross_svc")
-    if cross_loc:
-        chips.append(("\U0001f4cd " + cross_loc, "lab_cross_loc"))
     if cross_month:
         chips.append(("\U0001f4c5 " + cross_month, "lab_cross_month"))
-    if cross_svc:
-        chips.append(("\U0001f527 " + cross_svc, "lab_cross_svc"))
     if not chips:
         return
     html = '<div style="display:flex;gap:6px;align-items:center;padding:4px 0 8px 0;flex-wrap:wrap">'
@@ -284,9 +263,7 @@ def _render_cross_filter_bar():
             st.session_state[key] = None
             st.rerun()
     if st.button("Clear all filters", key="chip_clear_all", label_visibility="visible"):
-        st.session_state.lab_cross_loc = None
         st.session_state.lab_cross_month = None
-        st.session_state.lab_cross_svc = None
         st.rerun()
 
 
@@ -296,12 +273,8 @@ def _render_ai_narrative(datasets, mode_str, cp_label, pp_label):
     bs = datasets["bodyshop"]
     biz = st.session_state.get("lab_business_view", "All")
     cross_filters = {}
-    if st.session_state.get("lab_cross_loc"):
-        cross_filters["location"] = st.session_state.lab_cross_loc
     if st.session_state.get("lab_cross_month"):
         cross_filters["month"] = st.session_state.lab_cross_month
-    if st.session_state.get("lab_cross_svc"):
-        cross_filters["service_type"] = st.session_state.lab_cross_svc
 
     payload = {
         "mode": mode_str, "period": f"{cp_label} vs {pp_label}",
@@ -442,325 +415,156 @@ def _render_neg_labour_audit(data):
 
 def _render_charts(datasets, active_pairs, mode_str):
     data = datasets["combined"]
-    c1, c2 = st.columns([3, 2])
-
-    with c1:
-        months = [p[0] for p in active_pairs]
-        cp_vals = [data["cp_month_sum"].get(m, 0) for m in months]
-        pp_vals = [data["pp_month_sum"].get(p[1], 0) for p in active_pairs]
-        growth = [calc_growth_pct(c, p, fill_value=0) for c, p in zip(cp_vals, pp_vals)]
-
-        fig = go.Figure()
-        fig.add_trace(go.Bar(
-            name=f"CP ({mode_str})", x=months, y=cp_vals,
-            marker_color=C["primary"],
-            text=[fmt_inr_short(v) for v in cp_vals], textposition="outside",
-            customdata=list(zip(months, cp_vals, pp_vals, growth)),
-            hovertemplate=("<b>%{customdata[0]}</b><br>CP: \u20b9%{customdata[1]:,.0f}"
-                           "<br>PP: \u20b9%{customdata[2]:,.0f}"
-                           "<br>Growth: %{customdata[3]:.1f}%<extra></extra>")))
-        fig.add_trace(go.Bar(
-            name="PP", x=months, y=pp_vals, marker_color=C["gray"], opacity=0.7,
-            text=[fmt_inr_short(v) for v in pp_vals], textposition="outside"))
-        fig.add_trace(go.Scatter(
-            name="Growth %", x=months, y=growth,
-            mode="lines+markers+text", yaxis="y2",
-            line=dict(color=C["orange"], width=2),
-            text=[f"{g:+.1f}%" for g in growth], textposition="top center",
-            marker=dict(size=8, color=[C["green"] if g >= 0 else C["red"] for g in growth])))
-        fig.update_layout(**get_ply_layout(
-            barmode="group", height=300,
-            title=dict(text=f"Revenue Trend \u2014 {mode_str}", **PLY_TITLE),
-            yaxis=dict(**PLY["yaxis"], title="Revenue (\u20b9)"),
-            yaxis2=dict(title="Growth %", overlaying="y", side="right",
-                        tickformat=".1f", showgrid=False)))
-
-        ev = st.plotly_chart(fig, use_container_width=True,
-                             on_select="rerun", selection_mode="points",
-                             key="chart_trend")
-        if ev and ev.selection and ev.selection.points:
-            cm = ev.selection.points[0].get("x")
-            if cm and cm != st.session_state.get("lab_cross_month"):
-                st.session_state.lab_cross_month = cm
-                st.rerun()
-
-    with c2:
-        all_svc = sorted(data["svc_df"].index)
-        fig2 = go.Figure()
-        for svc in all_svc:
-            cv = data["svc_df"].loc[svc, "CP"]
-            pv = data["svc_df"].loc[svc, "PP"]
-            fig2.add_trace(go.Bar(
-                name=svc, x=["CP", "PP"], y=[cv, pv],
-                marker_color=_SVC_COLORS.get(svc, C["gray"]),
-                text=[fmt_inr_short(cv), fmt_inr_short(pv)], textposition="inside",
-                customdata=[[svc, cv, pv, calc_growth_pct(cv, pv, 0)]] * 2,
-                hovertemplate=("<b>%{customdata[0]}</b><br>%{x}: \u20b9%{y:,.0f}"
-                               "<br>Growth: %{customdata[3]:.1f}%<extra></extra>")))
-        fig2.update_layout(**get_ply_layout(
-            barmode="stack", height=300,
-            title=dict(text=f"Service Type Mix \u2014 {mode_str}", **PLY_TITLE)))
-
-        ev2 = st.plotly_chart(fig2, use_container_width=True,
-                              on_select="rerun", selection_mode="points",
-                              key="chart_svc")
-        if ev2 and ev2.selection and ev2.selection.points:
-            idx = ev2.selection.points[0].get("curve_number", 0)
-            if idx < len(all_svc):
-                clicked = all_svc[idx]
-                if clicked != st.session_state.get("lab_cross_svc"):
-                    st.session_state.lab_cross_svc = clicked
-                    st.rerun()
-
-
-def _render_heatmap(datasets, active_pairs, mode_str):
-    data = datasets["combined"]
+    
+    # Revenue Trend - Full width, larger fonts
     months = [p[0] for p in active_pairs]
-    locs = sorted(set(data["cp_loc_month_piv"].index) |
-                  set(data["pp_loc_month_piv"].index))
-    z, txt = [], []
-    for loc in locs:
-        rz, rt = [], []
-        for cm, pm, _ in active_pairs:
-            cv = (data["cp_loc_month_piv"].loc[loc, cm]
-                  if loc in data["cp_loc_month_piv"].index
-                  and cm in data["cp_loc_month_piv"].columns else 0)
-            pv = (data["pp_loc_month_piv"].loc[loc, pm]
-                  if loc in data["pp_loc_month_piv"].index
-                  and pm in data["pp_loc_month_piv"].columns else 0)
-            g = calc_growth_pct(cv, pv, fill_value=np.nan)
-            rz.append(g)
-            rt.append(f"{g:+.1f}" if not np.isnan(g) else "\u2014")
-        z.append(rz); txt.append(rt)
+    cp_vals = [data["cp_month_sum"].get(m, 0) for m in months]
+    pp_vals = [data["pp_month_sum"].get(p[1], 0) for p in active_pairs]
+    growth = [calc_growth_pct(c, p, fill_value=0) for c, p in zip(cp_vals, pp_vals)]
 
-    h = max(320, len(locs) * 28 + 60)
-    fig = go.Figure(go.Heatmap(
-        z=z, x=months, y=locs,
-        colorscale=[[0, "#FF3B30"], [0.5, "#FFFFFF"], [1, "#34C759"]],
-        zmid=0, zmin=-30, zmax=30,
-        text=txt, texttemplate="%{text}%", textfont=dict(size=10),
-        hovertemplate="<b>%{y}</b> \u2014 %{x}<br>Growth: %{text}%<extra></extra>"))
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        name=f"CP ({mode_str})", x=months, y=cp_vals,
+        marker_color=C["primary"],
+        text=[fmt_inr_short(v) for v in cp_vals], textposition="outside",
+        textfont=dict(size=14),
+        customdata=list(zip(months, cp_vals, pp_vals, growth)),
+        hovertemplate=("<b>%{customdata[0]}</b><br>CP: \u20b9%{customdata[1]:,.0f}"
+                       "<br>PP: \u20b9%{customdata[2]:,.0f}"
+                       "<br>Growth: %{customdata[3]:.1f}%<extra></extra>")))
+    fig.add_trace(go.Bar(
+        name="PP", x=months, y=pp_vals, marker_color=C["gray"], opacity=0.7,
+        text=[fmt_inr_short(v) for v in pp_vals], textposition="outside",
+        textfont=dict(size=14)))
+    fig.add_trace(go.Scatter(
+        name="Growth %", x=months, y=growth,
+        mode="lines+markers+text", yaxis="y2",
+        line=dict(color=C["orange"], width=3),
+        text=[f"{g:+.1f}%" for g in growth], textposition="top center",
+        textfont=dict(size=13, color=[C["green"] if g >= 0 else C["red"] for g in growth]),
+        marker=dict(size=10, color=[C["green"] if g >= 0 else C["red"] for g in growth])))
     fig.update_layout(**get_ply_layout(
-        height=h,
-        title=dict(text=f"Location Growth Heatmap \u2014 {mode_str}", **PLY_TITLE),
-        xaxis=dict(**PLY["xaxis"], side="top")))
+        barmode="group", height=400,
+        title=dict(text=f"Revenue Trend \u2014 {mode_str}", font=dict(size=16)),
+        yaxis=dict(**PLY["yaxis"], title="Revenue (\u20b9)", titlefont=dict(size=14)),
+        yaxis2=dict(title="Growth %", overlaying="y", side="right",
+                    tickformat=".1f", showgrid=False, titlefont=dict(size=14)),
+        xaxis=dict(titlefont=dict(size=14), tickfont=dict(size=12)),
+        legend=dict(font=dict(size=12))))
 
     ev = st.plotly_chart(fig, use_container_width=True,
                          on_select="rerun", selection_mode="points",
-                         key="chart_heat")
+                         key="chart_trend")
     if ev and ev.selection and ev.selection.points:
-        pt = ev.selection.points[0]
-        cl = pt.get("y"); cm = pt.get("x")
-        changed = False
-        if cl and cl != st.session_state.get("lab_cross_loc"):
-            st.session_state.lab_cross_loc = cl; changed = True
+        cm = ev.selection.points[0].get("x")
         if cm and cm != st.session_state.get("lab_cross_month"):
-            st.session_state.lab_cross_month = cm; changed = True
-        if changed:
+            st.session_state.lab_cross_month = cm
             st.rerun()
 
 
-def _render_waterfalls(datasets, mode_str):
-    data = datasets["combined"]
-    g1, g2 = st.columns(2)
-
-    with g1:
-        sl = sorted(data["loc_df"].index,
-                    key=lambda l: data["loc_df"].loc[l, "Delta"], reverse=True)
-        wf_x = ["PP Total"] + sl + ["CP Total"]
-        wf_y = ([data["pp_val"]] +
-                [data["loc_df"].loc[l, "Delta"] for l in sl] +
-                [data["cp_val"]])
-        wf_m = ["absolute"] + ["relative"] * len(sl) + ["total"]
-        wf_t = ([fmt_inr_short(data["pp_val"])] +
-                [f"{'+' if v >= 0 else ''}{fmt_inr_short(v)}"
-                 for v in [data["loc_df"].loc[l, "Delta"] for l in sl]] +
-                [fmt_inr_short(data["cp_val"])])
-        fig = go.Figure(go.Waterfall(
-            name="Location Bridge", orientation="v",
-            measure=wf_m, x=wf_x, y=wf_y, text=wf_t,
-            textposition="outside",
-            increasing={"marker": {"color": C["green"]}},
-            decreasing={"marker": {"color": C["red"]}},
-            totals={"marker": {"color": C["primary"]}},
-            connector={"line": {"color": "#E5E5EA", "width": 1}}))
-        fig.update_layout(**get_ply_layout(
-            height=360,
-            title=dict(text=f"Location Bridge \u2014 {mode_str}", **PLY_TITLE)))
-        ev = st.plotly_chart(fig, use_container_width=True,
-                             on_select="rerun", selection_mode="points",
-                             key="chart_wf_loc")
-        if ev and ev.selection and ev.selection.points:
-            loc = ev.selection.points[0].get("x")
-            if loc and loc not in ("PP Total", "CP Total"):
-                st.session_state.lab_cross_loc = loc
-                st.session_state.lab_drill_open = True
-                st.session_state.lab_drill_type = "location"
-                st.session_state.lab_drill_value = loc
-                st.rerun()
-
-    with g2:
-        ss = sorted(data["svc_df"].index,
-                    key=lambda s: data["svc_df"].loc[s, "Delta"], reverse=True)
-        wf2_x = ["PP Total"] + ss + ["CP Total"]
-        wf2_y = ([data["pp_val"]] +
-                 [data["svc_df"].loc[s, "Delta"] for s in ss] +
-                 [data["cp_val"]])
-        wf2_m = ["absolute"] + ["relative"] * len(ss) + ["total"]
-        wf2_t = ([fmt_inr_short(data["pp_val"])] +
-                 [f"{'+' if v >= 0 else ''}{fmt_inr_short(v)}"
-                  for v in [data["svc_df"].loc[s, "Delta"] for s in ss]] +
-                 [fmt_inr_short(data["cp_val"])])
-        fig2 = go.Figure(go.Waterfall(
-            name="Service Bridge", orientation="v",
-            measure=wf2_m, x=wf2_x, y=wf2_y, text=wf2_t,
-            textposition="outside",
-            increasing={"marker": {"color": C["green"]}},
-            decreasing={"marker": {"color": C["red"]}},
-            totals={"marker": {"color": C["primary"]}},
-            connector={"line": {"color": "#E5E5EA", "width": 1}}))
-        fig2.update_layout(**get_ply_layout(
-            height=360,
-            title=dict(text=f"Service Type Bridge \u2014 {mode_str}", **PLY_TITLE)))
-        ev2 = st.plotly_chart(fig2, use_container_width=True,
-                              on_select="rerun", selection_mode="points",
-                              key="chart_wf_svc")
-        if ev2 and ev2.selection and ev2.selection.points:
-            svc = ev2.selection.points[0].get("x")
-            if svc and svc not in ("PP Total", "CP Total"):
-                st.session_state.lab_cross_svc = svc
-                st.session_state.lab_drill_open = True
-                st.session_state.lab_drill_type = "service"
-                st.session_state.lab_drill_value = svc
-                st.rerun()
 
 
-def _render_drill_down(datasets):
-    if not st.session_state.get("lab_drill_open"):
-        return
-    dtype = st.session_state.get("lab_drill_type")
-    dval = st.session_state.get("lab_drill_value")
-    if not dtype or not dval:
-        return
-    data = datasets["combined"]
-
-    st.markdown('<div class="lab-drill">', unsafe_allow_html=True)
-    if dtype == "location":
-        st.markdown(f"**{dval} \u2014 Service Type Breakdown**")
-        cp_s = (data["loc_svc_cp"].xs(dval, level="Location Name")
-                if dval in data["loc_svc_cp"].index.get_level_values("Location Name")
-                else pd.Series(dtype=float))
-        pp_s = (data["loc_svc_pp"].xs(dval, level="Location Name")
-                if dval in data["loc_svc_pp"].index.get_level_values("Location Name")
-                else pd.Series(dtype=float))
-        sdf = pd.DataFrame({"CP": cp_s, "PP": pp_s}).fillna(0)
-        fig = go.Figure()
-        for svc in sdf.index:
-            fig.add_trace(go.Bar(
-                name=svc, x=["CP", "PP"],
-                y=[sdf.loc[svc, "CP"], sdf.loc[svc, "PP"]],
-                marker_color=_SVC_COLORS.get(svc, C["gray"])))
-        fig.update_layout(**get_ply_layout(
-            barmode="stack", height=240,
-            title=dict(text=f"{dval} Service Breakdown", **PLY_TITLE)))
-        st.plotly_chart(fig, use_container_width=True, key="drill_loc_chart")
-
-    elif dtype == "service":
-        st.markdown(f"**{dval} \u2014 Location Breakdown**")
-        cp_l = (data["loc_svc_cp"].xs(dval, level="Service Type")
-                if dval in data["loc_svc_cp"].index.get_level_values("Service Type")
-                else data["loc_df"]["CP"])
-        pp_l = (data["loc_svc_pp"].xs(dval, level="Service Type")
-                if dval in data["loc_svc_pp"].index.get_level_values("Service Type")
-                else data["loc_df"]["PP"])
-        ldf = pd.DataFrame({"CP": cp_l, "PP": pp_l}).fillna(0).sort_values("CP", ascending=False)
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(name="CP", x=ldf.index.tolist(),
-                              y=ldf["CP"].tolist(), marker_color=C["primary"]))
-        fig2.add_trace(go.Bar(name="PP", x=ldf.index.tolist(),
-                              y=ldf["PP"].tolist(), marker_color=C["gray"], opacity=0.7))
-        fig2.update_layout(**get_ply_layout(
-            barmode="group", height=240,
-            title=dict(text=f"{dval} by Location", **PLY_TITLE)))
-        st.plotly_chart(fig2, use_container_width=True, key="drill_svc_chart")
-
-    if st.button("\u2715 Close drill-down", key="close_drill"):
-        st.session_state.lab_drill_open = False
-        st.session_state.lab_drill_type = None
-        st.session_state.lab_drill_value = None
-        st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _render_executive_table(datasets, active_pairs, mode_str):
     data = datasets["combined"]
-    st.markdown("---")
-    tab1, tab2 = st.tabs(["Performance Table", "YoY Comparison"])
+    
+    st.markdown(
+        f'<div class="section-title">\U0001f4ca Executive Location Performance \u2014 {mode_str}</div>',
+        unsafe_allow_html=True)
+    
+    # Build executive table with location performance
+    all_locs = sorted(set(data["cp_loc_month_piv"].index) |
+                      set(data["pp_loc_month_piv"].index))
+    
+    rows = []
+    for loc in all_locs:
+        lcp = data["loc_df"].loc[loc, "CP"] if loc in data["loc_df"].index else 0
+        lpp = data["loc_df"].loc[loc, "PP"] if loc in data["loc_df"].index else 0
+        growth = data["loc_df"].loc[loc, "Growth"] if loc in data["loc_df"].index else 0
+        delta = data["loc_df"].loc[loc, "Delta"] if loc in data["loc_df"].index else 0
+        
+        # Use actual Job Cards from aggregation
+        cp_jc = data["cp_loc_jc"].get(loc, 0) if "cp_loc_jc" in data else 0
+        avg_lab = calc_ratio(lcp, cp_jc, fill_value=0) if cp_jc > 0 else 0
+        
+        rows.append({
+            "Location": loc,
+            "Labour CP": lcp,
+            "Labour PP": lpp,
+            "Difference ₹": delta,
+            "Growth %": growth,
+            "Job Cards": cp_jc,
+            "Avg Labour": avg_lab
+        })
+    
+    # Add Total row
+    total_cp = data["cp_val"]
+    total_pp = data["pp_val"]
+    total_delta = total_cp - total_pp
+    total_growth = calc_growth_pct(total_cp, total_pp, fill_value=0)
+    total_jc = data["cp_jc"]
+    total_avg = calc_ratio(total_cp, total_jc, fill_value=0) if total_jc > 0 else 0
+    
+    rows.append({
+        "Location": "TOTAL",
+        "Labour CP": total_cp,
+        "Labour PP": total_pp,
+        "Difference ₹": total_delta,
+        "Growth %": total_growth,
+        "Job Cards": total_jc,
+        "Avg Labour": total_avg
+    })
+    
+    tdf = pd.DataFrame(rows)
+    
+    # Add Rank column (excluding TOTAL)
+    tdf["Rank"] = range(1, len(tdf))
+    tdf.loc[tdf["Location"] == "TOTAL", "Rank"] = ""
+    
+    # Sort by Growth % descending (excluding TOTAL which stays at bottom)
+    total_row = tdf[tdf["Location"] == "TOTAL"].copy()
+    loc_rows = tdf[tdf["Location"] != "TOTAL"].sort_values("Growth %", ascending=False)
+    tdf = pd.concat([loc_rows, total_row], ignore_index=True)
+    
+    # Re-rank after sorting
+    tdf.loc[tdf["Location"] != "TOTAL", "Rank"] = range(1, len(loc_rows) + 1)
+    
+    # Column configuration with Indian formatting
+    cc = {
+        "Rank": st.column_config.NumberColumn("Rank", format="%d"),
+        "Location": st.column_config.TextColumn("Location"),
+        "Labour CP": st.column_config.NumberColumn("Labour CP", format="\u20b9%,.0f"),
+        "Labour PP": st.column_config.NumberColumn("Labour PP", format="\u20b9%,.0f"),
+        "Difference ₹": st.column_config.NumberColumn("Difference ₹", format="\u20b9%,.0f"),
+        "Growth %": st.column_config.NumberColumn("Growth %", format="%.1f%%"),
+        "Job Cards": st.column_config.NumberColumn("Job Cards", format="%d"),
+        "Avg Labour": st.column_config.NumberColumn("Avg Labour", format="\u20b9%,.0f"),
+    }
+    
+    # Style with color coding for Growth and Difference
+    def _bold_total(row):
+        if row["Location"] == "TOTAL":
+            return ["font-weight: 700"] * len(row)
+        return [""] * len(row)
+    
+    styled = tdf.style.apply(_bold_total, axis=1)
+    
+    st.dataframe(styled, column_config=cc, use_container_width=True, hide_index=True)
 
-    with tab1:
+
+def _render_monthly_detail(datasets, active_pairs, mode_str):
+    data = datasets["combined"]
+    
+    with st.expander("▶ Monthly Location Performance (Detailed View)", expanded=False):
         st.markdown(
-            f'<div class="section-title">\U0001f4ca Performance Table \u2014 {mode_str}</div>',
+            f'<div class="section-title">\U0001f4ca Monthly Detail \u2014 {mode_str}</div>',
             unsafe_allow_html=True)
+        
         all_locs = sorted(set(data["cp_loc_month_piv"].index) |
                           set(data["pp_loc_month_piv"].index))
-        rows = []
-        for loc in all_locs:
-            row = {"Location": loc}
-            sp = []
-            lcp = data["loc_df"].loc[loc, "CP"] if loc in data["loc_df"].index else 0
-            lpp = data["loc_df"].loc[loc, "PP"] if loc in data["loc_df"].index else 0
-            for cm, pm, _ in active_pairs:
-                cv = (data["cp_loc_month_piv"].loc[loc, cm]
-                      if loc in data["cp_loc_month_piv"].index
-                      and cm in data["cp_loc_month_piv"].columns else 0)
-                pv = (data["pp_loc_month_piv"].loc[loc, pm]
-                      if loc in data["pp_loc_month_piv"].index
-                      and pm in data["pp_loc_month_piv"].columns else 0)
-                row[f"{cm[:3]} \u0394%"] = calc_growth_pct(cv, pv, fill_value=np.nan)
-                sp.append(cv)
-            row["CP Total"] = lcp
-            row["PP Total"] = lpp
-            row["Total \u0394%"] = calc_growth_pct(lcp, lpp, fill_value=np.nan)
-            row["Share%"] = calc_ratio(lcp, data["cp_val"], multiplier=100, fill_value=0)
-            row["Trend"] = sp
-            rows.append(row)
-
-        tdf = pd.DataFrame(rows).sort_values("CP Total", ascending=False)
-
-        def _rs(row):
-            d = row.get("Total \u0394%", 0)
-            if pd.isna(d):
-                return [""] * len(row)
-            if d < -5:
-                return ["background-color:#FFEBE9"] * len(row)
-            if d > 15:
-                return ["background-color:#E8F9EE"] * len(row)
-            return [""] * len(row)
-
-        styled = tdf.style.apply(_rs, axis=1)
-        cc = {
-            "Location": st.column_config.TextColumn("Location"),
-            "CP Total": st.column_config.NumberColumn("CP Total", format="\u20b9%.0f"),
-            "PP Total": st.column_config.NumberColumn("PP Total", format="\u20b9%.0f"),
-            "Total \u0394%": st.column_config.NumberColumn(
-                f"Total {mode_str}%", format="%.1f%%"),
-            "Share%": st.column_config.ProgressColumn(
-                "Share %", format="%.1f%%", min_value=0, max_value=100),
-            "Trend": st.column_config.LineChartColumn("Trend (CP)"),
-        }
-        for cm, _, _ in active_pairs:
-            cc[f"{cm[:3]} \u0394%"] = st.column_config.NumberColumn(
-                f"{cm[:3]} {mode_str}%", format="%.1f%%")
-        st.dataframe(styled, column_config=cc, use_container_width=True, hide_index=True)
-
-    with tab2:
-        st.markdown(
-            f'<div class="section-title">\U0001f4ca YoY Comparison \u2014 {mode_str}</div>',
-            unsafe_allow_html=True)
-        all_locs2 = sorted(set(data["cp_loc_month_piv"].index) |
-                           set(data["pp_loc_month_piv"].index))
         t2_rows = []
-        for loc in all_locs2:
+        for loc in all_locs:
             row = {"Location": loc}
             for cm, pm, _ in active_pairs:
                 cv = (data["cp_loc_month_piv"].loc[loc, cm]
@@ -910,15 +714,12 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     n_locs = d["n_total"]
 
 
-    _render_control_bar(df, n_rows, n_locs)
     _render_cross_filter_bar()
     _render_ai_narrative(datasets, mode_str, cp_label, pp_label)
     _render_executive_panel(datasets, mode_str)
     _render_neg_labour_audit(d)
     _render_charts(datasets, active_pairs, mode_str)
-    _render_heatmap(datasets, active_pairs, mode_str)
-    _render_waterfalls(datasets, mode_str)
-    _render_drill_down(datasets)
     _render_executive_table(datasets, active_pairs, mode_str)
+    _render_monthly_detail(datasets, active_pairs, mode_str)
     _render_opportunities_actions(datasets, mode_str)
 

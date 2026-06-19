@@ -12,6 +12,7 @@ from utils.calculations.fact_metrics import get_net_labour, get_jobcard_count
 from utils.filters import filter_valid_advisors
 from utils.calculations.common import calc_growth_pct, calc_ratio
 from ui.formatters import fmt_inr, fmt_pct, fmt_inr_short
+from ui.components.theme import EXECUTIVE_THEME_CSS
 from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout
 from services.ai_service import get_narrative, get_actions
 from ui.components.core import EmptyState
@@ -108,7 +109,7 @@ def _apply_filters(df, active_pairs):
     return cp, pp
 
 
-def _compute_metrics(cp, pp, df, val_col="Net_Labour"):
+def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
     cp_loc = cp.groupby("Location Name")[val_col].sum()
     pp_loc = pp.groupby("Location Name")[val_col].sum()
     cp_svc = cp.groupby("Service Type")[val_col].sum()
@@ -389,25 +390,7 @@ def _render_executive_panel(datasets, mode_str):
 {_svc_row("Revenue", cp_rev, pp_rev)}
 </div>"""
 
-    html = f"""<style>
-.exec-heading {{ font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #a1a1a6; margin: 24px 0 12px 0; }}
-.kpi-wrapper {{ display: flex; gap: 16px; margin-bottom: 16px; }}
-.kpi-box {{ flex: 1; background: #232323; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
-.kpi-title {{ font-size: 12px; font-weight: 600; color: #a1a1a6; text-transform: uppercase; margin-bottom: 8px; }}
-.kpi-val {{ font-size: 32px; font-weight: 700; color: #ffffff; line-height: 1.2; margin-bottom: 8px; }}
-.kpi-footer {{ display: flex; align-items: baseline; gap: 8px; font-size: 14px; font-weight: 500; }}
-.g-pos {{ color: #34c759; font-weight: 600; }}
-.g-neg {{ color: #ff3b30; font-weight: 600; }}
-.pp-val {{ color: #a1a1a6; }}
-.svc-panel {{ padding: 20px 24px; }}
-.svc-row {{ display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #333333; }}
-.svc-row:last-child {{ border-bottom: none; padding-bottom: 0; }}
-.svc-label {{ color: #a1a1a6; font-size: 14px; font-weight: 500; }}
-.svc-vals {{ display: flex; align-items: baseline; justify-content: flex-end; gap: 12px; }}
-.svc-cp {{ color: #ffffff; font-weight: 700; width: 80px; text-align: right; font-size: 15px; }}
-.svc-cp-tag {{ color: #34c759; font-size: 11px; font-weight: 600; margin-left: 2px; }}
-.svc-pp {{ color: #a1a1a6; font-weight: 500; width: 70px; text-align: right; font-size: 14px; }}
-</style>
+    html = f"""{EXECUTIVE_THEME_CSS}
 <div class="exec-heading">EXECUTIVE SUMMARY</div>
 <div class="kpi-wrapper">
 {_kpi_card("LABOUR REVENUE", rev_cp, rev_pp, rev_g)}
@@ -426,7 +409,7 @@ def _render_executive_panel(datasets, mode_str):
 def _render_neg_labour_audit(data):
     if data["neg_count"] == 0:
         return
-    val_col = "Net_Labour"
+    val_col = "Pre-GST Labour"
     with st.expander(
             f"\u26a0 {data['neg_count']} Negative Labour Alert(s) \u2014 Action Required",
             expanded=False):

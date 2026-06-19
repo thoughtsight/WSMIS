@@ -37,13 +37,15 @@ def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, 
     # Computed helper columns
     df['Location Name'] = df.get('Location Name', df.get('Location', 'Unknown'))
     
-    if 'Pre-GST Labour' in df.columns and 'Labour Discount' in df.columns:
-        df['Net_Labour']     = df['Pre-GST Labour'] - df['Labour Discount']
-        df['Labour_Disc_Pct']= df['Labour Discount'] / df['Pre-GST Labour'].replace(0,np.nan) * 100
+    if 'Pre-GST Labour' in df.columns:
+        df['Net_Labour']     = df['Pre-GST Labour']
+        if 'Labour Discount' in df.columns:
+            df['Labour_Disc_Pct']= df['Labour Discount'] / df['Pre-GST Labour'].replace(0,np.nan) * 100
         
-    if 'Pre-GST Parts' in df.columns and 'Parts Discount' in df.columns:
-        df['Net_Parts']      = df['Pre-GST Parts']  - df['Parts Discount']
-        df['Parts_Disc_Pct'] = df['Parts Discount']  / df['Pre-GST Parts'].replace(0,np.nan) * 100
+    if 'Pre-GST Parts' in df.columns:
+        df['Net_Parts']      = df['Pre-GST Parts']
+        if 'Parts Discount' in df.columns:
+            df['Parts_Disc_Pct'] = df['Parts Discount']  / df['Pre-GST Parts'].replace(0,np.nan) * 100
         
     if 'Net_Labour' in df.columns and 'JC_Nos.' in df.columns:
         df['Avg_Lab_per_JC'] = df['Net_Labour'] / df['JC_Nos.'].replace(0,np.nan)

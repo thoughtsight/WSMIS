@@ -9,20 +9,20 @@ def _get_metric(df: pd.DataFrame, col_name: str, aggregate: bool = True) -> Unio
     return float(s.sum()) if aggregate else s
 
 def get_labour_sales(df: pd.DataFrame, aggregate: bool = True) -> Union[float, pd.Series]:
-    """Extracts 'Pre-GST Labour'"""
+    """Extracts 'Pre-GST Labour' - This is the canonical revenue column"""
     return _get_metric(df, "Pre-GST Labour", aggregate)
 
 def get_parts_sales(df: pd.DataFrame, aggregate: bool = True) -> Union[float, pd.Series]:
-    """Extracts 'Pre-GST Parts'"""
+    """Extracts 'Pre-GST Parts' - This is the canonical revenue column"""
     return _get_metric(df, "Pre-GST Parts", aggregate)
 
 def get_net_labour(df: pd.DataFrame, aggregate: bool = True) -> Union[float, pd.Series]:
-    """Extracts 'Net_Labour'"""
-    return _get_metric(df, "Net_Labour", aggregate)
+    """Extracts 'Pre-GST Labour' - Business rule: Pre-GST Labour = Net Labour (no discount subtraction)"""
+    return _get_metric(df, "Pre-GST Labour", aggregate)
 
 def get_net_parts(df: pd.DataFrame, aggregate: bool = True) -> Union[float, pd.Series]:
-    """Extracts 'Net_Parts'"""
-    return _get_metric(df, "Net_Parts", aggregate)
+    """Extracts 'Pre-GST Parts' - Business rule: Pre-GST Parts = Net Parts (no discount subtraction)"""
+    return _get_metric(df, "Pre-GST Parts", aggregate)
 
 def get_labour_discount(df: pd.DataFrame, aggregate: bool = True) -> Union[float, pd.Series]:
     """Extracts 'Labour Discount'"""

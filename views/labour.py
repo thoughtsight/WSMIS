@@ -77,6 +77,7 @@ def _inject_responsive_css():
 
 def _apply_filters(df, active_pairs):
     filtered = df.copy()
+    
     biz = st.session_state.get("lab_business_view", "All")
     if biz == "Workshop":
         filtered = filtered[filtered["Service Type"] != "BR"]
@@ -110,6 +111,7 @@ def _apply_filters(df, active_pairs):
 
 
 def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
+    # Business rule: Use Pre-GST Labour as canonical revenue (no discount subtraction)
     cp_loc = cp.groupby("Location Name")[val_col].sum()
     pp_loc = pp.groupby("Location Name")[val_col].sum()
     cp_svc = cp.groupby("Service Type")[val_col].sum()
@@ -123,8 +125,10 @@ def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
 
     cp_jc = get_jobcard_count(cp) if "JC_Nos." in cp.columns else cp[val_col].count()
     pp_jc = get_jobcard_count(pp) if "JC_Nos." in pp.columns else pp[val_col].count()
-    cp_rpc = calc_ratio(cp_val, cp_jc, fill_value=0)
-    pp_rpc = calc_ratio(pp_val, pp_jc, fill_value=0)
+    
+    # Business rule: Avg Labour = Pre-GST Labour / Job Cards (never blank)
+    cp_rpc = calc_ratio(cp_val, cp_jc, fill_value=0) if cp_jc > 0 else 0
+    pp_rpc = calc_ratio(pp_val, pp_jc, fill_value=0) if pp_jc > 0 else 0
     rpc_growth = calc_growth_pct(cp_rpc, pp_rpc, fill_value=0)
 
     loc_df = pd.DataFrame({"CP": cp_loc, "PP": pp_loc}).fillna(0)
@@ -185,17 +189,18 @@ def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
     br_rev_cp = cp.loc[is_br_cp, val_col].sum()
     br_rev_pp = pp.loc[is_br_pp, val_col].sum()
 
+    # Business rule: Avg Labour = Pre-GST Labour / Job Cards (never blank)
     pms_stats = {
         "cp_jobs": pms_jobs_cp, "pp_jobs": pms_jobs_pp,
         "cp_rev": pms_rev_cp, "pp_rev": pms_rev_pp,
-        "cp_rpc": calc_ratio(pms_rev_cp, pms_jobs_cp, 0),
-        "pp_rpc": calc_ratio(pms_rev_pp, pms_jobs_pp, 0),
+        "cp_rpc": calc_ratio(pms_rev_cp, pms_jobs_cp, 0) if pms_jobs_cp > 0 else 0,
+        "pp_rpc": calc_ratio(pms_rev_pp, pms_jobs_pp, 0) if pms_jobs_pp > 0 else 0,
     }
     br_stats = {
         "cp_jobs": br_jobs_cp, "pp_jobs": br_jobs_pp,
         "cp_rev": br_rev_cp, "pp_rev": br_rev_pp,
-        "cp_rpc": calc_ratio(br_rev_cp, br_jobs_cp, 0),
-        "pp_rpc": calc_ratio(br_rev_pp, br_jobs_pp, 0),
+        "cp_rpc": calc_ratio(br_rev_cp, br_jobs_cp, 0) if br_jobs_cp > 0 else 0,
+        "pp_rpc": calc_ratio(br_rev_pp, br_jobs_pp, 0) if br_jobs_pp > 0 else 0,
     }
 
     return {
@@ -247,9 +252,6 @@ def _prepare_datasets(cp, pp, df):
 def _render_control_bar(df, n_rows, n_locs):
     from utils.constants import FY_MONTHS
     
-    client = st.session_state.get("sel_client", "Rukmani Motors")
-    all_locs, all_svc, all_months = _get_master_lists(client)
-
     client = st.session_state.get("sel_client", "Rukmani Motors")
     all_locs, all_svc, all_months = _get_master_lists(client)
 
@@ -346,8 +348,9 @@ def _render_executive_panel(datasets, mode_str):
     rev_pp = fmt_inr_short(d["pp_val"])
     rev_g = d["growth_pct"]
     
-    rpc_cp = fmt_inr_short(d["cp_rpc"])
-    rpc_pp = fmt_inr_short(d["pp_rpc"])
+    # Display "—" when Job Cards = 0
+    rpc_cp = "—" if d["cp_rpc"] == 0 and d["cp_jc"] == 0 else fmt_inr_short(d["cp_rpc"])
+    rpc_pp = "—" if d["pp_rpc"] == 0 and d["pp_jc"] == 0 else fmt_inr_short(d["pp_rpc"])
     rpc_g = d["rpc_growth"]
     
     load_cp = f"{int(d['cp_jc']):,}"
@@ -378,8 +381,9 @@ def _render_executive_panel(datasets, mode_str):
     def _svc_panel(title, stats):
         cp_jobs = f"{int(stats['cp_jobs']):,}"
         pp_jobs = f"{int(stats['pp_jobs']):,}"
-        cp_rpc = fmt_inr_short(stats["cp_rpc"])
-        pp_rpc = fmt_inr_short(stats["pp_rpc"])
+        # Display "—" when Job Cards = 0
+        cp_rpc = "—" if stats["cp_rpc"] == 0 and stats["cp_jobs"] == 0 else fmt_inr_short(stats["cp_rpc"])
+        pp_rpc = "—" if stats["pp_rpc"] == 0 and stats["pp_jobs"] == 0 else fmt_inr_short(stats["pp_rpc"])
         cp_rev = fmt_inr_short(stats["cp_rev"])
         pp_rev = fmt_inr_short(stats["pp_rev"])
         
@@ -397,7 +401,7 @@ def _render_executive_panel(datasets, mode_str):
 {_kpi_card("LOAD", load_cp, load_pp, load_g)}
 {_kpi_card("AVG LABOUR", rpc_cp, rpc_pp, rpc_g)}
 </div>
-<hr style="border:none; border-top:1px solid #333; margin: 32px 0 24px 0;">
+<hr style="border:none; border-top:1px solid #36393F; margin: 20px 0 16px 0;">
 <div class="exec-heading">PMS & BODYSHOP — CP VS PP</div>
 <div class="kpi-wrapper">
 {_svc_panel("PMS", d["pms_stats"])}

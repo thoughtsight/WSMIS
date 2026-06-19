@@ -37,6 +37,8 @@ def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, 
     # Computed helper columns
     df['Location Name'] = df.get('Location Name', df.get('Location', 'Unknown'))
     
+    # Business rule: Pre-GST Labour = Net Labour (no discount subtraction)
+    # Business rule: Pre-GST Parts = Net Parts (no discount subtraction)
     if 'Pre-GST Labour' in df.columns:
         df['Net_Labour']     = df['Pre-GST Labour']
         if 'Labour Discount' in df.columns:
@@ -47,11 +49,12 @@ def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, 
         if 'Parts Discount' in df.columns:
             df['Parts_Disc_Pct'] = df['Parts Discount']  / df['Pre-GST Parts'].replace(0,np.nan) * 100
         
-    if 'Net_Labour' in df.columns and 'JC_Nos.' in df.columns:
-        df['Avg_Lab_per_JC'] = df['Net_Labour'] / df['JC_Nos.'].replace(0,np.nan)
+    # Business rule: Avg Labour = Pre-GST Labour / Job Cards
+    if 'Pre-GST Labour' in df.columns and 'JC_Nos.' in df.columns:
+        df['Avg_Lab_per_JC'] = df['Pre-GST Labour'] / df['JC_Nos.'].replace(0,np.nan)
         
-    if 'Net_Parts' in df.columns and 'JC_Nos.' in df.columns:
-        df['Avg_Parts_per_JC']= df['Net_Parts'] / df['JC_Nos.'].replace(0,np.nan)
+    if 'Pre-GST Parts' in df.columns and 'JC_Nos.' in df.columns:
+        df['Avg_Parts_per_JC']= df['Pre-GST Parts'] / df['JC_Nos.'].replace(0,np.nan)
         
     if 'Net_Labour' in df.columns and 'Net_Parts' in df.columns:
         df['Lab_per_100_Parts']= df['Net_Labour'] / df['Net_Parts'].replace(0,np.nan) * 100

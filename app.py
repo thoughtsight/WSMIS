@@ -180,7 +180,7 @@ def build_pairs(selected_months, all_months, month_sort, comparison_mode="YoY"):
     for cm in sorted(selected_months, key=lambda x: month_sort.get(x, 99)):
         cm_sort = month_sort.get(cm, 99)
         pm = rev.get(cm_sort + offset)
-        if pm and pm in all_months:
+        if pm:
             pairs.append((cm, pm, cm_sort))
     return pairs
 

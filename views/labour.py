@@ -170,6 +170,33 @@ def _compute_metrics(cp, pp, df, val_col="Net_Labour"):
 
     active_svc_count = len(cp["Service Type"].dropna().unique())
 
+    is_pms_cp = cp["Service Type"] == "PMS"
+    is_pms_pp = pp["Service Type"] == "PMS"
+    pms_jobs_cp = get_jobcard_count(cp[is_pms_cp]) if "JC_Nos." in cp.columns else is_pms_cp.sum()
+    pms_jobs_pp = get_jobcard_count(pp[is_pms_pp]) if "JC_Nos." in pp.columns else is_pms_pp.sum()
+    pms_rev_cp = cp.loc[is_pms_cp, val_col].sum()
+    pms_rev_pp = pp.loc[is_pms_pp, val_col].sum()
+
+    is_br_cp = cp["Service Type"] == "BR"
+    is_br_pp = pp["Service Type"] == "BR"
+    br_jobs_cp = get_jobcard_count(cp[is_br_cp]) if "JC_Nos." in cp.columns else is_br_cp.sum()
+    br_jobs_pp = get_jobcard_count(pp[is_br_pp]) if "JC_Nos." in pp.columns else is_br_pp.sum()
+    br_rev_cp = cp.loc[is_br_cp, val_col].sum()
+    br_rev_pp = pp.loc[is_br_pp, val_col].sum()
+
+    pms_stats = {
+        "cp_jobs": pms_jobs_cp, "pp_jobs": pms_jobs_pp,
+        "cp_rev": pms_rev_cp, "pp_rev": pms_rev_pp,
+        "cp_rpc": calc_ratio(pms_rev_cp, pms_jobs_cp, 0),
+        "pp_rpc": calc_ratio(pms_rev_pp, pms_jobs_pp, 0),
+    }
+    br_stats = {
+        "cp_jobs": br_jobs_cp, "pp_jobs": br_jobs_pp,
+        "cp_rev": br_rev_cp, "pp_rev": br_rev_pp,
+        "cp_rpc": calc_ratio(br_rev_cp, br_jobs_cp, 0),
+        "pp_rpc": calc_ratio(br_rev_pp, br_jobs_pp, 0),
+    }
+
     return {
         "cp_val": cp_val, "pp_val": pp_val, "growth_pct": growth_pct,
         "cp_rpc": cp_rpc, "pp_rpc": pp_rpc, "rpc_growth": rpc_growth,
@@ -185,6 +212,7 @@ def _compute_metrics(cp, pp, df, val_col="Net_Labour"):
         "cp_loc_month_piv": cp_loc_piv, "pp_loc_month_piv": pp_loc_piv,
         "cp_month_sum": cp_month_sum, "pp_month_sum": pp_month_sum,
         "active_svc_count": active_svc_count,
+        "pms_stats": pms_stats, "br_stats": br_stats,
     }
 
 
@@ -313,12 +341,12 @@ def _render_ai_narrative(datasets, mode_str, cp_label, pp_label):
 def _render_executive_panel(datasets, mode_str):
     d = datasets["combined"]
     
-    rev_cp = fmt_inr(d["cp_val"])
-    rev_pp = fmt_inr(d["pp_val"])
+    rev_cp = fmt_inr_short(d["cp_val"])
+    rev_pp = fmt_inr_short(d["pp_val"])
     rev_g = d["growth_pct"]
     
-    rpc_cp = fmt_inr(d["cp_rpc"])
-    rpc_pp = fmt_inr(d["pp_rpc"])
+    rpc_cp = fmt_inr_short(d["cp_rpc"])
+    rpc_pp = fmt_inr_short(d["pp_rpc"])
     rpc_g = d["rpc_growth"]
     
     load_cp = f"{int(d['cp_jc']):,}"
@@ -326,47 +354,71 @@ def _render_executive_panel(datasets, mode_str):
     load_g = calc_growth_pct(d["cp_jc"], d["pp_jc"], fill_value=0)
     
     def _arrow(val):
-        if val > 0: return f'<span style="color:#34C759;">▲ +{val:.1f}%</span>'
-        if val < 0: return f'<span style="color:#FF3B30;">▼ {val:.1f}%</span>'
+        if val > 0: return f'<span class="g-pos">▲ {val:.1f}%</span>'
+        if val < 0: return f'<span class="g-neg">▼ {abs(val):.1f}%</span>'
         return ""
 
-    html = f"""<div style="background:#ffffff; border:1px solid #ececec; border-radius:12px; margin-bottom:20px; box-shadow:none; overflow:hidden;">
-<div style="display:flex; border-bottom:1px solid #ececec;">
-<div style="flex:1; padding:16px 20px; border-right:1px solid #ececec;">
-<div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">LABOUR REVENUE</div>
-<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
-<div style="font-size:28px; font-weight:700; color:#1d1d1f; line-height:1.2;">{rev_cp}</div>
-<div style="font-size:16px; font-weight:600;">{_arrow(rev_g)}</div>
+    def _kpi_card(title, cp_val, pp_val, g_val):
+        return f"""<div class="kpi-box">
+<div class="kpi-title">{title}</div>
+<div class="kpi-val">{cp_val}</div>
+<div class="kpi-footer">{_arrow(g_val)} <span class="pp-val">PP {pp_val}</span></div>
+</div>"""
+
+    def _svc_row(label, cp_v, pp_v):
+        return f"""<div class="svc-row">
+<div class="svc-label">{label}</div>
+<div class="svc-vals">
+<div class="svc-cp">{cp_v} <span class="svc-cp-tag">CP</span></div>
+<div class="svc-pp">{pp_v} PP</div>
 </div>
-<div style="font-size:14px; color:#8e8e93; font-weight:500;">PP {rev_pp}</div>
+</div>"""
+
+    def _svc_panel(title, stats):
+        cp_jobs = f"{int(stats['cp_jobs']):,}"
+        pp_jobs = f"{int(stats['pp_jobs']):,}"
+        cp_rpc = fmt_inr_short(stats["cp_rpc"])
+        pp_rpc = fmt_inr_short(stats["pp_rpc"])
+        cp_rev = fmt_inr_short(stats["cp_rev"])
+        pp_rev = fmt_inr_short(stats["pp_rev"])
+        
+        return f"""<div class="kpi-box svc-panel">
+<div class="kpi-val" style="font-size: 16px; margin-bottom: 20px;">{title}</div>
+{_svc_row("Jobs", cp_jobs, pp_jobs)}
+{_svc_row("Avg labour", cp_rpc, pp_rpc)}
+{_svc_row("Revenue", cp_rev, pp_rev)}
+</div>"""
+
+    html = f"""<style>
+.exec-heading {{ font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #a1a1a6; margin: 24px 0 12px 0; }}
+.kpi-wrapper {{ display: flex; gap: 16px; margin-bottom: 16px; }}
+.kpi-box {{ flex: 1; background: #232323; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+.kpi-title {{ font-size: 12px; font-weight: 600; color: #a1a1a6; text-transform: uppercase; margin-bottom: 8px; }}
+.kpi-val {{ font-size: 32px; font-weight: 700; color: #ffffff; line-height: 1.2; margin-bottom: 8px; }}
+.kpi-footer {{ display: flex; align-items: baseline; gap: 8px; font-size: 14px; font-weight: 500; }}
+.g-pos {{ color: #34c759; font-weight: 600; }}
+.g-neg {{ color: #ff3b30; font-weight: 600; }}
+.pp-val {{ color: #a1a1a6; }}
+.svc-panel {{ padding: 20px 24px; }}
+.svc-row {{ display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #333333; }}
+.svc-row:last-child {{ border-bottom: none; padding-bottom: 0; }}
+.svc-label {{ color: #a1a1a6; font-size: 14px; font-weight: 500; }}
+.svc-vals {{ display: flex; align-items: baseline; justify-content: flex-end; gap: 12px; }}
+.svc-cp {{ color: #ffffff; font-weight: 700; width: 80px; text-align: right; font-size: 15px; }}
+.svc-cp-tag {{ color: #34c759; font-size: 11px; font-weight: 600; margin-left: 2px; }}
+.svc-pp {{ color: #a1a1a6; font-weight: 500; width: 70px; text-align: right; font-size: 14px; }}
+</style>
+<div class="exec-heading">EXECUTIVE SUMMARY</div>
+<div class="kpi-wrapper">
+{_kpi_card("LABOUR REVENUE", rev_cp, rev_pp, rev_g)}
+{_kpi_card("LOAD", load_cp, load_pp, load_g)}
+{_kpi_card("AVG LABOUR", rpc_cp, rpc_pp, rpc_g)}
 </div>
-<div style="flex:1; padding:16px 20px;">
-<div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">REVENUE / JOBCARD</div>
-<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
-<div style="font-size:28px; font-weight:700; color:#1d1d1f; line-height:1.2;">{rpc_cp}</div>
-<div style="font-size:16px; font-weight:600;">{_arrow(rpc_g)}</div>
-</div>
-<div style="font-size:14px; color:#8e8e93; font-weight:500;">PP {rpc_pp}</div>
-</div>
-</div>
-<div style="display:flex;">
-<div style="flex:1; padding:16px 20px; border-right:1px solid #ececec;">
-<div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">LOAD</div>
-<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
-<div style="font-size:24px; font-weight:700; color:#1d1d1f; line-height:1.2;">{load_cp}</div>
-<div style="font-size:14px; font-weight:600;">{_arrow(load_g)}</div>
-</div>
-<div style="font-size:14px; color:#8e8e93; font-weight:500;">PP {load_pp}</div>
-</div>
-<div style="flex:1; padding:16px 20px;">
-<div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">AVG LABOUR</div>
-<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
-<div style="font-size:24px; font-weight:700; color:#1d1d1f; line-height:1.2;">{rpc_cp}</div>
-<div style="font-size:14px; font-weight:600;">{_arrow(rpc_g)}</div>
-</div>
-<div style="font-size:14px; color:#8e8e93; font-weight:500;">PP {rpc_pp}</div>
-</div>
-</div>
+<hr style="border:none; border-top:1px solid #333; margin: 32px 0 24px 0;">
+<div class="exec-heading">PMS & BODYSHOP — CP VS PP</div>
+<div class="kpi-wrapper">
+{_svc_panel("PMS", d["pms_stats"])}
+{_svc_panel("Bodyshop (BR)", d["br_stats"])}
 </div>"""
     st.markdown(html, unsafe_allow_html=True)
 

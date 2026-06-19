@@ -62,8 +62,10 @@ PLY = dict(
     legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#E5E5EA", borderwidth=1,
                 font=dict(size=11), orientation="h", yanchor="bottom", y=1.02,
                 xanchor="right", x=1),
-    title=dict(font=dict(size=14, color="#1D1D1F", family="Inter"), x=0.01, xanchor="left", pad=dict(t=4)),
 )
+
+# Plotly title styling (used separately to avoid duplicate key errors)
+PLY_TITLE = dict(font=dict(size=14, color="#1D1D1F", family="Inter"), x=0.01, xanchor="left", pad=dict(t=4))
 
 # Color palettes
 C = {"primary":"#0071E3", "green":"#34C759", "red":"#FF3B30", "orange":"#FF9500",

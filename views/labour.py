@@ -9,7 +9,7 @@ from utils.calculations.fact_metrics import get_net_labour
 from utils.calculations.common import calc_growth_pct, calc_ratio
 from utils.filters import apply_month_filter, apply_mp_pb_filter, apply_service_type_filter
 from ui.formatters import fmt_inr, fmt_pct, fmt_inr_short
-from utils.constants import ADV_COL, C, PLY, MONTH_SORT_ORDER
+from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER
 from services.ai_service import get_narrative, get_actions
 
 def _inject_responsive_css():
@@ -394,7 +394,7 @@ def _render_charts(data, active_pairs, mode_str):
         text=[f"{g:+.1f}%" for g in f1_growth], textposition="top center",
         marker=dict(size=8, color=[C["green"] if g >= 0 else C["red"] for g in f1_growth])))
     fig_trend.update_layout(**PLY, barmode="group", height=300,
-        title=dict(text=f"Revenue Trend — {mode_str}", **PLY["title"]),
+        title=dict(text=f"Revenue Trend — {mode_str}", **PLY_TITLE),
         yaxis=dict(**PLY["yaxis"], title="Revenue (₹)"),
         yaxis2=dict(title="Growth %", overlaying="y", side="right",
             tickformat=".1f", showgrid=False))
@@ -431,7 +431,7 @@ def _render_charts(data, active_pairs, mode_str):
         hovertemplate="<b>%{y}</b> — %{x}<br>Growth: %{text}%<extra></extra>"
     ))
     fig_heat.update_layout(**PLY, height=heatmap_height,
-        title=dict(text=f"Location Growth Heatmap — {mode_str}", **PLY["title"]),
+        title=dict(text=f"Location Growth Heatmap — {mode_str}", **PLY_TITLE),
         xaxis=dict(**PLY["xaxis"], side="top"))
     
     event_heat = st.plotly_chart(fig_heat, use_container_width=True,
@@ -463,7 +463,7 @@ def _render_charts(data, active_pairs, mode_str):
                         [svc, cp_svc_val, pp_svc_val, calc_growth_pct(cp_svc_val, pp_svc_val, 0)]],
             hovertemplate="<b>%{customdata[0]}</b><br>%{x}: ₹%{y:,.0f}<br>Growth: %{customdata[3]:.1f}%<extra></extra>"))
     fig_svc.update_layout(**PLY, barmode="stack", height=300,
-        title=dict(text=f"Service Type Mix — {mode_str}", **PLY["title"]))
+        title=dict(text=f"Service Type Mix — {mode_str}", **PLY_TITLE))
     
     event_svc = st.plotly_chart(fig_svc, use_container_width=True,
         on_select="rerun", selection_mode="points", key="chart_svc")
@@ -501,7 +501,7 @@ def _render_waterfall_charts(data, mode_str):
             connector={"line": {"color": "#E5E5EA", "width": 1}}
         ))
         fig_wf_loc.update_layout(**PLY, height=360,
-            title=dict(text=f"Location Bridge — {mode_str}", **PLY["title"]))
+            title=dict(text=f"Location Bridge — {mode_str}", **PLY_TITLE))
         
         event_wf_loc = st.plotly_chart(fig_wf_loc, use_container_width=True,
             on_select="rerun", selection_mode="points", key="chart_wf_loc")
@@ -532,7 +532,7 @@ def _render_waterfall_charts(data, mode_str):
             connector={"line": {"color": "#E5E5EA", "width": 1}}
         ))
         fig_wf_svc.update_layout(**PLY, height=360,
-            title=dict(text=f"Service Type Bridge — {mode_str}", **PLY["title"]))
+            title=dict(text=f"Service Type Bridge — {mode_str}", **PLY_TITLE))
         
         event_wf_svc = st.plotly_chart(fig_wf_svc, use_container_width=True,
             on_select="rerun", selection_mode="points", key="chart_wf_svc")
@@ -573,7 +573,7 @@ def _render_drill_down_panel(data):
                         y=[drill_svc_df.loc[svc_type,"CP"], drill_svc_df.loc[svc_type,"PP"]],
                         marker_color=svc_colors.get(svc_type, C["gray"])))
                 fig_drill_loc.update_layout(**PLY, barmode="stack", height=240,
-                    title=dict(text=f"{drill_loc} Service Breakdown", **PLY["title"]))
+                    title=dict(text=f"{drill_loc} Service Breakdown", **PLY_TITLE))
                 st.plotly_chart(fig_drill_loc, use_container_width=True, key="drill_loc_chart")
         
         if drill_svc:
@@ -589,7 +589,7 @@ def _render_drill_down_panel(data):
                 fig_drill_svc.add_trace(go.Bar(name="PP", x=drill_loc_df.index.tolist(),
                     y=drill_loc_df["PP"].tolist(), marker_color=C["gray"], opacity=0.7))
                 fig_drill_svc.update_layout(**PLY, barmode="group", height=240,
-                    title=dict(text=f"{active_svc_name} by Location", **PLY["title"]))
+                    title=dict(text=f"{active_svc_name} by Location", **PLY_TITLE))
                 st.plotly_chart(fig_drill_svc, use_container_width=True, key="drill_svc_chart")
         
         if st.button("✕ Clear drill-down filters", key="clear_drill"):

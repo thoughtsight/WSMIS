@@ -570,12 +570,16 @@ def _render_executive_table(datasets, active_pairs, mode_str):
         "Labour CP": fmt_inr_full,
         "Labour PP": fmt_inr_full,
         "Difference ₹": fmt_inr_full,
-        "Growth %": lambda x: fmt_pct(x, sign=True),
+        "Growth %": _format_growth_pct,
         "Job Cards": fmt_num,
         "Avg Labour": fmt_inr_full,
     })
     
     st.dataframe(styled, column_config=cc, use_container_width=True, hide_index=True)
+
+
+def _format_growth_pct(value):
+    return fmt_pct(value, sign=True)
 
 
 def _render_monthly_detail(datasets, active_pairs, mode_str):
@@ -624,7 +628,7 @@ def _render_monthly_detail(datasets, active_pairs, mode_str):
             
             format_dict[f"{cm[:3]} Lab_CP"] = fmt_inr_full
             format_dict[f"{cm[:3]} Lab_PP"] = fmt_inr_full
-            format_dict[f"{cm[:3]} YoY%"] = lambda x: fmt_pct(x, sign=True)
+            format_dict[f"{cm[:3]} YoY%"] = _format_growth_pct
             color_subset.append(f"{cm[:3]} YoY%")
             
         def _bold_total_m(row):

@@ -457,10 +457,10 @@ def _render_charts(datasets, active_pairs, mode_str):
         mode="lines+markers+text", yaxis="y2",
         line=dict(color=growth_line_color, width=theme["line_width"]),
         text=[f"{g:+.1f}%" for g in growth], textposition="top center",
-        textfont=dict(size=theme["growth_label_font"]["size"], family="Arial", weight=500,
+        textfont=dict(size=theme["growth_label_font"]["size"], family="Arial", weight=600,
                       color=get_marker_colors(growth)),
         marker=dict(size=theme["marker_size"], color=get_marker_colors(growth),
-                    line=dict(width=2, color="white"))))
+                    line=dict(width=3, color="white"))))
     fig.update_layout(**get_ply_layout(
         barmode="group", height=chart_height,
         title=dict(text=f"Revenue Trend \u2014 {mode_str}", font=theme["title_font"]),

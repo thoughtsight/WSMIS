@@ -19,34 +19,34 @@ def get_revenue_tooltip(
 ) -> str:
     """
     Generate executive tooltip template for revenue comparison charts.
-    
+
     Displays:
     - Month
     - Current Period Revenue
     - Previous Period Revenue
     - Difference
     - Growth %
-    
+
     Args:
         months: List of month labels
         cp_values: List of current period revenue values
         pp_values: List of previous period revenue values
         growth_values: List of growth percentage values
         currency_symbol: Currency symbol to use (default: ₹)
-    
+
     Returns:
         Plotly hovertemplate string
-    
+
     Example:
         tooltip = get_revenue_tooltip(months, cp_vals, pp_vals, growth)
         fig.add_trace(go.Bar(..., hovertemplate=tooltip))
     """
     return (
         "<b>%{customdata[0]}</b><br><br>"
-        f"CP Revenue: {currency_symbol}%{{customdata[1]:,.0f}}<br>"
-        f"PP Revenue: {currency_symbol}%{{customdata[2]:,.0f}}<br>"
-        f"Difference: {currency_symbol}%{{customdata[1] - customdata[2]:,.0f}}<br>"
-        "Growth: %{customdata[3]:.1f}%<extra></extra>"
+        f"<b>Current Period:</b> {currency_symbol}%{{customdata[1]:,.0f}}<br>"
+        f"<b>Previous Period:</b> {currency_symbol}%{{customdata[2]:,.0f}}<br>"
+        f"<b>Difference:</b> {currency_symbol}%{{customdata[1] - customdata[2]:,.0f}}<br>"
+        "<b>Growth:</b> %{customdata[3]:.1f}%<extra></extra>"
     )
 
 

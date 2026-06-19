@@ -77,55 +77,55 @@ class ExecutiveTheme:
     # Colour palette
     colours = ColourPalette()
     
-    # Typography scales for different chart sizes
+    # Typography scales for different chart sizes (enhanced for executive readability)
     _typography_scales = {
         "small": TypographyScale(
-            title=16,
-            axis_title=12,
-            axis_tick=11,
-            legend=11,
-            revenue_label=12,
-            growth_label=11,
-            tooltip=12,
-            marker=6,
-            line_width=2,
-            margin={"t": 40, "b": 40, "l": 48, "r": 24},
-        ),
-        "medium": TypographyScale(
             title=18,
-            axis_title=14,
+            axis_title=13,
             axis_tick=12,
             legend=12,
-            revenue_label=13,
+            revenue_label=14,
             growth_label=12,
             tooltip=13,
-            marker=8,
+            marker=7,
             line_width=2.5,
-            margin={"t": 50, "b": 50, "l": 50, "r": 30},
+            margin={"t": 45, "b": 45, "l": 50, "r": 25},
         ),
-        "large": TypographyScale(
+        "medium": TypographyScale(
             title=20,
-            axis_title=16,
+            axis_title=15,
             axis_tick=13,
             legend=13,
             revenue_label=15,
-            growth_label=14,
+            growth_label=13,
             tooltip=14,
-            marker=10,
+            marker=9,
             line_width=3,
-            margin={"t": 60, "b": 60, "l": 60, "r": 40},
+            margin={"t": 55, "b": 55, "l": 55, "r": 35},
+        ),
+        "large": TypographyScale(
+            title=22,
+            axis_title=17,
+            axis_tick=14,
+            legend=14,
+            revenue_label=17,
+            growth_label=15,
+            tooltip=15,
+            marker=11,
+            line_width=3.5,
+            margin={"t": 65, "b": 65, "l": 65, "r": 45},
         ),
         "full": TypographyScale(
-            title=24,
-            axis_title=18,
-            axis_tick=15,
-            legend=15,
-            revenue_label=18,
-            growth_label=16,
-            tooltip=16,
-            marker=12,
-            line_width=4,
-            margin={"t": 70, "b": 70, "l": 70, "r": 50},
+            title=26,
+            axis_title=19,
+            axis_tick=16,
+            legend=16,
+            revenue_label=20,
+            growth_label=17,
+            tooltip=17,
+            marker=13,
+            line_width=4.5,
+            margin={"t": 75, "b": 75, "l": 75, "r": 55},
         ),
     }
     
@@ -148,9 +148,9 @@ class ExecutiveTheme:
     # Bar radius
     bar_radius = 4
     
-    # Grid styling
-    grid_color = "#F0F0F5"
-    grid_width = 1
+    # Grid styling (reduced visual noise)
+    grid_color = "#F5F5F7"
+    grid_width = 0.5
     
     # Axis line styling
     axis_line_color = "#E5E5EA"

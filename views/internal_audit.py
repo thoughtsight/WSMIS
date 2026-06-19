@@ -76,7 +76,7 @@ def render(df_jctat, client_config, cp=None):
             loc_lab   = compute_discount_aggregates(audit_df, "Location Name", LAB_BENCH)
             loc_parts = compute_parts_leakage(audit_df, "Location Name", PARTS_BENCH)
 
-            adv_agg = audit_df.groupby([ADV_COL, "Location Name"], dropna=False).agg(
+            adv_agg = audit_df[audit_df[ADV_COL] != "Unassigned"].groupby([ADV_COL, "Location Name"], dropna=False).agg(
                 JCs=("JC_Nos.", "sum"), Revenue=("Pre-GST Labour", "sum"),
                 DiscRs=("Labour Discount", "sum"), NetLab=("Net_Labour", "sum")
             ).reset_index()
@@ -132,7 +132,7 @@ def render(df_jctat, client_config, cp=None):
                     all_locs_ia = sorted(audit_df["Location Name"].dropna().unique().tolist())
                     sel_loc_ia = st.selectbox("Select Location", ["— Select —"] + all_locs_ia, key="ia_lkg_loc")
                     if sel_loc_ia != "— Select —":
-                        adv_drill = audit_df[audit_df["Location Name"] == sel_loc_ia].groupby(
+                        adv_drill = audit_df[(audit_df["Location Name"] == sel_loc_ia) & (audit_df[ADV_COL] != "Unassigned")].groupby(
                             ADV_COL, dropna=False
                         ).agg(JCs=("JC_Nos.","sum"), Rev=("Pre-GST Labour","sum"), Disc=("Labour Discount","sum")).reset_index()
                         adv_drill = adv_drill[adv_drill["Rev"] > 0].copy()
@@ -276,7 +276,7 @@ def render(df_jctat, client_config, cp=None):
                     all_advs_ia = sorted(audit_df[ADV_COL].dropna().unique().tolist())
                     sel_adv_ia  = st.selectbox("Select Advisor", ["— Select —"] + all_advs_ia, key="ia_adv_drilldown")
                     if sel_adv_ia != "— Select —":
-                        adv_m = audit_df[audit_df[ADV_COL] == sel_adv_ia].groupby(
+                        adv_m = audit_df[(audit_df[ADV_COL] == sel_adv_ia) & (audit_df[ADV_COL] != "Unassigned")].groupby(
                             ["Month_Sort", "Month Name"], dropna=False
                         ).agg(JCs=("JC_Nos.","sum"), Rev=("Pre-GST Labour","sum"),
                               Disc=("Labour Discount","sum"), Net=("Net_Labour","sum")).reset_index()
@@ -317,7 +317,7 @@ def render(df_jctat, client_config, cp=None):
                     st.success(f"✅ No advisors with discount > {HIGH_DISC_ALERT}%")
 
                 st.markdown("**🔴 Exception 2 — Negative Net Labour**")
-                neg_lab = audit_df.groupby(["Location Name", ADV_COL], dropna=False).agg(
+                neg_lab = audit_df[audit_df[ADV_COL] != "Unassigned"].groupby(["Location Name", ADV_COL], dropna=False).agg(
                     NetLab=("Net_Labour", "sum"), JCs=("JC_Nos.", "sum")
                 ).reset_index()
                 neg_lab = neg_lab[neg_lab["NetLab"] < 0]
@@ -336,7 +336,7 @@ def render(df_jctat, client_config, cp=None):
                     st.success("✅ No negative labour entries detected")
 
                 st.markdown("**🟡 Exception 3 — Zero Labour with Active JCs**")
-                zero_lab = audit_df.groupby(["Location Name", ADV_COL], dropna=False).agg(
+                zero_lab = audit_df[audit_df[ADV_COL] != "Unassigned"].groupby(["Location Name", ADV_COL], dropna=False).agg(
                     NetLab=("Net_Labour", "sum"), JCs=("JC_Nos.", "sum")
                 ).reset_index()
                 zero_lab = zero_lab[(zero_lab["NetLab"] == 0) & (zero_lab["JCs"] > 0)]

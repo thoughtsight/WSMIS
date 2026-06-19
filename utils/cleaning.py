@@ -30,9 +30,9 @@ def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, 
             
     # Clean advisor names
     if adv_col in df.columns:
-        mask = df[adv_col].notna() & ~df[adv_col].astype(str).str.strip().isin(['', '@', 'nan', 'N/A'])
-        df = df[mask]
-        df.loc[:, adv_col] = df[adv_col].astype(str).str.strip()
+        df[adv_col] = df[adv_col].astype(str).str.strip()
+        invalid_mask = df[adv_col].isin(['', '@', 'nan', 'N/A', 'None', 'nan']) | df[adv_col].isna()
+        df.loc[invalid_mask, adv_col] = "Unassigned"
             
     # Computed helper columns
     df['Location Name'] = df.get('Location Name', df.get('Location', 'Unknown'))

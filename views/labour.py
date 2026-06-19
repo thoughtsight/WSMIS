@@ -152,9 +152,9 @@ def _compute_metrics(cp, pp, df, val_col="Net_Labour"):
         sdf["Delta"] = sdf["CP"] - sdf["PP"]
         return sdf["Delta"].idxmax() if not sdf.empty else "volume"
 
-    adv_cp = cp.groupby([ADV_COL, "Location Name", "Service Type"],
+    adv_cp = cp[cp[ADV_COL] != "Unassigned"].groupby([ADV_COL, "Location Name", "Service Type"],
                         as_index=False)[val_col].sum()
-    adv_pp = pp.groupby([ADV_COL, "Location Name", "Service Type"],
+    adv_pp = pp[pp[ADV_COL] != "Unassigned"].groupby([ADV_COL, "Location Name", "Service Type"],
                         as_index=False)[val_col].sum()
     neg_advs = adv_cp[adv_cp[val_col] < 0].copy()
     neg_count = len(neg_advs)

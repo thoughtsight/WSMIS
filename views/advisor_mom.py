@@ -178,7 +178,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
     
     sel_locs = adv_data["Location Name"].unique().tolist()
-    all_adv_monthly = cp[cp["Location Name"].isin(sel_locs)].groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
+    all_adv_monthly = cp[cp["Location Name"].isin(sel_locs) & (cp[ADV_COL] != "Unassigned")].groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
         JCs=("JC_Nos.","sum"), NL=("Net_Labour","sum"), DL=("Labour Discount","sum"), PL=("Pre-GST Labour","sum")
     ).sort_values([ADV_COL, "Month_Sort"])
     all_adv_monthly["Disc%"] = calc_ratio(all_adv_monthly["DL"], all_adv_monthly["PL"], multiplier=100, fill_value=0)

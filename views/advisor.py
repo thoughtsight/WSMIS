@@ -77,8 +77,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         Grp=("Location Group", "first")
     )
     
-    # Filter by min JCs
-    aa = aa[aa["JCs"] >= min_jc]
+    # Filter by min JCs and exclude Unassigned
+    aa = aa[(aa["JCs"] >= min_jc) & (aa[ADV_COL] != "Unassigned")]
     
     if aa.empty:
         st.warning(f"No advisors with {min_jc}+ JCs in selected period")

@@ -84,7 +84,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     loc_data["YoY_Pct"] = np.where(loc_data["PP_NL"]>0, (loc_data["NL"]-loc_data["PP_NL"])/loc_data["PP_NL"]*100, 0)
     
     # Top advisor per location
-    top_advs = cp.groupby(["Location Name", ADV_COL], dropna=False)["JC_Nos."].sum().reset_index()
+    top_advs = cp[cp[ADV_COL] != "Unassigned"].groupby(["Location Name", ADV_COL], dropna=False)["JC_Nos."].sum().reset_index()
     top_advs = top_advs.sort_values(["Location Name", "JC_Nos."], ascending=[True, False]).groupby("Location Name", dropna=False).first().reset_index()
     top_advs.columns = ["Location Name", "Top_Advisor", "Top_Adv_JCs"]
     

@@ -94,7 +94,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     else:
         loc_merged = pd.DataFrame()
 
-    adv_lab = cp.groupby([ADV_COL, "Location Name"], dropna=False).agg(
+    adv_lab = cp[cp[ADV_COL] != "Unassigned"].groupby([ADV_COL, "Location Name"], dropna=False).agg(
         JCs=("JC_Nos.", "sum"), Revenue=("Pre-GST Labour", "sum"), DiscRs=("Labour Discount", "sum")
     ).reset_index()
     adv_lab = adv_lab[adv_lab["Revenue"] > 0].copy()

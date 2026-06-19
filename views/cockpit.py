@@ -319,7 +319,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         DL=("Labour Discount","sum"),
         PL=("Pre-GST Labour","sum")
     )
-    aa = aa[aa["JCs"] >= 20]
+    aa = aa[(aa["JCs"] >= 20) & (aa[ADV_COL] != "Unassigned")]
     if not aa.empty:
         aa["Avg_Lab_JC"] = np.where(aa["JCs"]>0, aa["NL"]/aa["JCs"], 0)
         aa["Avg_Parts_JC"] = np.where(aa["JCs"]>0, aa["NP"]/aa["JCs"], 0)

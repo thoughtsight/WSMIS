@@ -119,7 +119,8 @@ def get_location_summary(df: pd.DataFrame, as_index: bool = False, dropna: bool 
 @with_error_context(AggregationError)
 def get_advisor_summary(df: pd.DataFrame, as_index: bool = False, dropna: bool = False, **kwargs) -> Union[pd.DataFrame, pd.core.groupby.DataFrameGroupBy]:
     adv_col = "Advisor Name" if "Advisor Name" in df.columns else "Advisor"
-    return group_summary(df, adv_col, as_index=as_index, dropna=dropna, **kwargs)
+    valid_df = df[df[adv_col] != "Unassigned"] if adv_col in df.columns else df
+    return group_summary(valid_df, adv_col, as_index=as_index, dropna=dropna, **kwargs)
 
 @with_error_context(AggregationError)
 def get_month_summary(df: pd.DataFrame, as_index: bool = False, dropna: bool = False, sort_col: str = "Month_Sort", **kwargs) -> Union[pd.DataFrame, pd.core.groupby.DataFrameGroupBy]:

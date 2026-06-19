@@ -226,7 +226,7 @@ def _render_control_bar(df, n_rows, n_locs):
             preset_options.append(fy_label)
 
     st.markdown('<div class="filter-toolbar" style="background:#f9f9fb; padding:12px 16px; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:16px;">', unsafe_allow_html=True)
-    c1, c2, c3, c4, c5, c6 = st.columns([2, 2, 3, 3, 3, 1])
+    c1, c2, c3, c4, c5 = st.columns([2, 2, 3, 4, 1])
 
     with c1:
         cur_preset = st.session_state.get("month_preset", "3M")
@@ -255,20 +255,13 @@ def _render_control_bar(df, n_rows, n_locs):
             st.rerun()
 
     with c3:
-        cur_locs = st.session_state.get("filter_location", [])
-        new_locs = st.multiselect("Location", all_locs, default=cur_locs, placeholder=f"All Locations ({len(all_locs)})", key="lab_loc_ui", label_visibility="visible")
-        if set(new_locs) != set(cur_locs):
-            st.session_state.filter_location = new_locs
-            st.rerun()
-
-    with c4:
         cur_svc = st.session_state.get("filter_svc_type", [])
         new_svc = st.multiselect("Service Type", all_svc, default=cur_svc, placeholder=f"All Service Types ({len(all_svc)})", key="lab_svc_ui", label_visibility="visible")
         if set(new_svc) != set(cur_svc):
             st.session_state.filter_svc_type = new_svc
             st.rerun()
 
-    with c5:
+    with c4:
         cur_biz = st.session_state.get("lab_business_view", "All")
         st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Business View</div>', unsafe_allow_html=True)
         if hasattr(st, "segmented_control"):
@@ -279,7 +272,7 @@ def _render_control_bar(df, n_rows, n_locs):
             st.session_state.lab_business_view = new_b
             st.rerun()
 
-    with c6:
+    with c5:
         st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
         if st.button("🔄 Reset Page", key="lab_reset_ui"):
             st.session_state.month_preset = "3M"
@@ -288,7 +281,7 @@ def _render_control_bar(df, n_rows, n_locs):
             st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
             st.session_state.lab_business_view = "All"
             
-            keys_to_clear = ["filter_location", "filter_svc_type", "lab_cross_loc", "lab_cross_month", "lab_cross_svc"]
+            keys_to_clear = ["filter_svc_type", "lab_cross_loc", "lab_cross_month", "lab_cross_svc"]
             for k in keys_to_clear:
                 if k in st.session_state:
                     del st.session_state[k]

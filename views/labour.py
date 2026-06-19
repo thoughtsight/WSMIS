@@ -20,7 +20,6 @@ from ui.components.core import EmptyState
 
 DEFAULTS = {
     "lab_business_view": "All",
-    "lab_service_types": [],
     "lab_cross_month": None,
     "lab_ai_hash": None,
     "lab_ai_narrative": None,
@@ -33,18 +32,6 @@ def _init_state():
     for k, v in DEFAULTS.items():
         if k not in st.session_state:
             st.session_state[k] = v
-
-
-@st.cache_data
-def _get_master_lists(client):
-    from app import load_data
-    from utils.constants import CLIENTS, MONTH_SORT_ORDER
-    full_df, _ = load_data(CLIENTS[client])
-    return (
-        sorted(full_df["Location Name"].dropna().unique().tolist()),
-        sorted(full_df["Service Type"].dropna().unique().tolist()),
-        sorted(full_df["Month Name"].dropna().unique().tolist(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))
-    )
 
 
 _CSS_INJECTED = False
@@ -75,11 +62,6 @@ def _apply_filters(df, active_pairs):
         filtered = filtered[filtered["Service Type"] != "BR"]
     elif biz == "Bodyshop":
         filtered = filtered[filtered["Service Type"] == "BR"]
-
-    svc_types = st.session_state.get("lab_service_types", [])
-    if svc_types:
-        filtered = filtered[filtered["Service Type"].isin(svc_types)]
-
 
     cp_months_active = [p[0] for p in active_pairs]
     pp_months_active = [p[1] for p in active_pairs]
@@ -238,14 +220,14 @@ def _prepare_datasets(cp, pp, df):
         return {"combined": metrics, "workshop": None, "bodyshop": metrics}
 
     else:
-        is_ws = cp["Service Type"] != "BR"
-        is_bs = cp["Service Type"] == "BR"
-        pp_ws = pp[pp["Service Type"] != "BR"]
-        pp_bs = pp[pp["Service Type"] == "BR"]
+        # For "All" view, compute combined metrics once
+        # Workshop and bodyshop metrics are only used in AI narrative when biz == "All"
+        # To avoid triple computation, set them to None and handle in AI narrative
+        combined_metrics = _compute_metrics(cp, pp, df)
         return {
-            "combined": _compute_metrics(cp, pp, df),
-            "workshop": _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"]),
-            "bodyshop": _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"]),
+            "combined": combined_metrics,
+            "workshop": None,
+            "bodyshop": None,
         }
 
 
@@ -298,13 +280,13 @@ def _render_ai_narrative(datasets, mode_str, cp_label, pp_label):
         "n_growing": d["n_growing"], "n_total": d["n_total"],
         "neg_count": d["neg_count"],
         "neg_locations": list(d["neg_advs"]["Location Name"].unique()) if not d["neg_advs"].empty else [],
-        "rpc_growth": round(d.get("rpc_g", 0), 2),
+        "rpc_growth": round(d["rpc_growth"], 2),
         "abs_growth_inr": fmt_inr(d["cp_val"] - d["pp_val"]),
         "top_svc_driver": d["top_svc_driver"],
         "cross_filters": cross_filters,
         "declining_locs": d.get("declining_locs", []),
     }
-    if biz == "All":
+    if biz == "All" and ws and bs:
         payload["workshop_cp"] = fmt_inr(ws["cp_val"])
         payload["workshop_growth"] = round(ws["growth_pct"], 2)
         payload["bodyshop_cp"] = fmt_inr(bs["cp_val"])
@@ -666,7 +648,7 @@ def _render_opportunities_actions(datasets, mode_str):
         "neg_locations": (d["neg_advs"]["Location Name"].unique().tolist()
                           if d["neg_count"] > 0 else []),
         "top_svc_driver": d["top_svc_driver"],
-        "rpc_growth": round(d.get("rpc_g", 0), 2),
+        "rpc_growth": round(d["rpc_growth"], 2),
         "declining_locs": d.get("declining_locs", []),
     }
     if st.session_state.get("lab_business_view") == "All" and ws and bs:

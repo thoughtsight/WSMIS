@@ -92,7 +92,7 @@ class RuleBasedProvider(AIProvider):
             for loc_data in declining_locs[:3]:
                 loc = loc_data.get("location", "—")
                 gap = loc_data.get("gap_inr", "₹0")
-                opps.append(f"O1: Recover {gap} revenue potential at {loc} by improving service mix and efficiency.")
+                opps.append(f"O{len(opps)+1}: Recover {gap} revenue potential at {loc} by improving service mix and efficiency.")
         else:
             opps.append("O1: Expand PMP and BR attach rates across all locations to increase revenue per jobcard.")
             opps.append("O2: Cross-sell high-margin services from top-performing locations to underperforming ones.")
@@ -101,20 +101,31 @@ class RuleBasedProvider(AIProvider):
         # Build actions
         acts = []
         if worst_growth < 0:
-            acts.append(f"A1: Review {worst_loc} operations and {worst_driver} performance to address {abs(worst_growth):.1f}% decline.")
+            acts.append(f"A{len(acts)+1}: Review {worst_loc} operations and {worst_driver} performance to address {abs(worst_growth):.1f}% decline.")
         if neg_count > 0:
             neg_locs_str = ", ".join(neg_locations[:2]) if neg_locations else "affected locations"
-            acts.append(f"A2: Audit negative labour advisors at {neg_locs_str} and review discount policies immediately.")
+            acts.append(f"A{len(acts)+1}: Audit negative labour advisors at {neg_locs_str} and review discount policies immediately.")
         if rpc_growth < 0:
-            acts.append(f"A3: Push {top_svc_driver} attach rates to improve revenue per jobcard which declined {abs(rpc_growth):.1f}%.")
+            acts.append(f"A{len(acts)+1}: Push {top_svc_driver} attach rates to improve revenue per jobcard which declined {abs(rpc_growth):.1f}%.")
         else:
-            acts.append(f"A3: Scale {best_loc}'s best practices across network to replicate {best_growth:.1f}% growth success.")
+            acts.append(f"A{len(acts)+1}: Scale {best_loc}'s best practices across network to replicate {best_growth:.1f}% growth success.")
 
         # Ensure we have exactly 3 of each
+        default_opps = [
+            "Optimize operational efficiency to reduce costs and improve margins.",
+            "Focus on upselling value-added services during routine maintenance.",
+            "Improve customer throughput by optimizing service bay scheduling."
+        ]
         while len(opps) < 3:
-            opps.append(f"O{len(opps)+1}: Optimize operational efficiency to reduce costs and improve margins.")
+            opps.append(f"O{len(opps)+1}: {default_opps[len(opps)]}")
+            
+        default_acts = [
+            "Conduct regular performance reviews and provide targeted training to advisors.",
+            "Monitor discount trends to ensure profitability margins are maintained.",
+            "Set clear performance targets for the upcoming period based on current metrics."
+        ]
         while len(acts) < 3:
-            acts.append(f"A{len(acts)+1}: Conduct regular performance reviews and provide targeted training to advisors.")
+            acts.append(f"A{len(acts)+1}: {default_acts[len(acts)]}")
 
         return "\n".join(opps[:3] + acts[:3])
 

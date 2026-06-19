@@ -127,6 +127,15 @@ def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
     worst_growth = valid_locs["Growth"].min() if not valid_locs.empty else 0
     n_growing = int((valid_locs["Growth"] > 0).sum())
     n_total = len(valid_locs)
+    
+    declining_locs = []
+    if not valid_locs.empty:
+        dec_df = valid_locs[valid_locs["Delta"] < 0].sort_values("Delta")
+        for loc in dec_df.index:
+            declining_locs.append({
+                "location": loc,
+                "gap_inr": fmt_inr(abs(dec_df.loc[loc, "Delta"]))
+            })
 
     svc_df = pd.DataFrame({"CP": cp_svc, "PP": pp_svc}).fillna(0)
     svc_df["Delta"] = svc_df["CP"] - svc_df["PP"]
@@ -209,6 +218,7 @@ def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
         "cp_loc_jc": cp_loc_jc, "pp_loc_jc": pp_loc_jc,
         "active_svc_count": active_svc_count,
         "pms_stats": pms_stats, "br_stats": br_stats,
+        "declining_locs": declining_locs,
     }
 
 
@@ -287,8 +297,12 @@ def _render_ai_narrative(datasets, mode_str, cp_label, pp_label):
         "worst_driver": d["worst_driver"],
         "n_growing": d["n_growing"], "n_total": d["n_total"],
         "neg_count": d["neg_count"],
+        "neg_locations": list(d["neg_advs"]["Location Name"].unique()) if not d["neg_advs"].empty else [],
+        "rpc_growth": round(d.get("rpc_g", 0), 2),
+        "abs_growth_inr": fmt_inr(d["cp_val"] - d["pp_val"]),
         "top_svc_driver": d["top_svc_driver"],
         "cross_filters": cross_filters,
+        "declining_locs": d.get("declining_locs", []),
     }
     if biz == "All":
         payload["workshop_cp"] = fmt_inr(ws["cp_val"])

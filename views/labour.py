@@ -322,8 +322,8 @@ def _render_executive_panel(datasets, mode_str):
     rpc_pp = "—" if d["pp_rpc"] == 0 and d["pp_jc"] == 0 else fmt_inr_short(d["pp_rpc"])
     rpc_g = d["rpc_growth"]
     
-    load_cp = f"{int(d['cp_jc']):,}"
-    load_pp = f"{int(d['pp_jc']):,}"
+    load_cp = fmt_num(d['cp_jc'])
+    load_pp = fmt_num(d['pp_jc'])
     load_g = calc_growth_pct(d["cp_jc"], d["pp_jc"], fill_value=0)
     
     def _arrow(val):
@@ -348,8 +348,8 @@ def _render_executive_panel(datasets, mode_str):
 </div>"""
 
     def _svc_panel(title, stats):
-        cp_jobs = f"{int(stats['cp_jobs']):,}"
-        pp_jobs = f"{int(stats['pp_jobs']):,}"
+        cp_jobs = fmt_num(stats['cp_jobs'])
+        pp_jobs = fmt_num(stats['pp_jobs'])
         # Display "—" when Job Cards = 0
         cp_rpc = "—" if stats["cp_rpc"] == 0 and stats["cp_jobs"] == 0 else fmt_inr_short(stats["cp_rpc"])
         pp_rpc = "—" if stats["pp_rpc"] == 0 and stats["pp_jobs"] == 0 else fmt_inr_short(stats["pp_rpc"])
@@ -402,11 +402,22 @@ def _render_neg_labour_audit(data):
                 "Diagnosis": (f"Credits/discounts exceeded gross by "
                               f"{fmt_inr(abs(cv - pv))}. Review open JCs at {loc}.")
             })
-        st.dataframe(pd.DataFrame(rows), column_config={
-            "Labour \u20b9": st.column_config.NumberColumn(format="\u20b9%.0f"),
-            "Expected \u20b9": st.column_config.NumberColumn(format="\u20b9%.0f"),
-            "Variance \u20b9": st.column_config.NumberColumn(format="\u20b9%.0f"),
-        }, use_container_width=True, hide_index=True)
+        neg_df = pd.DataFrame(rows)
+        neg_cc = {
+            "Advisor Name": st.column_config.TextColumn("Advisor Name"),
+            "Location": st.column_config.TextColumn("Location"),
+            "Service Type": st.column_config.TextColumn("Service Type"),
+            "Labour \u20b9": st.column_config.NumberColumn("Labour \u20b9"),
+            "Expected \u20b9": st.column_config.NumberColumn("Expected \u20b9"),
+            "Variance \u20b9": st.column_config.NumberColumn("Variance \u20b9"),
+            "Diagnosis": st.column_config.TextColumn("Diagnosis"),
+        }
+        styled_neg = neg_df.style.format({
+            "Labour \u20b9": fmt_inr_full,
+            "Expected \u20b9": fmt_inr_full,
+            "Variance \u20b9": fmt_inr_full,
+        })
+        st.dataframe(styled_neg, column_config=neg_cc, use_container_width=True, hide_index=True)
 
 
 def _render_charts(datasets, active_pairs, mode_str):

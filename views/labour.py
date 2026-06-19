@@ -20,8 +20,6 @@ _SVC_COLORS = {"PMP": C["primary"], "RR": C["green"], "Accessories": C["orange"]
 
 DEFAULTS = {
     "lab_business_view": "All",
-    "lab_loc_mode": "single",
-    "lab_location": "All",
     "lab_service_types": [],
     "lab_cross_loc": None,
     "lab_cross_month": None,
@@ -68,13 +66,6 @@ def _apply_filters(df, active_pairs):
         filtered = filtered[filtered["Service Type"] != "BR"]
     elif biz == "Bodyshop":
         filtered = filtered[filtered["Service Type"] == "BR"]
-
-    loc_mode = st.session_state.get("lab_loc_mode", "single")
-    loc_val = st.session_state.get("lab_location", "All")
-    if loc_mode == "single" and loc_val != "All":
-        filtered = filtered[filtered["Location Name"] == loc_val]
-    elif loc_mode == "multi" and isinstance(loc_val, list) and loc_val:
-        filtered = filtered[filtered["Location Name"].isin(loc_val)]
 
     svc_types = st.session_state.get("lab_service_types", [])
     if svc_types:
@@ -215,10 +206,9 @@ def _prepare_datasets(cp, pp, df):
 
 def _render_control_bar(df, n_rows, n_locs):
     all_svc = sorted(df["Service Type"].dropna().unique().tolist())
-    all_locs = sorted(df["Location Name"].dropna().unique().tolist())
     cur_biz = st.session_state.lab_business_view
 
-    c1, c2, c3, c4, c5 = st.columns([3, 5, 3, 1, 1])
+    c1, c2, c3, c4 = st.columns([3, 5, 3, 1])
 
     with c1:
         biz_opts = ["All", "Workshop", "Bodyshop"]
@@ -230,40 +220,6 @@ def _render_control_bar(df, n_rows, n_locs):
             st.rerun()
 
     with c2:
-        loc_mode = st.session_state.lab_loc_mode
-        loc_val = st.session_state.lab_location
-        loc_cols = st.columns([10, 1])
-        with loc_cols[0]:
-            if loc_mode == "single":
-                opts_loc = ["All"] + all_locs
-                cur = loc_val if loc_val in opts_loc else "All"
-                new_loc = st.selectbox("Location", opts_loc,
-                                       index=opts_loc.index(cur),
-                                       label_visibility="collapsed",
-                                       key="ctrl_loc_single")
-                if new_loc != loc_val:
-                    st.session_state.lab_location = new_loc
-                    st.rerun()
-            else:
-                cur_list = loc_val if isinstance(loc_val, list) else []
-                new_locs = st.multiselect("Locations", all_locs,
-                                          default=[l for l in cur_list if l in all_locs],
-                                          label_visibility="collapsed",
-                                          key="ctrl_loc_multi")
-                if set(new_locs) != set(cur_list):
-                    st.session_state.lab_location = new_locs
-                    st.rerun()
-        with loc_cols[1]:
-            toggle_icon = "\u229e" if loc_mode == "single" else "\u229f"
-            if st.button(toggle_icon, key="loc_toggle", help="Toggle single/multi"):
-                st.session_state.lab_loc_mode = "multi" if loc_mode == "single" else "single"
-                if st.session_state.lab_loc_mode == "single":
-                    st.session_state.lab_location = "All"
-                else:
-                    st.session_state.lab_location = []
-                st.rerun()
-
-    with c3:
         cur_svc = st.session_state.lab_service_types
         default_svc = cur_svc if cur_svc else all_svc
         new_svc = st.multiselect("Service Types", all_svc, default=default_svc,
@@ -274,7 +230,7 @@ def _render_control_bar(df, n_rows, n_locs):
             st.session_state.lab_service_types = active_svc
             st.rerun()
 
-    with c4:
+    with c3:
         if st.button("\u27f3 Reset", key="lab_reset"):
             keys_to_clear = [k for k in st.session_state if k.startswith("lab_")]
             for k in keys_to_clear:

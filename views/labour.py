@@ -330,87 +330,44 @@ def _render_executive_panel(datasets, mode_str):
         if val < 0: return f'<span style="color:#FF3B30;">▼ {val:.1f}%</span>'
         return ""
 
-    html = f"""
-    <div style="background:#ffffff; border:1px solid #ececec; border-radius:12px; margin-bottom:20px; box-shadow:none; overflow:hidden;">
-        <!-- Top Row -->
-        <div style="display:flex; border-bottom:1px solid #ececec;">
-            <!-- Top Left: Labour Revenue -->
-            <div style="flex:1; padding:16px 20px; border-right:1px solid #ececec;">
-                <div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">
-                    LABOUR REVENUE
-                </div>
-                <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
-                    <div style="font-size:28px; font-weight:700; color:#1d1d1f; line-height:1.2;">
-                        {rev_cp}
-                    </div>
-                    <div style="font-size:16px; font-weight:600;">
-                        {_arrow(rev_g)}
-                    </div>
-                </div>
-                <div style="font-size:14px; color:#8e8e93; font-weight:500;">
-                    PP {rev_pp}
-                </div>
-            </div>
-            
-            <!-- Top Right: Revenue / Jobcard -->
-            <div style="flex:1; padding:16px 20px;">
-                <div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">
-                    REVENUE / JOBCARD
-                </div>
-                <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
-                    <div style="font-size:28px; font-weight:700; color:#1d1d1f; line-height:1.2;">
-                        {rpc_cp}
-                    </div>
-                    <div style="font-size:16px; font-weight:600;">
-                        {_arrow(rpc_g)}
-                    </div>
-                </div>
-                <div style="font-size:14px; color:#8e8e93; font-weight:500;">
-                    PP {rpc_pp}
-                </div>
-            </div>
-        </div>
-        
-        <!-- Bottom Row -->
-        <div style="display:flex;">
-            <!-- Bottom Left: Load -->
-            <div style="flex:1; padding:16px 20px; border-right:1px solid #ececec;">
-                <div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">
-                    LOAD
-                </div>
-                <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
-                    <div style="font-size:24px; font-weight:700; color:#1d1d1f; line-height:1.2;">
-                        {load_cp}
-                    </div>
-                    <div style="font-size:14px; font-weight:600;">
-                        {_arrow(load_g)}
-                    </div>
-                </div>
-                <div style="font-size:14px; color:#8e8e93; font-weight:500;">
-                    PP {load_pp}
-                </div>
-            </div>
-            
-            <!-- Bottom Right: Avg Labour -->
-            <div style="flex:1; padding:16px 20px;">
-                <div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">
-                    AVG LABOUR
-                </div>
-                <div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
-                    <div style="font-size:24px; font-weight:700; color:#1d1d1f; line-height:1.2;">
-                        {rpc_cp}
-                    </div>
-                    <div style="font-size:14px; font-weight:600;">
-                        {_arrow(rpc_g)}
-                    </div>
-                </div>
-                <div style="font-size:14px; color:#8e8e93; font-weight:500;">
-                    PP {rpc_pp}
-                </div>
-            </div>
-        </div>
-    </div>
-    """
+    html = f"""<div style="background:#ffffff; border:1px solid #ececec; border-radius:12px; margin-bottom:20px; box-shadow:none; overflow:hidden;">
+<div style="display:flex; border-bottom:1px solid #ececec;">
+<div style="flex:1; padding:16px 20px; border-right:1px solid #ececec;">
+<div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">LABOUR REVENUE</div>
+<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
+<div style="font-size:28px; font-weight:700; color:#1d1d1f; line-height:1.2;">{rev_cp}</div>
+<div style="font-size:16px; font-weight:600;">{_arrow(rev_g)}</div>
+</div>
+<div style="font-size:14px; color:#8e8e93; font-weight:500;">PP {rev_pp}</div>
+</div>
+<div style="flex:1; padding:16px 20px;">
+<div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">REVENUE / JOBCARD</div>
+<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
+<div style="font-size:28px; font-weight:700; color:#1d1d1f; line-height:1.2;">{rpc_cp}</div>
+<div style="font-size:16px; font-weight:600;">{_arrow(rpc_g)}</div>
+</div>
+<div style="font-size:14px; color:#8e8e93; font-weight:500;">PP {rpc_pp}</div>
+</div>
+</div>
+<div style="display:flex;">
+<div style="flex:1; padding:16px 20px; border-right:1px solid #ececec;">
+<div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">LOAD</div>
+<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
+<div style="font-size:24px; font-weight:700; color:#1d1d1f; line-height:1.2;">{load_cp}</div>
+<div style="font-size:14px; font-weight:600;">{_arrow(load_g)}</div>
+</div>
+<div style="font-size:14px; color:#8e8e93; font-weight:500;">PP {load_pp}</div>
+</div>
+<div style="flex:1; padding:16px 20px;">
+<div style="color:#8e8e93; font-size:12px; font-weight:500; letter-spacing:0.5px; text-transform:uppercase; margin-bottom:6px;">AVG LABOUR</div>
+<div style="display:flex; align-items:baseline; gap:10px; margin-bottom:2px;">
+<div style="font-size:24px; font-weight:700; color:#1d1d1f; line-height:1.2;">{rpc_cp}</div>
+<div style="font-size:14px; font-weight:600;">{_arrow(rpc_g)}</div>
+</div>
+<div style="font-size:14px; color:#8e8e93; font-weight:500;">PP {rpc_pp}</div>
+</div>
+</div>
+</div>"""
     st.markdown(html, unsafe_allow_html=True)
 
 

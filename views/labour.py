@@ -40,6 +40,18 @@ def _init_state():
             st.session_state[k] = v
 
 
+@st.cache_data
+def _get_master_lists(client):
+    from app import load_data
+    from utils.constants import CLIENTS, MONTH_SORT_ORDER
+    full_df, _ = load_data(CLIENTS[client])
+    return (
+        sorted(full_df["Location Name"].dropna().unique().tolist()),
+        sorted(full_df["Service Type"].dropna().unique().tolist()),
+        sorted(full_df["Month Name"].dropna().unique().tolist(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))
+    )
+
+
 _CSS_INJECTED = False
 
 def _inject_responsive_css():
@@ -55,6 +67,7 @@ def _inject_responsive_css():
     .kpi-value { font-size: 28px !important; }
     .kpi-label { font-size: 13px !important; }
 }
+.kpi-card { height: 140px; display: flex; flex-direction: column; justify-content: space-between; }
 .lab-summary { font-size: 12px; color: #6E6E73; padding: 2px 0 8px 0; }
 .lab-drill { border: 2px dashed #E5E5EA; border-radius: 12px; padding: 16px; margin: 8px 0; }
 </style>""", unsafe_allow_html=True)
@@ -202,11 +215,10 @@ def _prepare_datasets(cp, pp, df):
 
 
 def _render_control_bar(df, n_rows, n_locs):
-    from utils.constants import MONTH_SORT_ORDER, FY_MONTHS
+    from utils.constants import FY_MONTHS
     
-    all_svc = sorted(df["Service Type"].dropna().unique().tolist())
-    all_locs = sorted(df["Location Name"].dropna().unique().tolist())
-    all_months = sorted(df["Month Name"].dropna().unique().tolist(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))
+    client = st.session_state.get("sel_client", "Rukmani Motors")
+    all_locs, all_svc, all_months = _get_master_lists(client)
 
     preset_options = ["Custom", "1M", "3M", "6M"]
     for fy_label, fy_month_list in FY_MONTHS.items():
@@ -277,6 +289,14 @@ def _render_control_bar(df, n_rows, n_locs):
             st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
+
+    cur_preset = st.session_state.get("month_preset", "3M")
+    if cur_preset == "Custom":
+        cur_sel = st.session_state.get("selected_months_custom", [])
+        new_sel = st.multiselect("Custom Months", all_months, default=cur_sel, key="lab_custom_months_ui")
+        if set(new_sel) != set(cur_sel):
+            st.session_state.selected_months_custom = new_sel
+            st.rerun()
 
 
 
@@ -371,8 +391,8 @@ def _render_kpi_tier_1(datasets, mode_str):
 
     def _card(col, label, value, delta_pct, delta_pos, what, why, so_what):
         dc = "kpi-delta-pos" if delta_pos else "kpi-delta-neg"
-        ds = (f"+{delta_pct:.2f}%" if delta_pos and delta_pct > 0
-              else f"{delta_pct:.2f}%" if delta_pct != 0 else "")
+        ds = (f"(+{delta_pct:.2f}%)" if delta_pos and delta_pct > 0
+              else f"({delta_pct:.2f}%)" if delta_pct != 0 else "")
         with col:
             st.markdown(
                 f'<div class="kpi-card"><div class="kpi-label">{label}</div>'
@@ -427,7 +447,7 @@ def _render_kpi_tier_2(datasets):
             st.markdown(
                 f'<div class="kpi-card"><div class="kpi-label">Best Location</div>'
                 f'<div class="kpi-value">{d["best_loc"]}</div>'
-                f'<div class="{badge}">{fmt_pct(d["best_growth"], True)}</div>'
+                f'<div class="{badge}">({fmt_pct(d["best_growth"], True)})</div>'
                 f'<div class="kpi-meta">{d["best_driver"]}</div></div>',
                 unsafe_allow_html=True)
 
@@ -442,7 +462,7 @@ def _render_kpi_tier_2(datasets):
             st.markdown(
                 f'<div class="kpi-card"><div class="kpi-label">Worst Location</div>'
                 f'<div class="kpi-value">{d["worst_loc"]}</div>'
-                f'<div class="{badge}">{fmt_pct(d["worst_growth"], True)}</div>'
+                f'<div class="{badge}">({fmt_pct(d["worst_growth"], True)})</div>'
                 f'<div class="kpi-meta">{d["worst_driver"]}</div></div>',
                 unsafe_allow_html=True)
 

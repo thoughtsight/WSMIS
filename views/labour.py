@@ -282,7 +282,13 @@ def _render_control_bar(df, n_rows, n_locs):
     with c6:
         st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
         if st.button("🔄 Reset Page", key="lab_reset_ui"):
-            keys_to_clear = ["month_preset", "comparison_mode_radio", "filter_location", "filter_svc_type", "lab_business_view", "selected_months_custom", "last_preset"]
+            st.session_state.month_preset = "3M"
+            st.session_state.last_preset = "3M"
+            st.session_state.comparison_mode_radio = "YoY"
+            st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+            st.session_state.lab_business_view = "All"
+            
+            keys_to_clear = ["filter_location", "filter_svc_type", "lab_cross_loc", "lab_cross_month", "lab_cross_svc"]
             for k in keys_to_clear:
                 if k in st.session_state:
                     del st.session_state[k]
@@ -350,11 +356,11 @@ def _render_ai_narrative(datasets, mode_str, cp_label, pp_label):
     payload = {
         "mode": mode_str, "period": f"{cp_label} vs {pp_label}",
         "business_view": biz,
-        "cp_total": fmt_inr(d["cp_val"]), "pp_total": fmt_inr(d["pp_val"]),
+        "cp_total_inr": fmt_inr(d["cp_val"]), "pp_total_inr": fmt_inr(d["pp_val"]),
         "growth_pct": round(d["growth_pct"], 2),
-        "best_loc": d["best_loc"], "best_growth": round(d["best_growth"], 2),
+        "best_loc": d["best_loc"], "best_growth_pct": round(d["best_growth"], 2),
         "best_driver": d["best_driver"],
-        "worst_loc": d["worst_loc"], "worst_growth": round(d["worst_growth"], 2),
+        "worst_loc": d["worst_loc"], "worst_growth_pct": round(d["worst_growth"], 2),
         "worst_driver": d["worst_driver"],
         "n_growing": d["n_growing"], "n_total": d["n_total"],
         "neg_count": d["neg_count"],

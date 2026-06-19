@@ -202,41 +202,82 @@ def _prepare_datasets(cp, pp, df):
 
 
 def _render_control_bar(df, n_rows, n_locs):
+    from utils.constants import MONTH_SORT_ORDER, FY_MONTHS
+    
     all_svc = sorted(df["Service Type"].dropna().unique().tolist())
-    cur_biz = st.session_state.lab_business_view
+    all_locs = sorted(df["Location Name"].dropna().unique().tolist())
+    all_months = sorted(df["Month Name"].dropna().unique().tolist(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))
 
-    c1, c2, c3, c4 = st.columns([3, 5, 3, 1])
+    preset_options = ["Custom", "1M", "3M", "6M"]
+    for fy_label, fy_month_list in FY_MONTHS.items():
+        if any(m in fy_month_list for m in all_months):
+            preset_options.append(fy_label)
+
+    st.markdown('<div class="filter-toolbar" style="background:#f9f9fb; padding:12px 16px; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:16px;">', unsafe_allow_html=True)
+    c1, c2, c3, c4, c5, c6 = st.columns([2, 2, 3, 3, 3, 1])
 
     with c1:
-        biz_opts = ["All", "Workshop", "Bodyshop"]
-        new_b = st.radio("Business View", biz_opts, index=biz_opts.index(cur_biz),
-                         horizontal=True, label_visibility="collapsed",
-                         key="ctrl_biz")
-        if new_b != cur_biz:
-            st.session_state.lab_business_view = new_b
+        cur_preset = st.session_state.get("month_preset", "3M")
+        new_preset = st.selectbox("Period", preset_options, index=preset_options.index(cur_preset) if cur_preset in preset_options else 1, key="lab_month_preset_ui", label_visibility="visible")
+        if new_preset != cur_preset:
+            st.session_state.month_preset = new_preset
+            st.session_state.last_preset = new_preset
+            if new_preset == "1M":
+                st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
+            elif new_preset == "3M":
+                st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+            elif new_preset == "6M":
+                st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
+            elif new_preset != "Custom":
+                st.session_state.selected_months_custom = [m for m in all_months if m in FY_MONTHS.get(new_preset, [])]
             st.rerun()
 
     with c2:
-        cur_svc = st.session_state.lab_service_types
-        default_svc = cur_svc if cur_svc else all_svc
-        new_svc = st.multiselect("Service Types", all_svc, default=default_svc,
-                                 label_visibility="collapsed", key="ctrl_svc",
-                                 placeholder="All service types")
-        active_svc = [] if set(new_svc) == set(all_svc) else new_svc
-        if set(active_svc) != set(cur_svc):
-            st.session_state.lab_service_types = active_svc
+        cur_comp = st.session_state.get("comparison_mode_radio", "YoY")
+        if hasattr(st, "segmented_control"):
+            new_comp = st.segmented_control("Comparison", ["YoY", "MoM"], default=cur_comp, key="lab_comp_ui")
+        else:
+            new_comp = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="lab_comp_ui")
+        if new_comp and new_comp != cur_comp:
+            st.session_state.comparison_mode_radio = new_comp
             st.rerun()
 
     with c3:
-        if st.button("\u27f3 Reset", key="lab_reset"):
-            keys_to_clear = [k for k in st.session_state if k.startswith("lab_")]
-            for k in keys_to_clear:
-                del st.session_state[k]
+        cur_locs = st.session_state.get("filter_location", [])
+        new_locs = st.multiselect("Location", all_locs, default=cur_locs, placeholder=f"All Locations ({len(all_locs)})", key="lab_loc_ui", label_visibility="visible")
+        if set(new_locs) != set(cur_locs):
+            st.session_state.filter_location = new_locs
             st.rerun()
 
-    st.markdown(
-        f'<div class="lab-summary">{n_rows} rows \u00b7 {n_locs} locations</div>',
-        unsafe_allow_html=True)
+    with c4:
+        cur_svc = st.session_state.get("filter_svc_type", [])
+        new_svc = st.multiselect("Service Type", all_svc, default=cur_svc, placeholder=f"All Service Types ({len(all_svc)})", key="lab_svc_ui", label_visibility="visible")
+        if set(new_svc) != set(cur_svc):
+            st.session_state.filter_svc_type = new_svc
+            st.rerun()
+
+    with c5:
+        cur_biz = st.session_state.get("lab_business_view", "All")
+        st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Business View</div>', unsafe_allow_html=True)
+        if hasattr(st, "segmented_control"):
+            new_b = st.segmented_control("Business View", ["All", "Workshop", "Bodyshop"], default=cur_biz, key="lab_biz_ui", label_visibility="collapsed")
+        else:
+            new_b = st.radio("Business View", ["All", "Workshop", "Bodyshop"], index=["All", "Workshop", "Bodyshop"].index(cur_biz), horizontal=True, key="lab_biz_ui", label_visibility="collapsed")
+        if new_b and new_b != cur_biz:
+            st.session_state.lab_business_view = new_b
+            st.rerun()
+
+    with c6:
+        st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
+        if st.button("🔄 Reset Page", key="lab_reset_ui"):
+            keys_to_clear = ["month_preset", "comparison_mode_radio", "filter_location", "filter_svc_type", "lab_business_view", "selected_months_custom", "last_preset"]
+            for k in keys_to_clear:
+                if k in st.session_state:
+                    del st.session_state[k]
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 
 def _render_cross_filter_bar():

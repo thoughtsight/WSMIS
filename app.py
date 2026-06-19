@@ -52,7 +52,7 @@ PAGE_CAPABILITIES = {
     "Cockpit": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
     "Profit & Loss": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
     "Expense Analysis": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
-    "Labour": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Labour": {"default_period": "3M", "comparison_mode": True, "show_period_filter": False, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
     "Parts": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
     "Advisors": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": ["Advisor"]},
     "Advisor MoM": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": ["Advisor"]},
@@ -696,7 +696,7 @@ def main():
         render_neg_labour_alert(cp)
 
     # Period summary pill
-    if selected_months and pp_months:
+    if selected_months and pp_months and st.session_state.get("current_page") != "Labour":
         sorted_cp = sorted(selected_months, key=lambda x: MONTH_SORT_ORDER.get(x, 99))
         sorted_pp = sorted(pp_months, key=lambda x: MONTH_SORT_ORDER.get(x, 99))
         st.markdown(

@@ -619,18 +619,6 @@ def _render_opportunities_actions(datasets, mode_str):
     ws = datasets["workshop"]
     bs = datasets["bodyshop"]
 
-    declining = d["valid_locs"][d["valid_locs"]["Growth"] < 0].sort_values("Growth").head(3)
-    opps_data = []
-    for loc in declining.index:
-        avg = d["loc_6m_avg"].get(loc, d["loc_df"].loc[loc, "CP"]
-                                  if loc in d["loc_df"].index else 0)
-        gap = avg - (d["loc_df"].loc[loc, "CP"]
-                     if loc in d["loc_df"].index else 0)
-        opps_data.append({"location": loc, "gap_inr": fmt_inr(max(gap, 0)),
-                          "current_growth": round(
-                              d["loc_df"].loc[loc, "Growth"], 2)
-                          if loc in d["loc_df"].index else 0})
-
     payload = {
         "mode": mode_str, "business_view": st.session_state.get("lab_business_view", "All"),
         "worst_loc": d["worst_loc"],
@@ -642,8 +630,8 @@ def _render_opportunities_actions(datasets, mode_str):
         "neg_locations": (d["neg_advs"]["Location Name"].unique().tolist()
                           if d["neg_count"] > 0 else []),
         "top_svc_driver": d["top_svc_driver"],
-        "rpc_growth": round(d["rpc_growth"], 2),
-        "declining_locs": opps_data,
+        "rpc_growth": round(d.get("rpc_g", 0), 2),
+        "declining_locs": d.get("declining_locs", []),
     }
     if st.session_state.get("lab_business_view") == "All" and ws and bs:
         payload["workshop_summary"] = {
@@ -730,11 +718,11 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
 
     _render_cross_filter_bar()
-    _render_ai_narrative(datasets, mode_str, cp_label, pp_label)
     _render_executive_panel(datasets, mode_str)
     _render_neg_labour_audit(d)
     _render_charts(datasets, active_pairs, mode_str)
     _render_executive_table(datasets, active_pairs, mode_str)
     _render_monthly_detail(datasets, active_pairs, mode_str)
     _render_opportunities_actions(datasets, mode_str)
+    _render_ai_narrative(datasets, mode_str, cp_label, pp_label)
 

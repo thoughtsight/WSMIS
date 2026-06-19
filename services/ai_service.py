@@ -107,8 +107,10 @@ class RuleBasedProvider(AIProvider):
             acts.append(f"A{len(acts)+1}: Audit negative labour advisors at {neg_locs_str} and review discount policies immediately.")
         if rpc_growth < 0:
             acts.append(f"A{len(acts)+1}: Push {top_svc_driver} attach rates to improve revenue per jobcard which declined {abs(rpc_growth):.1f}%.")
-        else:
+        elif best_growth > 0:
             acts.append(f"A{len(acts)+1}: Scale {best_loc}'s best practices across network to replicate {best_growth:.1f}% growth success.")
+        else:
+            acts.append(f"A{len(acts)+1}: Emulate {best_loc}'s operational consistency across network to prevent further decline.")
 
         # Ensure we have exactly 3 of each
         default_opps = [

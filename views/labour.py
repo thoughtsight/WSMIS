@@ -462,7 +462,7 @@ def _render_charts(datasets, active_pairs, mode_str):
         barmode="group", height=420,
         title=dict(text=f"Revenue Trend \u2014 {mode_str}", font=dict(size=20, family="Arial", weight=600)),
         margin=dict(t=60, b=60, l=60, r=60),
-        yaxis=dict(**PLY["yaxis"], title="Revenue (\u20b9)", title_font=dict(size=16, family="Arial", weight=600),
+        yaxis=dict(title="Revenue (\u20b9)", title_font=dict(size=16, family="Arial", weight=600),
                    tickfont=dict(size=13, family="Arial")),
         yaxis2=dict(title="Growth %", overlaying="y", side="right",
                     tickformat=".1f", showgrid=False, title_font=dict(size=16, family="Arial", weight=600),

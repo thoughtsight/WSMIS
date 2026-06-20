@@ -345,14 +345,14 @@ def render_month_picker(df, page):
         with cols[col_idx]:
             st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Service Type</div>', unsafe_allow_html=True)
             svc_type_opts = sorted(df['Service Type'].dropna().unique().tolist())
-            svc_type = st.multiselect("Service Type", svc_type_opts, default=[], key="filter_svc_type_single", placeholder="All")
+            svc_type = st.multiselect("Service Type", svc_type_opts, default=[], key="filter_svc_type_labour", placeholder="All")
             st.session_state.filter_svc_type = svc_type
         col_idx += 1
 
     with cols[col_idx]:
         st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
         if st.button("🔄 Reset Page", key="clear_page"):
-            for key in ["filter_svc_type_single", "filter_adv_single", "filter_svc_type", "filter_advisor", "filter_mp_pb", "filter_location", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
+            for key in ["filter_svc_type_single", "filter_svc_type_labour", "filter_adv_single", "filter_svc_type", "filter_advisor", "filter_mp_pb", "filter_location", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
                 if key in st.session_state: del st.session_state[key]
             st.rerun()
 

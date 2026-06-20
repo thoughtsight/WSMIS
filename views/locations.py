@@ -50,11 +50,11 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C, LOC_COLORS, PLY, get_ply_layout
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
+from ui.components import KPIGrid, MetricCard
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -119,7 +119,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         loc_data = loc_data.sort_values("Health_Color")
     
     # Render cards
-    st.markdown('<div style="margin-bottom:16px;">', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-bottom:{T.SPACE_4}px;">', unsafe_allow_html=True)
     for i in range(0, len(loc_data), 3):
         cols = st.columns(3)
         for j in range(3):
@@ -128,8 +128,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                 with cols[j]:
                     card_html = f"""
                     <div class="loc-card">
-                        <div class="loc-card-title">{loc['Location Name']} <span style="font-size:12px;font-weight:500;color:#6E6E73;">({loc['Grp']})</span></div>
-                        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                        <div class="loc-card-title">{loc['Location Name']} <span style="font-size:{T.TYPE_XS}px;font-weight:500;color:var(--color-text-secondary);">({loc['Grp']})</span></div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:{T.SPACE_2}px;">
                             <div>
                                 <div class="loc-metric">JCs</div>
                                 <div class="loc-metric-val">{fmt_num(loc['JCs'])}</div>
@@ -143,7 +143,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                                 <div class="loc-metric-val">{fmt_inr(loc['M'])}</div>
                             </div>
                         </div>
-                        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:{T.SPACE_2}px;">
                             <div>
                                 <div class="loc-metric">Disc%</div>
                                 <div class="loc-metric-val">{loc['Disc_Pct']:.1f}%</div>
@@ -160,12 +160,12 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                                     {'▲' if loc['YoY_Pct']>=0 else '▼'} {abs(loc['YoY_Pct']):.1f}%
                                 </div>
                             </div>
-                            <div style="font-size:20px;">{loc['Health_Icon']}</div>
+                            <div style="font-size:{T.TYPE_LG}px;">{loc['Health_Icon']}</div>
                         </div>
                     </div>
                     """
                     st.markdown(card_html, unsafe_allow_html=True)
-                    if st.button(f"View {loc['Location Name']}", key=f"loc_btn_{loc['Location Name']}", width='stretch'):
+                    if st.button(f"View {loc['Location Name']}", key=f"loc_btn_{loc['Location Name']}", use_container_width=True):
                         st.session_state.filter_location = [loc['Location Name']]
                         st.session_state.filter_loc_group = []
                         st.rerun()
@@ -214,3 +214,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                                 "toImageButtonOptions": {"format":"png","scale":2}})
     
     st.markdown('</div>', unsafe_allow_html=True)
+

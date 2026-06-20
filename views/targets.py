@@ -50,11 +50,11 @@ from utils.constants import ADV_COL, MP_COLORS, C, MONTH_SORT_ORDER
 from utils.loaders import TARGET_TAB
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
+from ui.components import KPIGrid, MetricCard
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding, csv_btn
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+from ui.design_tokens import T
 
 def render(df_act, targets_df, pairs):
     if df_act.empty:
@@ -123,7 +123,7 @@ def render(df_act, targets_df, pairs):
     kpi_tgt(c[2], "WS Parts Ach%",  "WS_Pts", "WS_Parts_Target")
     kpi_tgt(c[3], "BS Parts Ach%",  "BS_Pts", "BS_Parts_Target")
 
-    st.markdown('<div class="section-title" style="margin-top:16px">'
+    st.markdown(f'<div class="section-title" style="margin-top:{T.SPACE_4}px">'
                 '🎯 Location-wise Target Achievement</div>', unsafe_allow_html=True)
 
     rows = []
@@ -177,7 +177,7 @@ def render(df_act, targets_df, pairs):
     fig = px.bar(bar_m, x="Location Name", y="Amount", color="Series", barmode="group",
                  text="Label",
                  color_discrete_map={"WS_Labour_Target":C["gray"],"WS_Lab":C["primary"],
-                                     "BS_Labour_Target":"#FFD6A5","BS_Lab":C["orange"]})
+                                     "BS_Labour_Target":T.COLOR_WARNING_BG,"BS_Lab":C["orange"]})
     apply_chart(fig, "🎯 WS & BS Labour — Target vs Actual by Location", 400, text_col="Label")
     fig.update_traces(
         hovertemplate="<b>%{fullData.name}</b><br>Location: %{x}<br>Amount: %{customdata[0]}<extra></extra>",
@@ -188,3 +188,4 @@ def render(df_act, targets_df, pairs):
                             "modeBarButtonsToRemove": ["select2d","lasso2d"],
                             "toImageButtonOptions": {"format":"png","scale":2}})
     st.markdown('</div>', unsafe_allow_html=True)
+

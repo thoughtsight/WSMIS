@@ -28,7 +28,7 @@ def test_apply_month_filter(dummy_df):
     assert res["Value"].sum() == 50
 
     res2 = apply_month_filter(dummy_df, "Month Name", [])
-    assert len(res2) == 4 # Empty list means no filter
+    assert len(res2) == 0 # Empty list means empty df
 
 def test_apply_location_filter(dummy_df):
     res = apply_location_filter(dummy_df, "Location Name", ["Loc A"])

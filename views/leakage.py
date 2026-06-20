@@ -51,11 +51,10 @@ from utils.constants import ADV_COL, MP_COLORS, C
 from config.settings import LABOUR_DISC_BENCH, PARTS_DISC_BENCH, HIGH_DISC_ALERT
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
+from ui.components import KPIGrid, MetricCard
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding, render_discount_heatmap, render_alerts
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Leakage..."):
@@ -210,14 +209,15 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             lab_pct = row["Disc_Pct"]
             cause   = f"Labour discount at {lab_pct:.1f}% (benchmark {LAB_BENCH}%)"
             owner   = "Service Head" if lab_pct > 25 else "Location Manager"
-            st.markdown(f"""
-            <div style="background:#E8F0FE;border-left:4px solid #185FA5;border-radius:8px;padding:12px;margin-bottom:8px;">
-                <div style="font-weight:600;color:#185FA5;font-size:14px;">📍 {row["Location Name"]}</div>
-                <div style="color:#6E6E73;font-size:13px;margin-top:4px;">⚠️ {cause}</div>
-                <div style="color:#CF222E;font-size:13px;margin-top:2px;">💰 Recoverable: {fmt_inr(row["Total_Leakage"])}</div>
-                <div style="color:#34C759;font-size:12px;margin-top:4px;">👤 Owner: {owner}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            priority = "High" if lab_pct > 25 else "Medium"
+            _render_finding(
+                finding=f"{row['Location Name']} Leakage",
+                cause=cause,
+                impact=fmt_inr(row["Total_Leakage"]),
+                recommendation="Review labour discounting practices",
+                owner=owner,
+                priority=priority
+            )
     else:
         st.info("No location data to evaluate")
     st.markdown('</div>', unsafe_allow_html=True)
@@ -313,3 +313,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             })
             html_table(disp_adv_drill, height="250px")
     st.markdown('</div>', unsafe_allow_html=True)
+

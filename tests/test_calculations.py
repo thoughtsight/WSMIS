@@ -34,7 +34,7 @@ def dummy_pp():
 
 def test_revenue_calculations(dummy_cp):
     net_rev = calculate_net_revenue(dummy_cp)
-    assert net_rev == 1000 + 2000 + 3000 + 4000
+    assert net_rev == 10500  # Pre-GST Labour (3300) + Pre-GST Parts (7200)
     
     total_rev = calculate_total_revenue(dummy_cp)
     # Total revenue currently equals Net Revenue in the function
@@ -55,11 +55,11 @@ def test_discount_calculations(dummy_cp):
     assert round(overall_pct, 2) == round(((300 + 200) / (3300 + 7200)) * 100, 2)
 
 def test_growth_kpis(dummy_cp, dummy_pp):
-    cp_rev = calculate_net_revenue(dummy_cp) # 10000
-    pp_rev = calculate_net_revenue(dummy_pp) # 8300
+    cp_rev = calculate_net_revenue(dummy_cp) # 10500
+    pp_rev = calculate_net_revenue(dummy_pp) # 8550
     
     rev_growth = calculate_revenue_growth(dummy_cp, dummy_pp)
-    assert round(rev_growth, 2) == round(((10000 - 8300) / 8300) * 100, 2)
+    assert round(rev_growth, 2) == round(((10500 - 8550) / 8550) * 100, 2)
 
 def test_leakage_calculations(dummy_cp):
     # Leakage calculations generally look at discounts over a threshold

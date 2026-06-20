@@ -50,11 +50,10 @@ from utils.constants import ADV_COL, MP_COLORS, C, PLY, MONTH_SORT_ORDER, get_pl
 from sklearn.linear_model import LinearRegression
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:

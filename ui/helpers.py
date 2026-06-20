@@ -46,50 +46,66 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 
-def apply_chart(fig, title, height=320, text_col=None, bar_text_pos="outside"):
+def apply_chart(fig, title, height=360, text_col=None, bar_text_pos="outside", size="medium"):
     """
-    Apply standard styling to a Plotly figure:
-    - Embeds title INSIDE the figure (survives fullscreen)
-    - Cleans up hover labels
-    - Optionally formats bar text annotations as ₹X.XXCr
+    Apply Executive Light styling to a Plotly figure.
+
+    Args:
+        fig:          Plotly Figure
+        title:        Chart title string
+        height:       Chart height in pixels (default 360 — token medium)
+        text_col:     If set, formats bar text annotations
+        bar_text_pos: Text position for bar annotations
+        size:         Token size hint — "small"|"medium"|"large"|"full"
     """
+    # Token-aligned sizes per chart size
+    from ui.design_tokens import T
+    SIZES = {
+        "small":  {"title": 14, "tick": 11, "label": 11, "legend": 11, "margin": dict(l=48, r=20, t=40, b=40)},
+        "medium": {"title": 16, "tick": 12, "label": 12, "legend": 12, "margin": dict(l=52, r=24, t=52, b=44)},
+        "large":  {"title": 18, "tick": 13, "label": 13, "legend": 13, "margin": dict(l=60, r=32, t=60, b=52)},
+        "full":   {"title": 22, "tick": 14, "label": 14, "legend": 14, "margin": dict(l=72, r=40, t=72, b=60)},
+    }
+    s = SIZES.get(size, SIZES["medium"])
+    font_stack = T.FONT_FAMILY
+
     layout_updates = dict(
         height=height,
         title=dict(
             text=f"<b>{title}</b>",
-            font=dict(size=15, color="#1D1D1F", family="Inter"),
+            font=dict(size=s["title"], color=T.COLOR_TEXT_PRIMARY, family=font_stack, weight=700),
             x=0.01,
             xanchor="left",
             pad=dict(t=8, b=4),
         ),
-        margin=dict(l=52, r=28, t=58, b=44),
+        margin=s["margin"],
         hoverlabel=dict(
-            bgcolor="#FFFFFF",
+            bgcolor=T.COLOR_SURFACE,
             font_size=13,
-            font_family="Inter",
-            bordercolor="#E5E5EA",
+            font_family=font_stack,
+            bordercolor=T.COLOR_BORDER,
             namelength=-1,
         ),
         xaxis=dict(
-            tickfont=dict(size=12, family="Inter"),
-            title_font=dict(size=13, family="Inter"),
-            gridcolor="#F0F0F5",
-            linecolor="#E5E5EA",
+            tickfont=dict(size=s["tick"], family=font_stack),
+            title_font=dict(size=s["tick"] + 1, family=font_stack),
+            gridcolor=T.COLOR_SURFACE2,
+            linecolor=T.COLOR_BORDER,
         ),
         yaxis=dict(
-            tickfont=dict(size=12, family="Inter"),
-            title_font=dict(size=13, family="Inter"),
-            gridcolor="#F0F0F5",
-            linecolor="#E5E5EA",
+            tickfont=dict(size=s["tick"], family=font_stack),
+            title_font=dict(size=s["tick"] + 1, family=font_stack),
+            gridcolor=T.COLOR_SURFACE2,
+            linecolor=T.COLOR_BORDER,
         ),
-        font=dict(family="Inter, -apple-system, sans-serif", size=12, color="#1D1D1F"),
-        paper_bgcolor="#FFFFFF",
-        plot_bgcolor="#FFFFFF",
+        font=dict(family=font_stack, size=s["tick"], color=T.COLOR_TEXT_PRIMARY),
+        paper_bgcolor=T.COLOR_SURFACE,
+        plot_bgcolor=T.COLOR_SURFACE,
         legend=dict(
-            bgcolor="rgba(255,255,255,0.95)",
-            bordercolor="#E5E5EA",
+            bgcolor="rgba(255,255,255,0.92)",
+            bordercolor=T.COLOR_BORDER,
             borderwidth=1,
-            font=dict(size=12, family="Inter"),
+            font=dict(size=s["legend"], family=font_stack),
             orientation="h",
             yanchor="bottom",
             y=1.02,
@@ -101,7 +117,7 @@ def apply_chart(fig, title, height=320, text_col=None, bar_text_pos="outside"):
     if text_col:
         fig.update_traces(
             textposition=bar_text_pos,
-            textfont=dict(size=11, color="#1D1D1F", family="Inter"),
+            textfont=dict(size=s["label"], color=T.COLOR_TEXT_PRIMARY, family=font_stack),
             cliponaxis=False,
         )
     return fig
@@ -156,12 +172,13 @@ def render_neg_labour_alert(df_cp):
 
 
 def render_alerts(alerts):
+    from ui.design_tokens import T
     for severity, msg in alerts:
-        color_map = {'red':'#FFEBE9','yellow':'#FFF3E0','blue':'#E8F0FE'}
-        text_map = {'red':'#CF222E','yellow':'#E65100','blue':'#185FA5'}
-        st.markdown(f"""<div style="background:{color_map[severity]};border-radius:10px;
-            padding:10px 14px;margin-bottom:8px;color:{text_map[severity]};
-            font-size:13px;font-weight:600;">{msg}</div>""", unsafe_allow_html=True)
+        color_map = {'red':T.COLOR_DANGER_BG,'yellow':T.COLOR_WARNING_BG,'blue':T.COLOR_INFO_BG}
+        text_map = {'red':T.COLOR_DANGER,'yellow':T.COLOR_WARNING,'blue':T.COLOR_PRIMARY}
+        st.markdown(f"""<div style="background:{color_map[severity]};border-radius:{T.RADIUS_LG}px;
+            padding:{T.SPACE_2}px {T.SPACE_3}px;margin-bottom:{T.SPACE_2}px;color:{text_map[severity]};
+            font-size:{T.TYPE_BASE}px;font-weight:600;">{msg}</div>""", unsafe_allow_html=True)
 
 
 def render_discount_heatmap(df, view="By Location", key_suffix="lc"):
@@ -186,9 +203,10 @@ def render_discount_heatmap(df, view="By Location", key_suffix="lc"):
     if hp.empty:
         st.info("No heatmap data available")
         return
+    from ui.design_tokens import T
     fig = px.imshow(
         hp.values, x=hp.columns.tolist(), y=hp.index.tolist(),
-        color_continuous_scale=["#E8F9EE", "#FFF3E0", "#FFEBE9"],
+        color_continuous_scale=[T.COLOR_SUCCESS_BG, T.COLOR_WARNING_BG, T.COLOR_DANGER_BG],
         aspect="auto", labels={"color": "Recoverable ₹"}
     )
     apply_chart(fig, f"Recoverable Leakage ₹ — {view} × Month", 400)
@@ -200,24 +218,25 @@ def render_discount_heatmap(df, view="By Location", key_suffix="lc"):
 
 def _render_finding(finding, cause, impact, recommendation, owner, priority):
     """Renders a structured audit finding card with mandatory 6-field format."""
+    from ui.design_tokens import T
     colors = {
-        "Critical": ("#CF222E", "#FFEBE9", "🔴"),
-        "High":     ("#E65100", "#FFF3E0", "🟠"),
-        "Medium":   ("#185FA5", "#E8F0FE", "🔵"),
-        "Low":      ("#6E6E73", "#F5F5F7", "⚪"),
+        "Critical": (T.COLOR_DANGER, T.COLOR_DANGER_BG, "🔴"),
+        "High":     (T.COLOR_WARNING, T.COLOR_WARNING_BG, "🟠"),
+        "Medium":   (T.COLOR_PRIMARY, T.COLOR_INFO_BG, "🔵"),
+        "Low":      (T.COLOR_TEXT_SECONDARY, T.COLOR_SURFACE2, "⚪"),
     }
-    tc, bg, icon = colors.get(priority, ("#6E6E73", "#F5F5F7", "⚪"))
+    tc, bg, icon = colors.get(priority, (T.COLOR_TEXT_SECONDARY, T.COLOR_SURFACE2, "⚪"))
     st.markdown(f"""
-    <div style="background:{bg};border-left:4px solid {tc};border-radius:8px;padding:14px 16px;margin-bottom:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
-            <div style="font-weight:700;color:{tc};font-size:14px;">{icon} {finding}</div>
-            <span style="background:{tc};color:#fff;font-size:10px;font-weight:600;padding:2px 10px;border-radius:20px;white-space:nowrap;margin-left:8px;">{priority}</span>
+    <div style="background:{bg};border-left:4px solid {tc};border-radius:{T.RADIUS_MD}px;padding:{T.SPACE_3}px {T.SPACE_4}px;margin-bottom:{T.SPACE_2}px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:{T.SPACE_2}px;">
+            <div style="font-weight:700;color:{tc};font-size:{T.TYPE_BASE}px;">{icon} {finding}</div>
+            <span style="background:{tc};color:var(--color-surface);font-size:{T.TYPE_XS}px;font-weight:600;padding:2px 10px;border-radius:20px;white-space:nowrap;margin-left:{T.SPACE_2}px;">{priority}</span>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <div><div style="color:#8E8E93;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Cause</div><div style="color:#1D1D1F;font-size:12px;">{cause}</div></div>
-            <div><div style="color:#8E8E93;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Impact ₹</div><div style="color:{tc};font-size:12px;font-weight:600;">{impact}</div></div>
-            <div><div style="color:#8E8E93;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Recommendation</div><div style="color:#1D1D1F;font-size:12px;">{recommendation}</div></div>
-            <div><div style="color:#8E8E93;font-size:10px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Owner</div><div style="color:#185FA5;font-size:12px;font-weight:500;">{owner}</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:{T.SPACE_2}px;">
+            <div><div style="color:var(--color-text-tertiary);font-size:{T.TYPE_XS}px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Cause</div><div style="color:var(--color-text-primary);font-size:{T.TYPE_SM}px;">{cause}</div></div>
+            <div><div style="color:var(--color-text-tertiary);font-size:{T.TYPE_XS}px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Impact ₹</div><div style="color:{tc};font-size:{T.TYPE_SM}px;font-weight:600;">{impact}</div></div>
+            <div><div style="color:var(--color-text-tertiary);font-size:{T.TYPE_XS}px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Recommendation</div><div style="color:var(--color-text-primary);font-size:{T.TYPE_SM}px;">{recommendation}</div></div>
+            <div><div style="color:var(--color-text-tertiary);font-size:{T.TYPE_XS}px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px;">Owner</div><div style="color:var(--color-primary);font-size:{T.TYPE_SM}px;font-weight:500;">{owner}</div></div>
         </div>
     </div>
     """, unsafe_allow_html=True)

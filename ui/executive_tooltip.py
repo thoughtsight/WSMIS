@@ -7,7 +7,7 @@ with Indian number formatting for all chart types.
 """
 
 from typing import List, Tuple, Any
-from .chart_formatters import fmt_inr_full, fmt_pct
+from ui.formatters import fmt_inr_full, fmt_pct
 
 
 def get_revenue_tooltip(

@@ -11,7 +11,8 @@ def TableCard(df: pd.DataFrame, height: int = 400, index: bool = False):
         EmptyState("No data available to display in this table.")
         return
 
-    st.markdown('<div class="table-card" style="background:#fff; border-radius:12px; padding:16px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:16px;">', unsafe_allow_html=True)
+    from ui.design_tokens import T
+    st.markdown(f'<div class="table-card" style="background:var(--color-surface); border-radius:{T.RADIUS_LG}px; padding:{T.SPACE_4}px; border:1px solid var(--color-border); box-shadow:var(--shadow-sm); margin-bottom:{T.SPACE_4}px;">', unsafe_allow_html=True)
     
     # We use Streamlit's native dataframe rendering but wrapped in a card to maintain visual consistency.
     st.dataframe(df, use_container_width=True, height=height, hide_index=not index)

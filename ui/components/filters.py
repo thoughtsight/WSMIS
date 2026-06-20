@@ -6,7 +6,8 @@ def FilterToolbar(capabilities: dict, all_months: List[str], advisors: List[str]
     Standardized Filter Toolbar dynamically driven by page capabilities.
     Returns a dictionary of the selected filters.
     """
-    st.markdown('<div class="filter-toolbar" style="background:#f9f9fb; padding:12px 16px; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:16px;">', unsafe_allow_html=True)
+    from ui.design_tokens import T
+    st.markdown(f'<div class="filter-toolbar" style="background:var(--color-surface2); padding:{T.SPACE_3}px {T.SPACE_4}px; border-radius:{T.RADIUS_MD}px; border:1px solid var(--color-border); margin-bottom:{T.SPACE_4}px;">', unsafe_allow_html=True)
     
     selections = {}
     

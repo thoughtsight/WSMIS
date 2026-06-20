@@ -51,6 +51,7 @@ from utils.constants import ADV_COL, MP_COLORS, PLY, C, get_ply_layout
 
 # Import new Phase B UI Components
 from ui.components import KPIGrid, ChartCard, TableCard
+from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -69,7 +70,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     KPIGrid(kpi_data)
     
     # Waterfall chart
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     gross_lab = get_labour_sales(cp)
     lab_disc = -calculate_labour_discount(cp)
     net_lab = gross_lab + lab_disc
@@ -104,7 +105,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ))
     ChartCard("💰 Margin Waterfall", fig, height=400)
         
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     
     cats = ["Parts_Margin", "Accessory_Margin", "Oil_Margin", "Tyre_Margin", "Battery_Margin", "Other_Margin", "VOR Charges",
             "Total Parts Margin", "Net Labour", "OTC Income", "MSIL Labour Claim", "FSC Income", "Dealer FOC", "Internal Consumption", "Total Margin"]

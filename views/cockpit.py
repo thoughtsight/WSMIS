@@ -46,6 +46,7 @@ from utils.constants import (
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding, render_neg_labour_alert
+from ui.design_tokens import T
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from config.settings import LABOUR_DISC_BENCH, HIGH_DISC_ALERT, YOY_DECLINE_ALERT, VOR_ALERT_THRESHOLD
 
@@ -167,7 +168,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         st.button("View Details →", key="btn_opp", on_click=set_alert_tab, args=('opportunities',), use_container_width=True, type="primary" if st.session_state.cockpit_alert_tab == 'opportunities' else "secondary")
 
     # ── KPI Explainability ───────────────────────────────────────
-    st.markdown("<div style='margin-bottom:16px;'></div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='margin-bottom:{T.SPACE_4}px;'></div>", unsafe_allow_html=True)
     with st.expander("🔍 KPI Details & Explainability", expanded=False):
         kpi_choice = st.selectbox("Select KPI to explain:", ["Total Revenue", "Total Margin", "Total JCs", "Avg Discount %", "YoY Growth %"], label_visibility="collapsed")
         
@@ -228,22 +229,22 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         st.markdown(ex_html.replace('\n', ''), unsafe_allow_html=True)
 
     # ── Executive Alert Engine ───────────────────────────────────
-    st.markdown("<div style='font-size:18px; font-weight:700; margin-top:24px; margin-bottom:12px;'>Executive Alert Details</div>", unsafe_allow_html=True)
+    st.markdown(f"<div style='font-size:{T.TYPE_XL}px; font-weight:700; margin-top:{T.SPACE_6}px; margin-bottom:{T.SPACE_3}px;'>Executive Alert Details</div>", unsafe_allow_html=True)
     
     def render_alert_card(alert, color_border):
-        html = f'''<div style="background:#fff;border:1px solid #e5e5ea;border-left:4px solid {color_border};border-radius:8px;padding:16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,0.02);">
-            <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
-                <div style="font-weight:600;font-size:15px;color:#1d1d1f;">{alert.get('rule', alert.get('opportunity'))}</div>
-                <div style="font-weight:600;font-size:14px;color:{color_border};">Impact: {alert.get('impact', alert.get('gain'))}</div>
+        html = f'''<div style="background:var(--color-surface);border:1px solid var(--color-border);border-left:4px solid {{color_border}};border-radius:{T.RADIUS_MD}px;padding:{T.SPACE_4}px;margin-bottom:{T.SPACE_3}px;box-shadow:0 1px 2px rgba(0,0,0,0.02);">
+            <div style="display:flex;justify-content:space-between;margin-bottom:{T.SPACE_2}px;">
+                <div style="font-weight:600;font-size:{T.TYPE_LG}px;color:var(--color-text-primary);">{{alert.get('rule', alert.get('opportunity'))}}</div>
+                <div style="font-weight:600;font-size:{T.TYPE_BASE}px;color:{{color_border}};">Impact: {{alert.get('impact', alert.get('gain'))}}</div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px;color:#48484A;margin-bottom:12px;">
-                <div><span style="color:#86868B;">Current Value:</span> <b>{alert.get('current', alert.get('situation'))}</b></div>
-                <div><span style="color:#86868B;">Benchmark:</span> {alert.get('benchmark', alert.get('basis'))}</div>
-                <div><span style="color:#86868B;">Variance:</span> <b style="color:{color_border};">{alert.get('variance', alert.get('benefit'))}</b></div>
-                <div><span style="color:#86868B;">Owner:</span> 👤 {alert['owner']}</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:{T.SPACE_2}px;font-size:{T.TYPE_SM}px;color:var(--color-text-secondary);margin-bottom:{T.SPACE_3}px;">
+                <div><span style="color:var(--color-text-tertiary);">Current Value:</span> <b>{{alert.get('current', alert.get('situation'))}}</b></div>
+                <div><span style="color:var(--color-text-tertiary);">Benchmark:</span> {{alert.get('benchmark', alert.get('basis'))}}</div>
+                <div><span style="color:var(--color-text-tertiary);">Variance:</span> <b style="color:{{color_border}};">{{alert.get('variance', alert.get('benefit'))}}</b></div>
+                <div><span style="color:var(--color-text-tertiary);">Owner:</span> 👤 {{alert['owner']}}</div>
             </div>
-            <div style="font-size:13px;color:#1d1d1f;margin-bottom:4px;"><span style="color:#86868B;">Reason:</span> {alert.get('reason', alert.get('situation'))}</div>
-            <div style="font-size:13px;color:#1d1d1f;margin-bottom:12px;"><span style="color:#86868B;">Action:</span> ✅ {alert['action']}</div>
+            <div style="font-size:{T.TYPE_SM}px;color:var(--color-text-primary);margin-bottom:{T.SPACE_1}px;"><span style="color:var(--color-text-tertiary);">Reason:</span> {{alert.get('reason', alert.get('situation'))}}</div>
+            <div style="font-size:{T.TYPE_SM}px;color:var(--color-text-primary);margin-bottom:{T.SPACE_3}px;"><span style="color:var(--color-text-tertiary);">Action:</span> ✅ {{alert['action']}}</div>
         </div>'''
         st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
         if 'why' in alert:
@@ -260,28 +261,28 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
 
     active_tab = st.session_state.cockpit_alert_tab
     if active_tab == 'critical':
-        st.markdown("<div style='font-size:15px; font-weight:600; margin-bottom:8px; color:#CF222E;'>🔴 Critical Alerts Details</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:{T.TYPE_LG}px; font-weight:600; margin-bottom:{T.SPACE_2}px; color:{T.COLOR_DANGER};'>🔴 Critical Alerts Details</div>", unsafe_allow_html=True)
         if structured_alerts["critical"]:
             for a in structured_alerts["critical"]:
-                render_alert_card(a, "#FF3B30")
+                render_alert_card(a, T.COLOR_DANGER_FILL)
         else:
-            st.markdown("<div style='font-size:13px; color:#6E6E73; margin-bottom:16px;'>✓ No critical rules triggered.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:{T.TYPE_SM}px; color:var(--color-text-secondary); margin-bottom:{T.SPACE_4}px;'>✓ No critical rules triggered.</div>", unsafe_allow_html=True)
             
     elif active_tab == 'warning':
-        st.markdown("<div style='font-size:15px; font-weight:600; margin-bottom:8px; color:#E65100;'>🟡 Warning Alerts Details</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:{T.TYPE_LG}px; font-weight:600; margin-bottom:{T.SPACE_2}px; color:{T.COLOR_WARNING};'>🟡 Warning Alerts Details</div>", unsafe_allow_html=True)
         if structured_alerts["warning"]:
             for a in structured_alerts["warning"]:
-                render_alert_card(a, "#FF9F0A")
+                render_alert_card(a, T.COLOR_WARNING)
         else:
-            st.markdown("<div style='font-size:13px; color:#6E6E73; margin-bottom:16px;'>✓ No warning rules triggered.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:{T.TYPE_SM}px; color:var(--color-text-secondary); margin-bottom:{T.SPACE_4}px;'>✓ No warning rules triggered.</div>", unsafe_allow_html=True)
             
     elif active_tab == 'opportunities':
-        st.markdown("<div style='font-size:15px; font-weight:600; margin-bottom:8px; color:#185FA5;'>🔵 Opportunities Details</div>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:{T.TYPE_LG}px; font-weight:600; margin-bottom:{T.SPACE_2}px; color:{T.COLOR_PRIMARY};'>🔵 Opportunities Details</div>", unsafe_allow_html=True)
         if structured_alerts["opportunities"]:
             for a in structured_alerts["opportunities"]:
-                render_alert_card(a, "#007AFF")
+                render_alert_card(a, T.COLOR_PRIMARY)
         else:
-            st.markdown("<div style='font-size:13px; color:#6E6E73; margin-bottom:16px;'>No major opportunities identified for this period.</div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='font-size:{T.TYPE_SM}px; color:var(--color-text-secondary); margin-bottom:{T.SPACE_4}px;'>No major opportunities identified for this period.</div>", unsafe_allow_html=True)
     # ── Revenue Trend ─────────────────────────────────────────────
     c1, c2 = st.columns(2)
     with c1:

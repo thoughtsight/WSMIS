@@ -12,11 +12,10 @@ from utils.calculations.fact_metrics import get_jobcard_count
 from utils.filters import filter_valid_advisors
 from utils.calculations.common import calc_growth_pct, calc_ratio
 from ui.formatters import fmt_inr, fmt_inr_short, fmt_inr_full, fmt_pct, fmt_num
-from ui.components.theme import EXECUTIVE_THEME_CSS
-from ui.chart_formatters import fmt_inr_full as chart_fmt_inr_full, fmt_pct as chart_fmt_pct
+from ui.components.theme import growth_color, growth_badge_html
 from ui.executive_tooltip import get_revenue_tooltip, prepare_customdata
 from utils.chart_theme import get_chart_theme, get_chart_height, get_growth_color, get_marker_colors
-from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout
+from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout, CHART_CP, CHART_PP
 from services.ai_service import get_narrative, get_actions
 from ui.components.core import EmptyState
 
@@ -49,11 +48,11 @@ def _inject_responsive_css():
     [data-testid="stHorizontalBlock"] > div { min-width: 100% !important; }
 }
 @media (min-width: 1800px) {
-    .kpi-value { font-size: 28px !important; }
-    .kpi-label { font-size: 13px !important; }
+    .kpi-value { font-size: var(--type-2xl) !important; }
+    .kpi-label { font-size: var(--type-sm) !important; }
 }
 .kpi-card { height: 140px; display: flex; flex-direction: column; justify-content: space-between; }
-.lab-summary { font-size: 12px; color: #6E6E73; padding: 2px 0 8px 0; }
+.lab-summary { font-size: var(--type-sm); color: var(--color-text-secondary); padding: 2px 0 8px 0; }
 </style>""", unsafe_allow_html=True)
 
 
@@ -243,13 +242,13 @@ def _render_cross_filter_bar():
         chips.append(("\U0001f4c5 " + cross_month, "lab_cross_month"))
     if not chips:
         return
-    html = '<div style="display:flex;gap:6px;align-items:center;padding:4px 0 8px 0;flex-wrap:wrap">'
-    html += '<span style="font-size:12px;color:#6E6E73;font-weight:600">Filtered by:</span>'
+    html = f'<div style="display:flex;gap:{T.SPACE_2}px;align-items:center;padding:4px 0 8px 0;flex-wrap:wrap">'
+    html += f'<span style="font-size:{T.TYPE_XS}px;color:var(--color-text-secondary);font-weight:600">Filtered by:</span>'
     for label, key in chips:
-        html += (f'<span style="background:#E8F0FE;color:#185FA5;border:1px solid #B5D4F4;'
-                 f'border-radius:16px;padding:3px 10px;font-size:11px;font-weight:600">'
+        html += (f'<span style="background:{T.COLOR_INFO_BG};color:{T.COLOR_PRIMARY};border:1px solid {T.COLOR_BORDER};'
+                 f'border-radius:{T.RADIUS_FULL}px;padding:{T.SPACE_1}px {T.SPACE_2}px;font-size:{T.TYPE_XS}px;font-weight:600">'
                  f'{label} \u2715</span>')
-    html += (f'<span style="font-size:11px;color:#FF3B30;cursor:pointer;margin-left:4px;'
+    html += (f'<span style="font-size:{T.TYPE_XS}px;color:{T.COLOR_DANGER};cursor:pointer;margin-left:{T.SPACE_1}px;'
              f'font-weight:600">Clear all filters</span></div>')
     st.markdown(html, unsafe_allow_html=True)
 
@@ -335,51 +334,67 @@ def _render_executive_panel(datasets, mode_str):
         return f'<span class="delta-pill">0% vs PP</span>'
 
     def _kpi_card(title, cp_val, pp_val, g_val):
-        return f"""<div class="kpi-box">
-<div class="kpi-title">{title}</div>
-<div class="kpi-val">{cp_val}</div>
-<div class="kpi-footer">{_arrow(g_val)} <span class="pp-val">PP {pp_val}</span></div>
-</div>"""
-
+        if g_val > 0:
+            badge = f'<div class="kpi-delta-pos">\u25b2 {g_val:.1f}% vs PP</div>'
+        elif g_val < 0:
+            badge = f'<div class="kpi-delta-neg">\u25bc {abs(g_val):.1f}% vs PP</div>'
+        else:
+            badge = '<div class="kpi-delta-new">0% vs PP</div>'
+        return (
+            f'<div class="kpi-card">'
+            f'  <div class="kpi-label">{title}</div>'
+            f'  <div class="kpi-value">{cp_val}</div>'
+            f'  <div class="kpi-sub">PP {pp_val}</div>'
+            f'  {badge}'
+            f'</div>')
+            
     def _svc_row(label, cp_v, pp_v):
-        return f"""<div class="svc-row">
-<div class="svc-label">{label}</div>
-<div class="svc-vals">
-<div class="svc-cp">{cp_v} <span class="svc-cp-tag">CP</span></div>
-<div class="svc-pp">{pp_v} PP</div>
-</div>
-</div>"""
+        return (
+            f'<div style="display:flex;justify-content:space-between;align-items:center;'
+            f'padding:{T.SPACE_1}px 0;border-bottom:1px solid var(--color-border-sub);">'
+            f'  <div style="color:var(--color-text-secondary);font-size:var(--type-xs);font-weight:600;">{label}</div>'
+            f'  <div style="display:flex;align-items:baseline;gap:{T.SPACE_2}px;">'
+            f'    <span style="color:var(--color-text-primary);font-weight:700;font-size:var(--type-md);">{cp_v}</span>'
+            f'    <span style="color:var(--color-text-secondary);font-size:var(--type-sm);font-weight:500;">PP {pp_v}</span>'
+            f'  </div>'
+            f'</div>'
+        )
 
     def _svc_panel(title, stats):
-        cp_jobs = fmt_num(stats['cp_jobs'])
-        pp_jobs = fmt_num(stats['pp_jobs'])
-        # Display "—" when Job Cards = 0
-        cp_rpc = "—" if stats["cp_rpc"] == 0 and stats["cp_jobs"] == 0 else fmt_inr_short(stats["cp_rpc"])
-        pp_rpc = "—" if stats["pp_rpc"] == 0 and stats["pp_jobs"] == 0 else fmt_inr_short(stats["pp_rpc"])
+        cp_jobs = str(int(stats['cp_jobs'])) if stats['cp_jobs'] > 0 else "0"
+        pp_jobs = str(int(stats['pp_jobs'])) if stats['pp_jobs'] > 0 else "0"
+        # Display "\u2014" when Job Cards = 0
+        cp_rpc = "\u2014" if stats["cp_rpc"] == 0 and stats["cp_jobs"] == 0 else fmt_inr_short(stats["cp_rpc"])
+        pp_rpc = "\u2014" if stats["pp_rpc"] == 0 and stats["pp_jobs"] == 0 else fmt_inr_short(stats["pp_rpc"])
         cp_rev = fmt_inr_short(stats["cp_rev"])
         pp_rev = fmt_inr_short(stats["pp_rev"])
-        
-        return f"""<div class="kpi-box svc-panel">
-<div class="kpi-val" style="font-size: 16px; margin-bottom: 20px;">{title}</div>
-{_svc_row("Jobs", cp_jobs, pp_jobs)}
-{_svc_row("Avg labour", cp_rpc, pp_rpc)}
-{_svc_row("Revenue", cp_rev, pp_rev)}
-</div>"""
+        return (
+            f'<div class="section-card" style="padding:var(--space-4);margin:0;">'
+            f'  <div class="kpi-label" style="margin-bottom:var(--space-2);">{title}</div>'
+            f'  {_svc_row("Jobs", cp_jobs, pp_jobs)}'
+            f'  {_svc_row("Avg Labour", cp_rpc, pp_rpc)}'
+            f'  {_svc_row("Revenue", cp_rev, pp_rev)}'
+            f'</div>'
+        )
 
-    html = f"""{EXECUTIVE_THEME_CSS}
-<div class="exec-heading">EXECUTIVE SUMMARY</div>
-<div class="kpi-wrapper">
-{_kpi_card("LABOUR REVENUE", rev_cp, rev_pp, rev_g)}
-{_kpi_card("LOAD", load_cp, load_pp, load_g)}
-{_kpi_card("AVG LABOUR", rpc_cp, rpc_pp, rpc_g)}
-</div>
-<hr style="border:none; border-top:1px solid #36393F; margin: 20px 0 16px 0;">
-<div class="exec-heading">PMS & BODYSHOP — CP VS PP</div>
-<div class="kpi-wrapper">
-{_svc_panel("PMS", d["pms_stats"])}
-{_svc_panel("Bodyshop (BR)", d["br_stats"])}
-</div>"""
-    st.markdown(html, unsafe_allow_html=True)
+    # ── Executive Summary — Executive Light ─────────────────────────────────
+    # Three-column KPI row
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown(_kpi_card("LABOUR REVENUE", rev_cp, rev_pp, rev_g), unsafe_allow_html=True)
+    with col2:
+        st.markdown(_kpi_card("LOAD", load_cp, load_pp, load_g), unsafe_allow_html=True)
+    with col3:
+        st.markdown(_kpi_card("AVG LABOUR", rpc_cp, rpc_pp, rpc_g), unsafe_allow_html=True)
+
+    st.markdown('<div style="margin:var(--space-4) 0 var(--space-3) 0;border-top:1px solid var(--color-border);"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="kpi-label" style="margin-bottom:var(--space-3);">PMS &amp; BODYSHOP — CP VS PP</div>', unsafe_allow_html=True)
+
+    col4, col5 = st.columns(2)
+    with col4:
+        st.markdown(_svc_panel("PMS", d["pms_stats"]), unsafe_allow_html=True)
+    with col5:
+        st.markdown(_svc_panel("Bodyshop (BR)", d["br_stats"]), unsafe_allow_html=True)
 
 
 def _render_neg_labour_audit(data):
@@ -572,8 +587,9 @@ def _render_executive_table(datasets, active_pairs, mode_str):
         return [""] * len(row)
         
     def _color_growth(val):
+        from ui.design_tokens import T
         if pd.isna(val) or val == 0: return ""
-        return "color: #10b981;" if val > 0 else "color: #ef4444;"
+        return f"color: {T.COLOR_SUCCESS};" if val > 0 else f"color: {T.COLOR_DANGER};"
     
     styled = tdf.style.apply(_bold_total, axis=1)
     
@@ -652,8 +668,9 @@ def _render_monthly_detail(datasets, active_pairs, mode_str):
             return [""] * len(row)
             
         def _color_growth(val):
+            from ui.design_tokens import T
             if pd.isna(val) or val == 0: return ""
-            return "color: #10b981;" if val > 0 else "color: #ef4444;"
+            return f"color: {T.COLOR_SUCCESS};" if val > 0 else f"color: {T.COLOR_DANGER};"
             
         styled2 = t2df.style.apply(_bold_total_m, axis=1)
         styled2 = styled2.map(_color_growth, subset=color_subset)

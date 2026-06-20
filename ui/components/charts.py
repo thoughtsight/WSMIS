@@ -7,19 +7,20 @@ def ChartCard(title: str, fig: go.Figure, description: Optional[str] = None, hei
     Standardized Chart Card wrapper.
     Ensures charts are displayed in a clean, consistent enterprise card.
     """
+    from ui.design_tokens import T
     # Enforce standard responsive layout configurations without overwriting the chart's core data
     fig.update_layout(
         margin=dict(l=10, r=10, t=30, b=10),
         height=height,
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)',
-        font=dict(family="Inter, Roboto, sans-serif", color="#1d1d1f"),
-        hoverlabel=dict(bgcolor="white", font_size=13, font_family="Inter, Roboto, sans-serif")
+        font=dict(family=T.FONT_FAMILY, color=T.COLOR_TEXT_PRIMARY),
+        hoverlabel=dict(bgcolor=T.COLOR_SURFACE, font_size=T.TYPE_BASE, font_family=T.FONT_FAMILY)
     )
     
-    html = f'''<div class="chart-card" style="background:#fff; border-radius:12px; padding:16px; border:1px solid #e5e5ea; box-shadow:0 1px 2px rgba(0,0,0,0.02); margin-bottom:16px;">
-    <div style="font-size:16px; font-weight:600; color:#1d1d1f; margin-bottom:4px;">{title}</div>
-    {"<div style='font-size:13px; color:#6E6E73; margin-bottom:16px;'>" + description + "</div>" if description else ""}
+    html = f'''<div class="chart-card" style="background:var(--color-surface); border-radius:{T.RADIUS_LG}px; padding:{T.SPACE_4}px; border:1px solid var(--color-border); box-shadow:var(--shadow-sm); margin-bottom:{T.SPACE_4}px;">
+    <div style="font-size:{T.TYPE_MD}px; font-weight:600; color:var(--color-text-primary); margin-bottom:{T.SPACE_1}px;">{title}</div>
+    {f"<div style='font-size:{T.TYPE_BASE}px; color:var(--color-text-secondary); margin-bottom:{T.SPACE_4}px;'>{description}</div>" if description else ""}
 </div>'''
     st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
     

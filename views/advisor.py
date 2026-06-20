@@ -50,6 +50,9 @@ from utils.constants import ADV_COL, MP_COLORS, LOC_COLORS, PLY, get_ply_layout
 
 # Import new Phase B UI Components
 from ui.components import KPIGrid, ChartCard, TableCard
+from ui.tables import html_table
+from ui.helpers import apply_chart, clean_hover
+from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Advisor Scorecard..."):
@@ -114,7 +117,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ])
     
     # Scatter plot
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     fig = px.scatter(
         aa, x="JCs", y="Avg_Lab_JC",
         size="Composite_Score", color="Grp",
@@ -127,7 +130,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ChartCard("📊 Performance Scatter", fig, height=400)
     
     # Full table
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     
     
     aa_sorted = aa.sort_values("Composite_Score", ascending=False).reset_index(drop=True)
@@ -159,7 +162,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     TableCard(dt, height=500, index=False)
     
     # Advisor drill-down
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     
     selected_advs = st.session_state.get("filter_advisor", [])
     if len(selected_advs) == 1:

@@ -14,7 +14,8 @@ from datetime import datetime
 from services.ai import build_context, generate_report, AVAILABLE_PROVIDERS
 from utils.filters import apply_month_filter
 from utils.constants import ADV_COL
-from ui.formatters import fmt_inr
+from ui.formatters import fmt_inr, fmt_pct, fmt_num
+from ui.design_tokens import T
 
 
 def _render_markdown_download(markdown: str, filename: str = "audit_intelligence_report.md"):
@@ -204,7 +205,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
 
         # Generation metadata
         st.markdown(f"""
-        <div style="background:#F2F2F7;padding:12px;border-radius:8px;margin-bottom:16px;font-size:13px;">
+        <div style="background:var(--color-surface2);padding:{T.SPACE_3}px;border-radius:{T.RADIUS_MD}px;margin-bottom:{T.SPACE_4}px;font-size:{T.TYPE_BASE}px;">
             <strong>Generated in {gen_time:.2f}s</strong> using <strong>{report.provider}</strong> ({report.model})
         </div>
         """, unsafe_allow_html=True)

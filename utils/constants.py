@@ -50,22 +50,22 @@ FY_MONTHS = {
 
 SERVICE_ACCOUNT = "service_account.json"
 
-# Plotly theme configuration
+# Plotly theme configuration — Executive Light v2.0
 PLY = dict(
     template="simple_white",
-    font=dict(family="Inter, -apple-system, sans-serif", color="#1D1D1F", size=12),
+    font=dict(family="Inter, -apple-system, BlinkMacSystemFont, sans-serif", color="#1D1D1F", size=12),
     paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-    xaxis=dict(gridcolor="#F0F0F5", linecolor="#E5E5EA", tickfont=dict(size=11)),
-    yaxis=dict(gridcolor="#F0F0F5", linecolor="#E5E5EA", tickfont=dict(size=11)),
-    margin=dict(l=48, r=24, t=52, b=40),
-    hoverlabel=dict(bgcolor="#FFFFFF", font_size=13, font_family="Inter", bordercolor="#E5E5EA"),
-    legend=dict(bgcolor="rgba(255,255,255,0.9)", bordercolor="#E5E5EA", borderwidth=1,
-                font=dict(size=11), orientation="h", yanchor="bottom", y=1.02,
+    xaxis=dict(gridcolor="#F0F0F5", linecolor="#E5E5EA", tickfont=dict(size=12, family="Inter")),
+    yaxis=dict(gridcolor="#F0F0F5", linecolor="#E5E5EA", tickfont=dict(size=12, family="Inter")),
+    margin=dict(l=52, r=24, t=52, b=44),
+    hoverlabel=dict(bgcolor="#FFFFFF", font_size=13, font_family="Inter, -apple-system, sans-serif", bordercolor="#E5E5EA"),
+    legend=dict(bgcolor="rgba(255,255,255,0.92)", bordercolor="#E5E5EA", borderwidth=1,
+                font=dict(size=12, family="Inter"), orientation="h", yanchor="bottom", y=1.02,
                 xanchor="right", x=1),
 )
 
 # Plotly title styling (used separately to avoid duplicate key errors)
-PLY_TITLE = dict(font=dict(size=14, color="#1D1D1F", family="Inter"), x=0.01, xanchor="left", pad=dict(t=4))
+PLY_TITLE = dict(font=dict(size=16, color="#1D1D1F", family="Inter", weight=700), x=0.01, xanchor="left", pad=dict(t=4))
 
 
 def get_ply_layout(**kwargs):
@@ -83,8 +83,22 @@ def get_ply_layout(**kwargs):
     layout_cfg.update(kwargs)
     return layout_cfg
 
-# Color palettes
-C = {"primary":"#0071E3", "green":"#34C759", "red":"#FF3B30", "orange":"#FF9500",
-     "gray":"#8E8E93", "gold":"#C8860A", "purple":"#AF52DE", "pink":"#FF2D55", "teal":"#5AC8FA"}
-LOC_COLORS = {"Arena": "#0071E3", "Nexa": "#34C759", "Other": "#8E8E93"}
+# Color palettes — Executive Light v2.0
+# NOTE: green/red are WCAG AA compliant on-light text values (not fills).
+# For chart fills / icon fills, use COLOR_SUCCESS_FILL / COLOR_DANGER_FILL from design_tokens.
+C = {
+    "primary": "#0071E3",
+    "green":   "#1A7F37",   # 4.6:1 on white — WCAG AA ✅
+    "red":     "#CF222E",   # 5.5:1 on white — WCAG AA ✅
+    "orange":  "#B45309",   # 4.7:1 on white — WCAG AA ✅
+    "gray":    "#8E8E93",
+    "gold":    "#D4AF37",
+    "purple":  "#7C3AED",
+    "pink":    "#DB2777",
+    "teal":    "#0891B2",
+}
+# Chart fill colours (for bars/markers on white background — not as text)
+CHART_CP = "#0071E3"   # Current Period bars
+CHART_PP = "#C0C0C8"   # Previous Period bars — lighter neutral
+LOC_COLORS = {"Arena": "#0071E3", "Nexa": "#1A7F37", "Other": "#8E8E93"}
 MP_COLORS  = {"MP": "#0071E3", "PB": "#FF9500"}

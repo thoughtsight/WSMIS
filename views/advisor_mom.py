@@ -50,7 +50,9 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C
 
 # Import new Phase B UI Components
-from ui.components import KPIGrid, ChartCard, TableCard
+from ui.components import MetricCard, ChartCard, TableCard
+from ui.helpers import apply_chart, clean_hover
+from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -92,7 +94,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     metric_col = {"Net Labour": "Net_Labour", "Net Parts": "Net_Parts", "Oil Qty": "Oil_Sale_Qty"}.get(metric, "Net_Labour")
 
     # 3.2 — KPI cards row (5 cards)
-    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
 
     adv_monthly = monthly_summary(adv_data, as_index=False)[metric_col].sum().sort_values("Month_Sort")
     if not adv_monthly.empty:
@@ -123,7 +125,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         ])
 
     # 3.3 — MoM sparkline (6-month rolling)
-    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
     last_6 = adv_monthly.tail(6) if len(adv_monthly) >= 6 else adv_monthly
     if not last_6.empty:
         fig = go.Figure()
@@ -137,7 +139,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         ChartCard(f"📈 {sel_adv} — {metric} Trend (Last 6M)", fig, height=350)
 
     # 3.4 — Multi-metric radar/spider chart
-    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
     radar_metrics = {
         "JC Volume": "JC_Nos.",
         "Labour/JC": "Net_Labour",
@@ -176,7 +178,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         ChartCard(f"🕸️ {sel_adv} Performance Profile", fig, height=400)
 
     # 3.5 — MoM delta table
-    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
     
     sel_locs = adv_data["Location Name"].unique().tolist()
     all_adv_monthly = filter_valid_advisors(cp[cp["Location Name"].isin(sel_locs)], ADV_COL).groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
@@ -209,7 +211,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         TableCard(dt, height=300, index=False)
 
     # 3.6 — Rank movement heatmap
-    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
     if not all_adv_monthly.empty:
         month_ranks = []
         for m in all_adv_monthly["Month Name"].unique():
@@ -223,7 +225,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             ChartCard(f"🏅 Rank by JC Volume — {', '.join(sel_locs)}", fig, height=400)
 
     # 3.7 — Consistent underperformer flag
-    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
     def flag_underperformers(df_mom, metric_col, n_months=3):
         ups = []
         for adv in df_mom[ADV_COL].unique():
@@ -245,7 +247,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.success("✅ No consistent underperformers detected.")
 
     # 3.8 — Advisor coaching note
-    st.markdown('<div style="margin-top:24px"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
     
     notes = []
     adv_disc = calc_ratio(calculate_labour_discount(adv_data), get_labour_sales(adv_data), multiplier=100, fill_value=0)
@@ -262,7 +264,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     if notes:
         note_text = "<br>".join(notes)
-        st.markdown(f'<div style="background:#F5F5F7;border-radius:8px;padding:12px;">{note_text}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div style="background:var(--color-surface2);border-radius:{T.RADIUS_MD}px;padding:{T.SPACE_3}px;">{note_text}</div>', unsafe_allow_html=True)
         if st.button("📋 Copy Note", key="mom_copy_note"):
             st.write("Note copied to clipboard (simulated)")
     else:

@@ -7,7 +7,7 @@ import json
 from io import BytesIO
 from datetime import datetime
 
-
+from ui.design_tokens import T
 
 from services.financial_service import FinancialService
 from utils.calculations.fact_metrics import (
@@ -47,7 +47,6 @@ from utils.filters import (
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C, LOC_COLORS
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from ui.helpers import render_alerts
 
 # Import new Phase B UI Components
@@ -161,7 +160,7 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         {"label": "Avg Labour/JC", "value": fmt_inr(cp_avg), "cp": cp_avg, "pp": pp_avg}
     ])
     
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     
     cp_ws = cp[cp["MP_PB"]=="MP"]; pp_ws = pp[pp["MP_PB"]=="MP"]
     cp_bs = cp[cp["MP_PB"]=="PB"]; pp_bs = pp[pp["MP_PB"]=="PB"]
@@ -258,3 +257,4 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
     from ui.export_buttons import render_export_buttons
     meta = ExportMeta(report_title="Monthly Summary", location="All", date_range="")
     render_export_buttons(summ, meta, formats=["csv", "excel"], key_prefix="ov", collapsed=False)
+

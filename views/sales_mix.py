@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -49,11 +49,10 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C, PLY, get_ply_layout
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
+from ui.components import KPIGrid, MetricCard
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -173,3 +172,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                             "modeBarButtonsToRemove": ["select2d","lasso2d"],
                             "toImageButtonOptions": {"format":"png","scale":2}})
     st.markdown('</div>', unsafe_allow_html=True)
+

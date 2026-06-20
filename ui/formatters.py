@@ -6,10 +6,10 @@ import numpy as np
 # ─────────────────────────────────────────────────────────────────────────────
 
 def fmt_num(v):
-    """Standard Western number formatting (e.g. 1,234)"""
+    """Standard Western number formatting (e.g. 1,234). Zero returns '0' not '—'."""
     if v is None or (isinstance(v, float) and np.isnan(v)): return "—"
     v = float(v)
-    if v == 0: return "—"
+    if v == 0: return "0"
     return f"{v:,.0f}"
 
 def fmt_amt(v):

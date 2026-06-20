@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -51,11 +51,10 @@ from utils.constants import ADV_COL, MP_COLORS
 from config.settings import LABOUR_DISC_BENCH, PARTS_DISC_BENCH, HIGH_DISC_ALERT, DISC_CONCERN_PCT
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
+from ui.components import KPIGrid, MetricCard
 from ui.tables import html_table, searchable_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from ui.export_buttons import render_export_buttons
 from services.export_service import ExportMeta
 
@@ -566,3 +565,4 @@ def render(df_jctat, client_config, cp=None):
             )
         except Exception as e:
             st.error(f"Dealer Audit Error: {e}")
+

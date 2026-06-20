@@ -50,11 +50,10 @@ from utils.constants import ADV_COL, MP_COLORS, MONTH_SORT_ORDER
 from config.settings import LABOUR_DISC_BENCH
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
+from ui.components import KPIGrid, MetricCard
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Reports..."):
@@ -315,3 +314,4 @@ VOR Charges: {fmt_inr(get_vor_charges(df_cp))} —
         )
     
     st.markdown('</div>', unsafe_allow_html=True)
+

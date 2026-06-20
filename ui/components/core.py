@@ -81,10 +81,11 @@ def EmptyState(message: str = "No data available for the selected filters.", ico
     """
     Standardized Empty State visualization.
     """
-    html = f'''<div class="empty-state" style="text-align:center; padding:48px 24px; background:#fff; border-radius:12px; border:1px dashed #d2d2d7; margin:16px 0;">
-    <div style="font-size:32px; margin-bottom:12px;">{icon}</div>
-    <div style="color:#1d1d1f; font-weight:500; font-size:16px; margin-bottom:4px;">No Data Found</div>
-    <div style="color:#86868b; font-size:14px;">{message}</div>
+    from ui.design_tokens import T
+    html = f'''<div class="empty-state" style="text-align:center; padding:{T.SPACE_12}px {T.SPACE_6}px; background:var(--color-surface); border-radius:{T.RADIUS_LG}px; border:1px dashed var(--color-border); margin:{T.SPACE_4}px 0;">
+    <div style="font-size:32px; margin-bottom:{T.SPACE_3}px;">{icon}</div>
+    <div style="color:var(--color-text-primary); font-weight:500; font-size:{T.TYPE_MD}px; margin-bottom:{T.SPACE_1}px;">No Data Found</div>
+    <div style="color:var(--color-text-secondary); font-size:{T.TYPE_BASE}px;">{message}</div>
 </div>'''
     st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
 
@@ -93,17 +94,18 @@ def AlertBanner(message: str, type: str = "warning"):
     Standardized Alert Banner (e.g. High Discount Warnings).
     types: warning, error, info, success
     """
+    from ui.design_tokens import T
     bg_colors = {
-        "warning": "#FFF8E6",
-        "error": "#FEECEB",
-        "info": "#E5F4FB",
-        "success": "#E8F5E9"
+        "warning": T.COLOR_WARNING_BG,
+        "error": T.COLOR_DANGER_BG,
+        "info": T.COLOR_INFO_BG,
+        "success": T.COLOR_SUCCESS_BG
     }
     border_colors = {
-        "warning": "#FFCC00",
-        "error": "#FF3B30",
-        "info": "#007AFF",
-        "success": "#34C759"
+        "warning": T.COLOR_WARNING,
+        "error": T.COLOR_DANGER,
+        "info": T.COLOR_PRIMARY,
+        "success": T.COLOR_SUCCESS
     }
     icons = {
         "warning": "⚠️",
@@ -116,8 +118,8 @@ def AlertBanner(message: str, type: str = "warning"):
     border = border_colors.get(type, border_colors["info"])
     icon = icons.get(type, icons["info"])
 
-    html = f'''<div style="background:{bg}; border-left:4px solid {border}; padding:12px 16px; border-radius:4px; margin-bottom:16px; display:flex; align-items:center; gap:12px;">
+    html = f'''<div style="background:{bg}; border-left:4px solid {border}; padding:{T.SPACE_3}px {T.SPACE_4}px; border-radius:{T.RADIUS_SM}px; margin-bottom:{T.SPACE_4}px; display:flex; align-items:center; gap:{T.SPACE_3}px;">
     <span style="font-size:18px;">{icon}</span>
-    <span style="color:#1d1d1f; font-size:14px; font-weight:500;">{message}</span>
+    <span style="color:var(--color-text-primary); font-size:{T.TYPE_BASE}px; font-weight:500;">{message}</span>
 </div>'''
     st.markdown(html.replace('\n', ''), unsafe_allow_html=True)

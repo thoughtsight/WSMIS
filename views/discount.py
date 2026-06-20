@@ -50,6 +50,7 @@ from utils.constants import ADV_COL, MP_COLORS, C
 
 # Import new Phase B UI Components
 from ui.components import KPIGrid, ChartCard, TableCard
+from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     if df.empty:
@@ -93,7 +94,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ])
 
     # Rolling trend
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     disc_trend = monthly_summary(disc_cp, as_index=False).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum")).sort_values("Month_Sort")
     disc_trend["D%"] = np.where(disc_trend["L"]>0, disc_trend["D"]/disc_trend["L"]*100, 0)
     disc_trend["Rolling3M"] = disc_trend["D%"].rolling(3, min_periods=1).mean()
@@ -104,25 +105,25 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ChartCard("📉 Labour Discount % Trend", fig, height=350)
 
     # Heatmap toggle
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     heat_view = st.radio("Heatmap View", ["By Location", "By Advisor"], horizontal=True, key="heat_view")
     if heat_view == "By Location":
         hd = disc_cp.groupby(["Location Name","Month Name","Month_Sort"], as_index=False, dropna=False).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum"))
         hd["D%"] = np.where(hd["L"]>0, hd["D"]/hd["L"]*100, 0)
         hd = hd.sort_values("Month_Sort")
         hp = hd.pivot_table(index="Location Name", columns="Month Name", values="D%", aggfunc="mean").fillna(0)
-        fig = px.imshow(hp.values, x=hp.columns.tolist(), y=hp.index.tolist(), color_continuous_scale=["#E8F9EE","#FFF3E0","#FFEBE9"], aspect="auto")
+        fig = px.imshow(hp.values, x=hp.columns.tolist(), y=hp.index.tolist(), color_continuous_scale=[T.COLOR_SUCCESS_BG, T.COLOR_WARNING_BG, T.COLOR_DANGER_BG], aspect="auto")
     else:
         top20 = advisor_summary(disc_cp, adv_col=ADV_COL, as_index=True)["Pre-GST Labour"].sum().nlargest(20).index.tolist()
         ha = disc_cp[disc_cp[ADV_COL].isin(top20)].groupby([ADV_COL,"Month Name","Month_Sort"], as_index=False, dropna=False).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum"))
         ha["D%"] = np.where(ha["L"]>0, ha["D"]/ha["L"]*100, 0)
         ha = ha.sort_values("Month_Sort")
         hp = ha.pivot_table(index=ADV_COL, columns="Month Name", values="D%", aggfunc="mean").fillna(0)
-        fig = px.imshow(hp.values, x=hp.columns.tolist(), y=hp.index.tolist(), color_continuous_scale=["#E8F9EE","#FFF3E0","#FFEBE9"], aspect="auto")
+        fig = px.imshow(hp.values, x=hp.columns.tolist(), y=hp.index.tolist(), color_continuous_scale=[T.COLOR_SUCCESS_BG, T.COLOR_WARNING_BG, T.COLOR_DANGER_BG], aspect="auto")
     ChartCard("🗺️ Discount% Heatmap", fig, height=350)
 
     # Delta table
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     
     cp_adv = advisor_summary(disc_cp, adv_col=ADV_COL, as_index=True).agg(L=("Pre-GST Labour","sum"), D=("Labour Discount","sum")).reset_index()
     cp_adv["D%"] = np.where(cp_adv["L"]>0, cp_adv["D"]/cp_adv["L"]*100, 0)

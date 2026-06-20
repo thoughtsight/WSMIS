@@ -49,11 +49,10 @@ from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from utils.constants import ADV_COL, MP_COLORS, C, PLY, get_ply_layout
 
 # Import shared UI helpers from app
-from ui.kpi_cards import kpi
 from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.helpers import apply_chart, clean_hover, _render_finding, csv_btn
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+from ui.design_tokens import T
 
 def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, selected_months=None):
     with st.spinner(f"Computing {title_prefix}..."):
@@ -176,7 +175,7 @@ def render(df, pairs, val_col, tab_key, title_prefix, comparison_mode=True, sele
         fig.update_traces(
             hovertemplate="<b>%{fullData.name} {title_prefix}</b><br>Month: %{x}<br>Amount: %{{customdata[0]}}<extra></extra>".replace("{title_prefix}", title_prefix),
             insidetextanchor="middle",
-            textfont=dict(size=10, color="#FFFFFF")
+            textfont=dict(size=T.TYPE_XS, color=T.COLOR_SURFACE)
         )
         st.plotly_chart(fig, width='stretch', key=f"wsbs_{tab_key}",
                         config={"displayModeBar": True, "displaylogo": False,

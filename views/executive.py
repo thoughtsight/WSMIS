@@ -46,6 +46,7 @@ from utils.filters import (
     apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
 )
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+from ui.design_tokens import T
 from utils.constants import ADV_COL, MP_COLORS, MONTH_SORT_ORDER
 
 # Import new Phase B UI Components
@@ -86,7 +87,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         return
 
     # 5.1a — Auto-generated Top Insights
-    st.markdown('<div class="section-title" style="margin-top:20px">✨ Top Insights</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title" style="margin-top:{T.SPACE_5}px">💡 Top Insights</div>', unsafe_allow_html=True)
     i1, i2, i3 = st.columns(3)
     
     # Best location
@@ -96,7 +97,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     with i1:
         st.markdown(f'''<div class="insight-card pos">
             <div class="insight-title">🏆 Best Location</div>
-            <div class="insight-stat">{best_loc} <span style="font-size:12px;color:#8E8E93">({fmt_inr(best_loc_val)})</span></div>
+            <div class="insight-stat">{best_loc} <span style="font-size:{T.TYPE_XS}px;color:var(--color-text-tertiary)">({fmt_inr(best_loc_val)})</span></div>
         </div>''', unsafe_allow_html=True)
         
     # Highest discount advisor
@@ -107,7 +108,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     with i2:
         st.markdown(f'''<div class="insight-card warn">
             <div class="insight-title">⚠️ Highest Discount Advisor</div>
-            <div class="insight-stat">{high_adv} <span style="color:#CF222E;font-weight:600;font-size:12px">({high_adv_val:.1f}%)</span></div>
+            <div class="insight-stat">{high_adv} <span style="color:{T.COLOR_DANGER};font-weight:600;font-size:{T.TYPE_XS}px">({high_adv_val:.1f}%)</span></div>
         </div>''', unsafe_allow_html=True)
         
     # Strongest Growth
@@ -119,11 +120,11 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     with i3:
         st.markdown(f'''<div class="insight-card pos">
             <div class="insight-title">📈 Strongest Growth</div>
-            <div class="insight-stat">{best_growth} <span style="color:#1A7F37;font-weight:600;font-size:12px">(+{best_growth_val:.1f}%)</span></div>
+            <div class="insight-stat">{best_growth} <span style="color:{T.COLOR_SUCCESS};font-weight:600;font-size:{T.TYPE_XS}px">(+{best_growth_val:.1f}%)</span></div>
         </div>''', unsafe_allow_html=True)
 
     # 5.2 — KPI snapshot (8 metric cards)
-    st.markdown('<div style="margin-top:24px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
     
 
     jc_cp = get_jobcard_count(cp); jc_pp = get_jobcard_count(pp)
@@ -147,7 +148,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         {"label": "Net Parts", "value": fmt_inr(parts_cp), "cp": parts_cp, "pp": parts_pp},
         {"label": "Total Margin", "value": fmt_inr(margin_cp), "cp": margin_cp, "pp": margin_pp}
     ])
-    st.markdown('<div style="margin-top:16px;"></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="margin-top:{T.SPACE_4}px;"></div>', unsafe_allow_html=True)
     KPIGrid([
         {"label": "Avg Labour/JC", "value": fmt_inr(avg_lab_jc_cp), "cp": avg_lab_jc_cp, "pp": avg_lab_jc_pp},
         {"label": "Disc %", "value": f"{disc_cp:.2f}%", "cp": disc_cp, "pp": disc_pp, "invert_trend": True},
@@ -156,7 +157,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ])
 
     # 5.3 — Rule-based NLG narrative
-    st.markdown('<div class="section-title" style="margin-top:20px">📄 Management Brief</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-title" style="margin-top:{T.SPACE_5}px">📝 Management Brief</div>', unsafe_allow_html=True)
 
     def generate_executive_narrative(cp, pp, cp_months, pp_months):
         sections = {}
@@ -253,7 +254,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                          ("Advisor Spotlight", sections["advisors"]), ("Discount Health", sections["discount"]),
                          ("Sales Mix", sections["sales_mix"]), ("Forecast Signal", sections["forecast"]),
                          ("Recommended Actions", sections["actions"])]:
-        st.markdown(f'<div style="background:#F5F5F7;border-radius:8px;padding:12px;margin-bottom:8px;"><b>{title}</b><br>{text}</div>', unsafe_allow_html=True)
+        note = f"<b>{title}</b><br>{text}"
+        st.markdown(f'<div style="background:var(--color-surface2);border-radius:{T.RADIUS_MD}px;padding:{T.SPACE_3}px;margin-bottom:{T.SPACE_2}px;">{note}</div>', unsafe_allow_html=True)
         full_text += f"{title}:\n{text}\n\n"
 
     # Copy & Download buttons
@@ -269,7 +271,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     # 5.5 — Optional Anthropic API enhancement
     if use_ai:
-        st.markdown('<div class="section-title" style="margin-top:20px">✨ AI-Enhanced Prose</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="section-title" style="margin-top:{T.SPACE_5}px">✨ AI-Enhanced Prose</div>', unsafe_allow_html=True)
         try:
             import anthropic
             client_ai = anthropic.Anthropic()

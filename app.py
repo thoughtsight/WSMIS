@@ -283,7 +283,7 @@ def render_month_picker(df, page):
     col_count = 4 # Period, Comparison, MP/PB, Reset
     if show_svc: col_count += 1
     if show_adv: col_count += 1
-    if is_labour: col_count += 2 # Location + Business View
+    if is_labour: col_count += 3 # Location + Business View + Service Type
     
     cols = st.columns(col_count)
     col_idx = 0

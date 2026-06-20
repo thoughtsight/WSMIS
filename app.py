@@ -280,10 +280,10 @@ def render_month_picker(df, page):
     show_svc = capabilities.get("show_service_type_filter", False)
     show_adv = "Advisor" in capabilities.get("additional_module_filters", [])
     is_labour = (page == "Labour")
-    col_count = 4 # Period, Comparison, MP/PB, Reset
+    col_count = 5 # Period, Comparison, MP/PB, Location, Reset
     if show_svc: col_count += 1
     if show_adv: col_count += 1
-    if is_labour: col_count += 3 # Location + Business View + Service Type
+    if is_labour: col_count += 2 # Business View + Service Type (Location already counted)
     
     cols = st.columns(col_count)
     col_idx = 0

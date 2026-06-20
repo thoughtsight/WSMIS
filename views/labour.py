@@ -18,6 +18,7 @@ from utils.chart_theme import get_chart_theme, get_chart_height, get_growth_colo
 from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout, CHART_CP, CHART_PP
 from services.ai_service import get_narrative, get_actions
 from ui.components.core import EmptyState
+from ui.design_tokens import T
 
 
 DEFAULTS = {
@@ -48,9 +49,11 @@ def _inject_responsive_css():
     [data-testid="stHorizontalBlock"] > div { min-width: 100% !important; }
 }
 @media (min-width: 1800px) {
-    .kpi-value { font-size: var(--type-2xl) !important; }
+    .kpi-value { font-size: var(--type-2xl) !important; font-weight: 800 !important; }
     .kpi-label { font-size: var(--type-sm) !important; }
 }
+.kpi-value { font-weight: 800 !important; }
+.kpi-sub { color: #6E6E73 !important; }
 .kpi-card { height: 140px; display: flex; flex-direction: column; justify-content: space-between; }
 .lab-summary { font-size: var(--type-sm); color: var(--color-text-secondary); padding: 2px 0 8px 0; }
 </style>""", unsafe_allow_html=True)
@@ -60,9 +63,9 @@ def _apply_filters(df, active_pairs):
     filtered = df.copy()
     
     biz = st.session_state.get("lab_business_view", "All")
-    if biz == "Workshop":
+    if biz == "WS":
         filtered = filtered[filtered["Service Type"] != "BR"]
-    elif biz == "Bodyshop":
+    elif biz == "BS":
         filtered = filtered[filtered["Service Type"] == "BR"]
 
     cp_months_active = [p[0] for p in active_pairs]
@@ -209,13 +212,13 @@ def _compute_metrics(cp, pp, df, val_col="Pre-GST Labour"):
 def _prepare_datasets(cp, pp, df):
     biz = st.session_state.get("lab_business_view", "All")
 
-    if biz == "Workshop":
+    if biz == "WS":
         is_ws = cp["Service Type"] != "BR"
         pp_ws = pp[pp["Service Type"] != "BR"]
         metrics = _compute_metrics(cp[is_ws], pp_ws, df[df["Service Type"] != "BR"])
         return {"combined": metrics, "workshop": metrics, "bodyshop": None}
 
-    elif biz == "Bodyshop":
+    elif biz == "BS":
         is_bs = cp["Service Type"] == "BR"
         pp_bs = pp[pp["Service Type"] == "BR"]
         metrics = _compute_metrics(cp[is_bs], pp_bs, df[df["Service Type"] == "BR"])
@@ -469,25 +472,33 @@ def _render_charts(datasets, active_pairs, mode_str):
         textfont=theme["revenue_label_font"]))
     fig.add_trace(go.Scatter(
         name="Growth %", x=months, y=growth,
-        mode="lines+markers+text", yaxis="y2",
+        mode="lines+markers", yaxis="y2",
         line=dict(color=growth_line_color, width=theme["line_width"]),
-        text=[f"{g:+.1f}%" for g in growth], textposition="top center",
-        textfont=dict(size=theme["growth_label_font"]["size"], family="Arial", weight=600,
-                      color=get_marker_colors(growth)),
         marker=dict(size=theme["marker_size"], color=get_marker_colors(growth),
                     line=dict(width=3, color="white"))))
+
+    growth_annotations = []
+    for m, g in zip(months, growth):
+        growth_annotations.append(dict(
+            x=m, y=g, xref="x", yref="y2",
+            text=f"{g:+.1f}%",
+            showarrow=False,
+            font=theme["growth_label_font"],
+            bgcolor="white", bordercolor="white", borderpad=2, yshift=15
+        ))
     fig.update_layout(**get_ply_layout(
         barmode="group", height=chart_height,
         title=dict(text=f"Revenue Trend \u2014 {mode_str}", font=theme["title_font"]),
         margin=theme["margin"],
-        yaxis=dict(title="Revenue (\u20b9)", title_font=theme["axis_title_font"],
+        yaxis=dict(title="₹ in Cr", title_font=theme["axis_title_font"],
                    tickfont=theme["axis_tick_font"]),
         yaxis2=dict(title="Growth %", overlaying="y", side="right",
                     tickformat=".1f", showgrid=False, title_font=theme["axis_title_font"],
                     tickfont=theme["axis_tick_font"]),
         xaxis=dict(title_font=theme["axis_title_font"],
                    tickfont=theme["axis_tick_font"]),
-        legend=dict(font=theme["legend_font"], orientation="h", y=1.02)))
+        legend=dict(font=theme["legend_font"], orientation="h", y=1.02, x=0.5, xanchor="center"),
+        annotations=growth_annotations))
 
     ev = st.plotly_chart(fig, use_container_width=True,
                          on_select="rerun", selection_mode="points",
@@ -582,9 +593,17 @@ def _render_executive_table(datasets, active_pairs, mode_str):
     
     # Style with Indian formatting and color coding
     def _bold_total(row):
-        if row["Location"] == "TOTAL":
-            return ["font-weight: 700"] * len(row)
-        return [""] * len(row)
+        is_total = row["Location"] == "TOTAL"
+        is_odd = getattr(row, "name", 0) % 2 == 1 if isinstance(getattr(row, "name", None), int) else False
+        styles = []
+        for _ in row:
+            style = ""
+            if is_total:
+                style += "font-weight: 700; background-color: #E8F0FE;"
+            elif is_odd:
+                style += "background-color: #F9F9FB;"
+            styles.append(style)
+        return styles
         
     def _color_growth(val):
         from ui.design_tokens import T

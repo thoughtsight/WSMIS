@@ -30,7 +30,7 @@ def fmt_inr(v):
     if v == 0: return "—"
     neg = v < 0; a = abs(v)
     if a >= 1e7:   s = f"₹{a/1e7:,.2f} Cr"
-    elif a >= 1e5: s = f"₹{a/1e5:,.2f} L"
+    elif a >= 1e5: s = f"₹{a/1e5:,.1f} L"
     elif a >= 1e3: s = f"₹{a/1e3:,.1f} K"
     else:          s = f"₹{a:,.0f}"
     return f"-{s}" if neg else s
@@ -43,7 +43,7 @@ def fmt_inr_short(v):
     neg = v < 0; a = abs(v)
     if a >= 1e7:   s = f"₹{a/1e7:.2f}Cr"
     elif a >= 1e5: s = f"₹{a/1e5:.1f}L"
-    elif a >= 1e3: s = f"₹{a/1e3:.2f}K"
+    elif a >= 1e3: s = f"₹{a/1e3:.1f}K"
     else:          s = f"₹{a:.0f}"
     return f"-{s}" if neg else s
 
@@ -60,7 +60,7 @@ def fmt_inr_exp(v):
 def fmt_cr(v):
     """Format a value already in ₹ Lakhs (e.g. 100 Lakhs -> 1 Cr)"""
     if abs(v) >= 100: return f"₹{v/100:.2f} Cr"
-    if abs(v) >= 1: return f"₹{v:.2f} L"
+    if abs(v) >= 1: return f"₹{v:.1f} L"
     if abs(v) >= 0.001: return f"₹{v*100:.1f} K"
     return "₹0"
 
@@ -68,7 +68,7 @@ def fmt_pnl_val(v):
     """Format a value already in ₹ Lakhs without rupee symbol"""
     if pd.isna(v) or v == 0: return "—"
     if abs(v) >= 100: return f"{v/100:.2f}Cr"
-    if abs(v) >= 1: return f"{v:.2f}L"
+    if abs(v) >= 1: return f"{v:.1f}L"
     if abs(v) >= 0.01: return f"{v*100:.1f}K"
     return f"{v*100000:.0f}"
 
@@ -113,10 +113,10 @@ def fmt_inr_full_exp(v):
 
 def fmt_pct(v, sign=False):
     """Format float as percentage (e.g. 5.1 -> 5.10%)"""
-    if v is None or (isinstance(v, float) and np.isnan(v)): return "0.00%"
+    if v is None or (isinstance(v, float) and np.isnan(v)): return "0.0%"
     if str(v) == "New ✦": return "New ✦"
     v = float(v)
-    return f"{'+' if v > 0 and sign else ''}{v:.2f}%"
+    return f"{'+' if v > 0 and sign else ''}{v:.1f}%"
 
 def fmt_pct_ratio(v):
     """Format raw ratio as percentage (e.g. 0.051 -> 5.1%)"""

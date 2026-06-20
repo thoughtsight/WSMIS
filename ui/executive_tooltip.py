@@ -8,6 +8,7 @@ with Indian number formatting for all chart types.
 
 from typing import List, Tuple, Any
 from ui.formatters import fmt_inr_full, fmt_pct
+from ui.design_tokens import T
 
 
 def get_revenue_tooltip(
@@ -43,10 +44,10 @@ def get_revenue_tooltip(
     """
     return (
         "<b>%{customdata[0]}</b><br><br>"
-        f"<b>Current Period:</b> {currency_symbol}%{{customdata[1]:,.0f}}<br>"
-        f"<b>Previous Period:</b> {currency_symbol}%{{customdata[2]:,.0f}}<br>"
-        f"<b>Difference:</b> {currency_symbol}%{{customdata[3]:,.0f}}<br>"
-        "<b>Growth:</b> %{customdata[4]:.1f}%<extra></extra>"
+        "<span style='color:#6E6E73'>CP</span> <b>%{customdata[1]}</b><br>"
+        "<span style='color:#6E6E73'>PP</span> <b>%{customdata[2]}</b><br>"
+        "<span style='color:#6E6E73'>Δ Difference</span> <b>%{customdata[3]}</b><br>"
+        "<span style='color:%{customdata[5]}'><b>%{customdata[4]}</b></span><extra></extra>"
     )
 
 
@@ -151,5 +152,9 @@ def prepare_customdata(
     Returns:
         List of tuples (month, cp, pp, difference, growth) for customdata
     """
-    differences = [cp - pp for cp, pp in zip(cp_values, pp_values)]
-    return list(zip(months, cp_values, pp_values, differences, growth_values))
+    formatted_cp = [fmt_inr_full(v) for v in cp_values]
+    formatted_pp = [fmt_inr_full(v) for v in pp_values]
+    formatted_diff = [fmt_inr_full(cp - pp) for cp, pp in zip(cp_values, pp_values)]
+    formatted_growth = [f"▲ {g:.1f}%" if g > 0 else f"▼ {abs(g):.1f}%" if g < 0 else "0.0%" for g in growth_values]
+    growth_colors = ["#16A34A" if g >= 0 else T.COLOR_DANGER_FILL for g in growth_values]
+    return list(zip(months, formatted_cp, formatted_pp, formatted_diff, formatted_growth, growth_colors))

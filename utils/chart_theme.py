@@ -20,21 +20,23 @@ def get_chart_theme(size: ChartSize = "medium") -> Dict[str, Any]:
     Get responsive chart theme configuration based on size.
     """
     sizes = {
-        "small":  {"title": 14, "tick": 11, "label": 11, "legend": 11, "margin": dict(l=48, r=20, t=40, b=40)},
-        "medium": {"title": 16, "tick": 12, "label": 12, "legend": 12, "margin": dict(l=52, r=24, t=52, b=44)},
-        "large":  {"title": 18, "tick": 13, "label": 13, "legend": 13, "margin": dict(l=60, r=32, t=60, b=52)},
-        "full":   {"title": 22, "tick": 14, "label": 14, "legend": 14, "margin": dict(l=72, r=40, t=72, b=60)},
+        "small":  {"title": 16, "tick": 12, "label": 12, "legend": 12, "line": 3, "marker": 8, "margin": dict(l=32, r=16, t=24, b=24)},
+        "medium": {"title": 20, "tick": 14, "label": 14, "legend": 14, "line": 4, "marker": 10, "margin": dict(l=36, r=20, t=32, b=28)},
+        "large":  {"title": 24, "tick": 16, "label": 16, "legend": 16, "line": 5, "marker": 12, "margin": dict(l=40, r=24, t=40, b=32)},
+        "full":   {"title": 28, "tick": 18, "label": 18, "legend": 18, "line": 6, "marker": 14, "margin": dict(l=48, r=32, t=48, b=40)},
     }
     s = sizes.get(size, sizes["medium"])
     font_stack = "Inter, -apple-system, BlinkMacSystemFont, sans-serif"
     return {
-        "title_font": dict(size=s["title"], family=font_stack, color=T.COLOR_TEXT_PRIMARY, weight=700),
-        "axis_title_font": dict(size=s["tick"] + 1, family=font_stack, color=T.COLOR_TEXT_SECONDARY),
-        "axis_tick_font": dict(size=s["tick"], family=font_stack, color=T.COLOR_TEXT_SECONDARY),
-        "legend_font": dict(size=s["legend"], family=font_stack, color=T.COLOR_TEXT_SECONDARY),
-        "revenue_label_font": dict(size=s["label"], family=font_stack, color=T.COLOR_TEXT_PRIMARY),
-        "growth_label_font": dict(size=s["label"], family=font_stack, color=T.COLOR_TEXT_PRIMARY),
-        "tooltip_font": dict(size=13, family=font_stack),
+        "title_font": dict(size=s["title"], family=font_stack, color=T.COLOR_TEXT_PRIMARY, weight=800),
+        "axis_title_font": dict(size=s["tick"] + 1, family=font_stack, color=T.COLOR_TEXT_SECONDARY, weight=600),
+        "axis_tick_font": dict(size=s["tick"], family=font_stack, color=T.COLOR_TEXT_SECONDARY, weight=500),
+        "legend_font": dict(size=s["legend"], family=font_stack, color=T.COLOR_TEXT_SECONDARY, weight=600),
+        "revenue_label_font": dict(size=s["label"] + 1, family=font_stack, color=T.COLOR_TEXT_PRIMARY, weight=900),
+        "growth_label_font": dict(size=s["label"] + 1, family=font_stack, color="#16A34A", weight=800),
+        "tooltip_font": dict(size=s["tick"] + 2, family=font_stack),
+        "line_width": s["line"],
+        "marker_size": s["marker"],
         "margin": s["margin"]
     }
 
@@ -54,7 +56,7 @@ def get_growth_color(value: float) -> str:
     """
     Get semantic color for growth values (for fills).
     """
-    return T.COLOR_SUCCESS_FILL if value >= 0 else T.COLOR_DANGER_FILL
+    return "#16A34A" if value >= 0 else T.COLOR_DANGER_FILL
 
 def get_marker_colors(values: list) -> list:
     """

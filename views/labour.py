@@ -6,7 +6,6 @@ import streamlit as st
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import re
 
 from utils.calculations.fact_metrics import get_jobcard_count
 from utils.filters import filter_valid_advisors
@@ -16,7 +15,6 @@ from ui.components.theme import growth_color, growth_badge_html
 from ui.executive_tooltip import get_revenue_tooltip, prepare_customdata
 from utils.chart_theme import get_chart_theme, get_chart_height, get_growth_color, get_marker_colors
 from utils.constants import ADV_COL, C, PLY, PLY_TITLE, MONTH_SORT_ORDER, get_ply_layout, CHART_CP, CHART_PP
-from services.ai_service import get_narrative, get_actions
 from ui.components.core import EmptyState
 from ui.design_tokens import T
 
@@ -24,10 +22,6 @@ from ui.design_tokens import T
 DEFAULTS = {
     "lab_business_view": "All",
     "lab_cross_month": None,
-    "lab_ai_hash": None,
-    "lab_ai_narrative": None,
-    "lab_ai_opps": None,
-    "lab_ai_opps_hash": None,
 }
 
 
@@ -264,55 +258,6 @@ def _render_cross_filter_bar():
         st.rerun()
 
 
-def _render_ai_narrative(datasets, mode_str, cp_label, pp_label):
-    d = datasets["combined"]
-    ws = datasets["workshop"]
-    bs = datasets["bodyshop"]
-    biz = st.session_state.get("lab_business_view", "All")
-    cross_filters = {}
-    if st.session_state.get("lab_cross_month"):
-        cross_filters["month"] = st.session_state.lab_cross_month
-
-    payload = {
-        "mode": mode_str, "period": f"{cp_label} vs {pp_label}",
-        "business_view": biz,
-        "cp_total_inr": fmt_inr(d["cp_val"]), "pp_total_inr": fmt_inr(d["pp_val"]),
-        "growth_pct": round(d["growth_pct"], 2),
-        "best_loc": d["best_loc"], "best_growth_pct": round(d["best_growth"], 2),
-        "best_driver": d["best_driver"],
-        "worst_loc": d["worst_loc"], "worst_growth_pct": round(d["worst_growth"], 2),
-        "worst_driver": d["worst_driver"],
-        "n_growing": d["n_growing"], "n_total": d["n_total"],
-        "neg_count": d["neg_count"],
-        "neg_locations": list(d["neg_advs"]["Location Name"].unique()) if not d["neg_advs"].empty else [],
-        "rpc_growth": round(d["rpc_growth"], 2),
-        "abs_growth_inr": fmt_inr(d["cp_val"] - d["pp_val"]),
-        "top_svc_driver": d["top_svc_driver"],
-        "cross_filters": cross_filters,
-        "declining_locs": d.get("declining_locs", []),
-    }
-    if biz == "All" and ws and bs:
-        payload["workshop_cp"] = fmt_inr(ws["cp_val"])
-        payload["workshop_growth"] = round(ws["growth_pct"], 2)
-        payload["bodyshop_cp"] = fmt_inr(bs["cp_val"])
-        payload["bodyshop_growth"] = round(bs["growth_pct"], 2)
-        ws_top = ws["svc_df"]["Delta"].idxmax() if not ws["svc_df"].empty else "\u2014"
-        bs_top = bs["svc_df"]["Delta"].idxmax() if not bs["svc_df"].empty else "\u2014"
-        payload["workshop_top_svc"] = ws_top
-        payload["bodyshop_top_svc"] = bs_top
-
-    content_hash = str(hash(str(sorted(payload.items()))))
-    if content_hash != st.session_state.get("lab_ai_hash"):
-        with st.spinner("Generating executive summary..."):
-            narrative = get_narrative(payload)
-        st.session_state.lab_ai_hash = content_hash
-        st.session_state.lab_ai_narrative = narrative
-    else:
-        narrative = st.session_state.lab_ai_narrative
-
-    st.markdown(
-        f'<div class="ai-band">\U0001f916 {narrative}</div>',
-        unsafe_allow_html=True)
 
 
 def _render_executive_panel(datasets, mode_str):
@@ -698,74 +643,6 @@ def _render_monthly_detail(datasets, active_pairs, mode_str):
         st.dataframe(styled2, column_config=t2cc, use_container_width=True, hide_index=True)
 
 
-def _render_opportunities_actions(datasets, mode_str):
-    d = datasets["combined"]
-    ws = datasets["workshop"]
-    bs = datasets["bodyshop"]
-
-    payload = {
-        "mode": mode_str, "business_view": st.session_state.get("lab_business_view", "All"),
-        "worst_loc": d["worst_loc"],
-        "worst_growth": round(d["worst_growth"], 2),
-        "worst_driver": d["worst_driver"],
-        "best_loc": d["best_loc"],
-        "best_growth": round(d["best_growth"], 2),
-        "neg_count": d["neg_count"],
-        "neg_locations": (d["neg_advs"]["Location Name"].unique().tolist()
-                          if d["neg_count"] > 0 else []),
-        "top_svc_driver": d["top_svc_driver"],
-        "rpc_growth": round(d["rpc_growth"], 2),
-        "declining_locs": d.get("declining_locs", []),
-    }
-    if st.session_state.get("lab_business_view") == "All" and ws and bs:
-        payload["workshop_summary"] = {
-            "cp": fmt_inr(ws["cp_val"]),
-            "growth": round(ws["growth_pct"], 2),
-            "best_loc": ws["best_loc"],
-            "worst_loc": ws["worst_loc"],
-            "top_svc": ws["top_svc_driver"],
-        }
-        payload["bodyshop_summary"] = {
-            "cp": fmt_inr(bs["cp_val"]),
-            "growth": round(bs["growth_pct"], 2),
-            "best_loc": bs["best_loc"],
-            "worst_loc": bs["worst_loc"],
-            "top_svc": bs["top_svc_driver"],
-        }
-
-    opps_hash = str(hash(str(sorted(payload.items()))))
-    if opps_hash != st.session_state.get("lab_ai_opps_hash"):
-        with st.spinner("Generating recommendations..."):
-            text = get_actions(payload)
-        st.session_state.lab_ai_opps = text
-        st.session_state.lab_ai_opps_hash = opps_hash
-    else:
-        text = st.session_state.lab_ai_opps or ""
-
-    opps = re.findall(r"O\d+:\s*(.+?)(?=\s*[OA]\d+:|$)", text, re.DOTALL)
-    acts = re.findall(r"A\d+:\s*(.+?)(?=\s*[OA]\d+:|$)", text, re.DOTALL)
-
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown(
-            '<div class="section-title">\U0001f4a1 Opportunities</div>',
-            unsafe_allow_html=True)
-        for i, o in enumerate(opps[:3], 1):
-            st.markdown(
-                f'<div class="insight-card pos">'
-                f'<div class="insight-title">{i}. Opportunity</div>'
-                f'<div class="insight-stat">{o.strip()}</div></div>',
-                unsafe_allow_html=True)
-    with c2:
-        st.markdown(
-            '<div class="section-title">\U0001f3af Actions Required</div>',
-            unsafe_allow_html=True)
-        for i, a in enumerate(acts[:3], 1):
-            st.markdown(
-                f'<div class="insight-card neg">'
-                f'<div class="insight-title">{i}. Action</div>'
-                f'<div class="insight-stat">{a.strip()}</div></div>',
-                unsafe_allow_html=True)
 
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
@@ -807,6 +684,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     _render_charts(datasets, active_pairs, mode_str)
     _render_executive_table(datasets, active_pairs, mode_str)
     _render_monthly_detail(datasets, active_pairs, mode_str)
-    _render_opportunities_actions(datasets, mode_str)
-    _render_ai_narrative(datasets, mode_str, cp_label, pp_label)
 

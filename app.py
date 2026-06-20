@@ -280,10 +280,10 @@ def render_month_picker(df, page):
     show_svc = capabilities.get("show_service_type_filter", False)
     show_adv = "Advisor" in capabilities.get("additional_module_filters", [])
     is_labour = (page == "Labour")
-    col_count = 3 # Period, Comparison Mode, Reset
+    col_count = 4 # Period, Comparison, MP/PB, Reset
     if show_svc: col_count += 1
     if show_adv: col_count += 1
-    if is_labour: col_count += 1
+    if is_labour: col_count += 2 # Location + Business View
     
     cols = st.columns(col_count)
     col_idx = 0
@@ -298,6 +298,21 @@ def render_month_picker(df, page):
         else:
             mode_label = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="comparison_mode_radio")
         comparison_mode = (mode_label == "YoY")
+    col_idx += 1
+    
+    # MP/PB Filter (global)
+    with cols[col_idx]:
+        mp_pb = st.radio("Business Unit", ["All", "MP", "PB"], horizontal=True, key="filter_mp_pb")
+    col_idx += 1
+    
+    # Location Filter (cascades from MP/PB)
+    with cols[col_idx]:
+        mp_pb_val = st.session_state.get("filter_mp_pb", "All")
+        available_locs = sorted(df['Location Name'].dropna().unique().tolist())
+        if mp_pb_val != "All":
+            # Cascade: filter locations based on MP_PB column
+            available_locs = sorted(df[df['MP_PB'] == mp_pb_val]['Location Name'].dropna().unique().tolist())
+        location = st.multiselect("Location", available_locs, key="filter_location", placeholder="All")
     col_idx += 1
     
     if show_svc:
@@ -326,11 +341,18 @@ def render_month_picker(df, page):
                 st.session_state.lab_business_view = new_b
                 st.rerun()
         col_idx += 1
+        
+        with cols[col_idx]:
+            st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Service Type</div>', unsafe_allow_html=True)
+            svc_type_opts = sorted(df['Service Type'].dropna().unique().tolist())
+            svc_type = st.multiselect("Service Type", svc_type_opts, default=[], key="filter_svc_type_single", placeholder="All")
+            st.session_state.filter_svc_type = svc_type
+        col_idx += 1
 
     with cols[col_idx]:
         st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
         if st.button("🔄 Reset Page", key="clear_page"):
-            for key in ["filter_svc_type_single", "filter_adv_single", "filter_svc_type", "filter_advisor", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
+            for key in ["filter_svc_type_single", "filter_adv_single", "filter_svc_type", "filter_advisor", "filter_mp_pb", "filter_location", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
                 if key in st.session_state: del st.session_state[key]
             st.rerun()
 
@@ -374,28 +396,12 @@ def render_page_header_filters(df, page):
 
 def render_global_filters(df):
     active_count = 0
-    with st.sidebar:
-        st.markdown("---")
-        st.markdown("### 🌍 Global Filters")
-        
-        loc_group = st.multiselect("Location Group", ["Arena", "Nexa", "Other"], key="filter_loc_group")
-        available_locs = sorted(df['Location Name'].dropna().unique().tolist())
-        if loc_group: available_locs = [l for l in available_locs if df[df['Location Name'] == l]['Location Group'].iloc[0] in loc_group]
-        location = st.multiselect("Location", available_locs, key="filter_location")
-        mp_pb = st.radio("Business Unit", ["All", "MP", "PB"], horizontal=True, key="filter_mp_pb")
-        
-        st.markdown("---")
-        st.markdown("### ⚙ Actions")
-        if st.button("🧹 Reset All Filters", use_container_width=True, key="clear_all_filters"):
-            for key in ["filter_loc_group", "filter_location", "filter_svc_type", "filter_advisor", "filter_mp_pb", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset", "filter_svc_type_single", "filter_adv_single"]:
-                if key in st.session_state:
-                    del st.session_state[key]
-            st.rerun()
-
+    # Global filters moved to horizontal filter bar in render_month_picker
+    # This function now only applies the filters set in the horizontal bar
     d = df
-    if loc_group: 
-        d = apply_location_group_filter(d, 'Location Group', loc_group)
-        active_count += 1
+    location = st.session_state.get("filter_location", [])
+    mp_pb = st.session_state.get("filter_mp_pb", "All")
+    
     if location: 
         d = apply_location_filter(d, 'Location Name', location)
         active_count += 1

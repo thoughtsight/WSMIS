@@ -1,15 +1,14 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
-
-
-
-
+from views.dashboard_common import inject_responsive_css
 
 # Import new Phase B UI Components
 from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
+    inject_responsive_css()
+    PageBreadcrumb(["Operations", "Advisor MoM"])
     if df.empty:
         EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
         return
@@ -48,7 +47,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     metric_col = {"Net Labour": "Net_Labour", "Net Parts": "Net_Parts", "Oil Qty": "Oil_Sale_Qty"}.get(metric, "Net_Labour")
 
     # 3.2 — KPI cards row (5 cards)
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
 
     adv_monthly = monthly_summary(adv_data, as_index=False)[metric_col].sum().sort_values("Month_Sort")
     if not adv_monthly.empty:
@@ -79,7 +78,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         ])
 
     # 3.3 — MoM sparkline (6-month rolling)
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     last_6 = adv_monthly.tail(6) if len(adv_monthly) >= 6 else adv_monthly
     if not last_6.empty:
         fig = go.Figure()
@@ -93,7 +92,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         ChartEngine.render_card(f"📈 {sel_adv} — {metric} Trend (Last 6M)", fig, height=350)
 
     # 3.4 — Multi-metric radar/spider chart
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     radar_metrics = {
         "JC Volume": "JC_Nos.",
         "Labour/JC": "Net_Labour",
@@ -132,7 +131,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         ChartEngine.render_card(f"🕸️ {sel_adv} Performance Profile", fig, height=400)
 
     # 3.5 — MoM delta table
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     
     sel_locs = adv_data["Location Name"].unique().tolist()
     all_adv_monthly = filter_valid_advisors(cp[cp["Location Name"].isin(sel_locs)], ADV_COL).groupby([ADV_COL, "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(
@@ -165,7 +164,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         TableCard(dt, height=300, index=False)
 
     # 3.6 — Rank movement heatmap
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     if not all_adv_monthly.empty:
         month_ranks = []
         for m in all_adv_monthly["Month Name"].unique():
@@ -179,7 +178,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             ChartEngine.render_card(f"🏅 Rank by JC Volume — {', '.join(sel_locs)}", fig, height=400)
 
     # 3.7 — Consistent underperformer flag
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     def flag_underperformers(df_mom, metric_col, n_months=3):
         ups = []
         for adv in df_mom[ADV_COL].unique():
@@ -201,7 +200,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         st.success("✅ No consistent underperformers detected.")
 
     # 3.8 — Advisor coaching note
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     
     notes = []
     adv_disc = calc_ratio(get_labour_discount(adv_data), get_labour_sales(adv_data), multiplier=100, fill_value=0)
@@ -223,3 +222,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             st.write("Note copied to clipboard (simulated)")
     else:
         st.info("No specific coaching notes for this advisor.")
+    UniversalFooter()

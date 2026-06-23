@@ -1,15 +1,14 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
-
-
-
-
+from views.dashboard_common import inject_responsive_css
 
 # Import new Phase B UI Components
 from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
+    inject_responsive_css()
+    PageBreadcrumb(["Operations", "Advisors"])
     with st.spinner("Computing Advisor Scorecard..."):
         if df.empty:
             EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
@@ -97,7 +96,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ])
     
     # Scatter plot
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     fig = px.scatter(
         aa, x="JCs", y="Avg_Lab_JC",
         size="Composite_Score", color="Grp",
@@ -110,7 +109,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     ChartEngine.render_card("📊 Performance Scatter", fig, height=400)
     
     # Full table with trend indicators
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     
     aa_sorted = aa.sort_values("Composite_Score", ascending=False).reset_index(drop=True)
     aa_sorted["Rank"] = range(1, len(aa_sorted) + 1)
@@ -152,7 +151,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     TableCard(dt, height=500, index=False)
     
     # Enhanced Advisor drill-down with MoM analysis
-    st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
+    spacer(T.SPACE_6)
     
     selected_advs = st.session_state.get("filter_advisor", [])
     if len(selected_advs) == 1:
@@ -188,7 +187,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             ])
         
         # MoM sparkline
-        st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
+        spacer(T.SPACE_6)
         adv_monthly_full = monthly_summary(adv_data, as_index=False).agg(
             NL=("Net_Labour","sum"),
             NP=("Net_Parts","sum")
@@ -207,7 +206,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             ChartEngine.render_card(f"📈 {sel_adv} — Labour Trend (Last 6M)", fig, height=350)
         
         # Coaching notes
-        st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
+        spacer(T.SPACE_6)
         notes = []
         adv_disc = calc_ratio(get_labour_discount(adv_data), get_labour_sales(adv_data), multiplier=100, fill_value=0)
         adv_parts_jc = get_net_parts(adv_data) / get_jobcard_count(adv_data) if get_jobcard_count(adv_data) > 0 else 0
@@ -230,3 +229,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         
     else:
         st.info("Select exactly **one Advisor** from the Page Filters above to view the MoM analysis and coaching notes.")
+    UniversalFooter()

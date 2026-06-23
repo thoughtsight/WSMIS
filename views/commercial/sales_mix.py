@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.chart_engine import ChartEngine
 from ui.design_tokens import T
+from views.dashboard_common import inject_responsive_css
 
 
 
@@ -226,6 +227,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         comparison_mode: If True, shows YoY comparison; if False, shows MoM
         selected_months: Optional month filter
     """
+    inject_responsive_css()
+    PageBreadcrumb(["Operations", "Sales Mix"])
     if df.empty:
         EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
         return
@@ -234,10 +237,6 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     metrics = _compute_metrics(cp, pp)
     
     _render_kpis(metrics)
-    _render_tables(metrics, comparison_mode)
     _render_charts(metrics, comparison_mode)
-    
-    try:
-        UniversalFooter()
-    except Exception:
-        pass
+    _render_tables(metrics, comparison_mode)
+    UniversalFooter()

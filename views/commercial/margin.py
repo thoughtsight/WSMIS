@@ -2,6 +2,7 @@ from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
 from utils.calculations.fact_metrics import _get_metric
+from views.dashboard_common import inject_responsive_css
 
 
 
@@ -10,7 +11,49 @@ from utils.calculations.fact_metrics import _get_metric
 # Import new Phase B UI Components
 from ui.design_tokens import T
 
+
+def _render_margin_narrative(kpi_values: dict):
+    """Conditional narrative banner summarising margin health signals."""
+    total_m = kpi_values.get("Total Margin", 0)
+    net_lab = kpi_values.get("Net Labour", 0)
+    parts_m = kpi_values.get("Parts_Margin", 0)
+
+    msgs = []
+    if total_m <= 0:
+        msgs.append(f"⚠ Total margin is negative ({fmt_inr_short(total_m)}) — immediate review required.")
+        severity = "error"
+    else:
+        severity = "info"
+        msgs.append(f"Total margin this period: {fmt_inr_short(total_m)}.")
+
+    if parts_m < 0:
+        severity = "warning" if severity == "info" else severity
+        msgs.append(f"Parts margin is negative ({fmt_inr_short(parts_m)}) — check cost and discount structure.")
+
+    if net_lab > 0 and total_m > 0:
+        lab_share = net_lab / total_m * 100
+        if lab_share > 70:
+            msgs.append(f"Labour drives {lab_share:.0f}% of total margin — diversify revenue streams.")
+        elif lab_share > 50:
+            msgs.append(f"Labour contributes {lab_share:.0f}% of total margin.")
+
+    if not msgs:
+        return
+
+    colors  = {"error": "#FEE2E2", "warning": "#FEF9C3", "info": "#EFF6FF"}
+    borders = {"error": "#EF4444", "warning": "#EAB308", "info": "#3B82F6"}
+    banner  = "  ·  ".join(msgs)
+    st.markdown(
+        f'<div style="background:{colors[severity]};border-left:4px solid {borders[severity]};'
+        f'padding:12px 16px;border-radius:6px;margin-bottom:16px;'
+        f'font-size:var(--type-sm);font-weight:600;line-height:1.6;">{banner}</div>',
+        unsafe_allow_html=True
+    )
+
+
 def render(df, pairs, comparison_mode=True, selected_months=None):
+    inject_responsive_css()
+    PageBreadcrumb(["Commercial", "Margin"])
     if df.empty:
         EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
         return
@@ -20,13 +63,16 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     
     kpis = ["Total Margin", "Net Labour", "Parts_Margin", "Oil_Margin", "OTC Income", "FSC Income"]
     kpi_data = []
+    kpi_values = {}
     for k in kpis:
         if k == "Net Labour":
             v = get_net_labour(cp)  # Use canonical frozen calculation
         else:
             v = _get_metric(cp, k, aggregate=True)  # Safe metric extraction
         kpi_data.append({"label": k.replace("_", " "), "value": fmt_inr(v)})
+        kpi_values[k] = v
     KPIGrid(kpi_data)
+    _render_margin_narrative(kpi_values)
     
     # Waterfall chart
     st.markdown(f'<div style="margin-top:{T.SPACE_6}px;"></div>', unsafe_allow_html=True)
@@ -135,3 +181,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         fig = px.bar(wbs, x="Month Name", y="Total Margin", color="Service_Type_Group", color_discrete_map=MP_COLORS)
         fig.update_layout(**get_ply_layout(height=320, xaxis_title="", yaxis_title=""))
         ChartEngine.render_card("⚖️ WS vs BS Margin", fig, height=320)
+    UniversalFooter()

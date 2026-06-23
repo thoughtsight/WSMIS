@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 
 """
 WSMIS Discount & Revenue Leakage Dashboard
@@ -431,10 +432,7 @@ def _render_trend_chart(d: dict, mode_str: str):
     - Line: Labour Discount % (right axis, with 3M rolling average)
     - Reference line: median approved threshold from targets
     """
-    st.markdown(
-        f'<div class="section-title">📉 Labour Discount % Trend — {mode_str}</div>',
-        unsafe_allow_html=True
-    )
+    section_title(f"📉 Labour Discount % Trend — {mode_str}")
 
     monthly = d["monthly"]
     if monthly.empty:
@@ -517,10 +515,7 @@ def _render_location_table(d: dict, mode_str: str):
     Executive location table — sorted by Leakage ₹ descending.
     Columns: Rank | Location | Lab Disc% CP | Lab Disc% PP | Δpp | Approved % | Leakage ₹ | Status
     """
-    st.markdown(
-        f'<div class="section-title">📍 Location Discount Performance — {mode_str}</div>',
-        unsafe_allow_html=True
-    )
+    section_title(f"📍 Location Discount Performance — {mode_str}")
 
     loc = d["loc_lab"].copy()
     loc = loc.sort_values("Leakage_Rs", ascending=False).reset_index(drop=True)
@@ -614,10 +609,7 @@ def _render_heatmap(d: dict):
     Color scale: green (low) → amber → red (high). Capped at 50% for display.
     Anomaly locations get a separate annotation.
     """
-    st.markdown(
-        '<div class="section-title">🗺 Discount % Heatmap</div>',
-        unsafe_allow_html=True
-    )
+    section_title("🗺 Discount % Heatmap")
 
     view = st.radio(
         "Heatmap View",
@@ -871,10 +863,7 @@ def _render_parts_discount(d: dict, mode_str: str):
     Show as collapsed expander. Location table only. No heatmap, no advisor drill-down.
     """
     with st.expander("📦 Parts Discount by Location (low risk — 0.40% overall)", expanded=False):
-        st.markdown(
-            f'<div class="section-title">Parts Discount — {mode_str}</div>',
-            unsafe_allow_html=True
-        )
+        section_title(f"Parts Discount — {mode_str}")
 
         loc_p = d["loc_prt"].copy().sort_values("Leakage_Rs", ascending=False)
         display = pd.DataFrame({
@@ -903,6 +892,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     Main entry point — called by router exactly as existing discount.py is called.
     Signature is identical to current discount.py render().
     """
+    inject_responsive_css()
+    PageBreadcrumb(["Commercial", "Discounts"])
 
     if df.empty:
         EmptyState("No data available for the selected period.")
@@ -929,22 +920,14 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     d = _compute_discount_metrics(cp, pp, targets)
 
     # ── Render: CEO section ───────────────────────────────────────────────────
-    _render_ceo_alert_banner(d)
     _render_ceo_kpis(d, mode_str)
+    _render_ceo_alert_banner(d)
 
-    st.markdown(
-        f'<div style="margin:var(--space-6) 0 var(--space-2) 0;'
-        f'border-top:1px solid var(--color-border);"></div>',
-        unsafe_allow_html=True
-    )
+    divider()
 
     _render_trend_chart(d, mode_str)
 
-    st.markdown(
-        f'<div style="margin:var(--space-4) 0;'
-        f'border-top:1px solid var(--color-border-sub);"></div>',
-        unsafe_allow_html=True
-    )
+    divider()
 
     _render_location_table(d, mode_str)
 
@@ -962,22 +945,15 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     _render_heatmap(d)
 
-    st.markdown(
-        f'<div style="margin:var(--space-4) 0;'
-        f'border-top:1px solid var(--color-border-sub);"></div>',
-        unsafe_allow_html=True
-    )
+    divider()
 
     _render_service_breakdown(d, mode_str)
 
-    st.markdown(
-        f'<div style="margin:var(--space-4) 0;'
-        f'border-top:1px solid var(--color-border-sub);"></div>',
-        unsafe_allow_html=True
-    )
+    divider()
 
     _render_advisor_table(d, mode_str)
 
     # ── Anomaly and Parts — secondary, collapsed ──────────────────────────────
     _render_anomaly_table(d)
     _render_parts_discount(d, mode_str)
+    UniversalFooter()

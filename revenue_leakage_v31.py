@@ -370,7 +370,7 @@ def build_revenue_leakage_dashboard_v2(
         <div>
           <div class="expand-label">Service Breakdown</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
-            {svc_detail if svc_detail else '<span style="color:#9CA3AF">No breakdown available</span>'}
+            {svc_detail if svc_detail else '<span style="color:#6b7280">No breakdown available</span>'}
           </div>
         </div>
         <div>
@@ -465,7 +465,7 @@ def build_revenue_leakage_dashboard_v2(
   <div class="heat-sub">{sub_metrics}</div>
 </div>"""
     if not heatmap_html:
-        heatmap_html = '<div style="color:#9CA3AF;padding:16px;">No PMS penetration data available.</div>'
+        heatmap_html = '<div style="color:#6b7280;padding:16px;">No PMS penetration data available.</div>'
 
     # ── Alert banner ──────────────────────────────────────────────────────────
     alert_msg = (

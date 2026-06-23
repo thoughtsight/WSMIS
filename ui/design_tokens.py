@@ -75,8 +75,8 @@ class T:
 
     # Text
     COLOR_TEXT_PRIMARY   = "#1D1D1F"  # Headings · Values · Body
-    COLOR_TEXT_SECONDARY = "#6E6E73"  # Labels · Muted content
-    COLOR_TEXT_TERTIARY  = "#737378"  # Placeholders · Metadata
+    COLOR_TEXT_SECONDARY = "#5E5E63"  # Labels · Muted content    — 6.45:1 on white (darkened from #6E6E73 for AA on grey app-bg)
+    COLOR_TEXT_TERTIARY  = "#636368"  # Placeholders · Metadata   — 5.97:1 on white (darkened from #737378; old failed AA on #F8F8FA/#EFEFEF)
 
     # ─────────────────────────────────────────────────────────────────────────
     # COLOUR PALETTE — Semantic (on light backgrounds — WCAG AA compliant)

@@ -524,7 +524,7 @@ def main():
             <div style="background:{T.COLOR_SURFACE};padding:40px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.1);text-align:center;max-width:400px;">
                 <div style="font-size:48px;margin-bottom:16px;">🔐</div>
                 <h2 style="margin:0 0 8px 0;color:{T.COLOR_TEXT_PRIMARY};">WSMIS Pilot</h2>
-                <p style="color:{T.C['gray']};margin-bottom:24px;">Enter deployment password to continue</p>
+                <p style="color:{T.COLOR_TEXT_SECONDARY};margin-bottom:24px;">Enter deployment password to continue</p>
             </div>
         </div>
         """, unsafe_allow_html=True)

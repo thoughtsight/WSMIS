@@ -26,8 +26,8 @@
 
   /* Text */
   --color-text-primary:   #1D1D1F;
-  --color-text-secondary: #6E6E73;
-  --color-text-tertiary:  #737378;
+  --color-text-secondary: #5E5E63;   /* 6.45:1 on white — darkened from #6E6E73 for AA on grey app-bg */
+  --color-text-tertiary:  #636368;   /* 5.97:1 on white — darkened from #737378 (failed AA on #F8F8FA/#EFEFEF) */
 
   /* Semantic — WCAG AA compliant on light backgrounds */
   --color-primary:   #0071E3;
@@ -166,7 +166,7 @@ html, body, [class*="css"] {
   border-radius: var(--radius-md);
   font-size: var(--type-xs);
 }
-.rf-top    { text-align: center; color: var(--color-text-tertiary); margin-bottom: var(--space-3); font-weight: 500; }
+.rf-top    { text-align: center; color: #D2D2D7; margin-bottom: var(--space-3); font-weight: 500; }   /* light-on-navy — tertiary token failed contrast here */
 .rf-bottom { display: flex; justify-content: space-between; color: #D2D2D7; }
 
 /* ─────────────────────────────────────────────────────────────────────────── */

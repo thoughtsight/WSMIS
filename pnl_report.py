@@ -871,7 +871,7 @@ PNL_CSS = """
 /* section heading */
 .pnl-section-heading {
     font-size: 0.7rem; font-weight: 700; letter-spacing: 0.08em;
-    text-transform: uppercase; color: #94a3b8; margin: 1.5rem 0 0.75rem;
+    text-transform: uppercase; color: #64748b; margin: 1.5rem 0 0.75rem;
     padding-bottom: 0.4rem; border-bottom: 1px solid #e2e8f0;
 }
 
@@ -898,7 +898,7 @@ PNL_CSS = """
     text-transform: uppercase; color: #64748b; margin-bottom: 0.4rem;
 }
 .pnl-kpi-value { font-size: 1.55rem; font-weight: 700; color: #0f172a; line-height: 1; }
-.pnl-kpi-sub { font-size: 0.72rem; color: #94a3b8; margin-top: 0.3rem; }
+.pnl-kpi-sub { font-size: 0.72rem; color: #64748b; margin-top: 0.3rem; }
 .pnl-kpi-badge {
     display: inline-flex; align-items: center; gap: 3px;
     font-size: 0.7rem; font-weight: 600; padding: 2px 7px; border-radius: 9px; margin-top: 0.4rem;
@@ -911,7 +911,7 @@ PNL_CSS = """
 .pnl-loc-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
 .pnl-loc-table th {
     text-align: left; font-size: 0.65rem; font-weight: 700;
-    letter-spacing: 0.07em; text-transform: uppercase; color: #94a3b8;
+    letter-spacing: 0.07em; text-transform: uppercase; color: #64748b;
     padding: 6px 10px; border-bottom: 1px solid #e2e8f0;
 }
 .pnl-loc-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; color: #1e293b; }
@@ -941,7 +941,7 @@ PNL_CSS = """
     padding: 1rem 1.1rem;
 }
 .pnl-chart-card-title { font-size: 0.75rem; font-weight: 600; color: #1e293b; margin-bottom: 0.1rem; }
-.pnl-chart-card-sub { font-size: 0.68rem; color: #94a3b8; margin-bottom: 0.75rem; }
+.pnl-chart-card-sub { font-size: 0.68rem; color: #64748b; margin-bottom: 0.75rem; }
 
 /* insight card */
 .pnl-insight-card {
@@ -1223,7 +1223,7 @@ def _render_location_ranking(data):
               <td style="color:{profit_color};font-weight:700">{fmt_cr(loc["profit"])}</td>
               <td>{mom_fmt}</td>
               <td>{status_pill}</td>
-              <td style="color:#94a3b8">{loc["anomalies"] if loc["anomalies"] else "—"} ⚠</td>
+              <td style="color:#64748b">{loc["anomalies"] if loc["anomalies"] else "—"} ⚠</td>
             </tr>'''
 
         st.markdown(f'''
@@ -1466,7 +1466,7 @@ def _render_pnl_summary_table(data):
 
     # Build header
     th_style = ('text-align:right;padding:7px 10px;font-size:0.65rem;font-weight:700;'
-                'letter-spacing:0.07em;text-transform:uppercase;color:#94a3b8')
+                'letter-spacing:0.07em;text-transform:uppercase;color:#64748b')
     th_left  = th_style.replace("text-align:right", "text-align:left")
     header_ths = f'<th style="{th_left}">Category</th>'
     for m in months:

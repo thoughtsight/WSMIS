@@ -555,7 +555,7 @@ def main():
     # ── Initialize Navigation & Sidebar ─────────────────────────────
     # Instantiate pg early so the sidebar is built before global filters.
     # The returned 'active_page' provides the .title which we use to check capabilities.
-    from services.route_service import get_route_service, AppContext
+    from services.route_service import AppContext
     route_service = get_route_service()
     pages = route_service.get_blueprint_pages()
     active_page = st.navigation(pages)

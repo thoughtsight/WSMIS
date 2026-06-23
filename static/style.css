@@ -707,3 +707,23 @@ section[data-testid="stSidebar"] [aria-current="page"] {
 button[kind="segmented_control"] p {
     color: var(--color-text-primary) !important;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* RC1 Phase B                                                                 */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* Tooltip text */
+[data-testid="stTooltipContent"] {
+    color: var(--color-text-primary) !important;
+}
+
+/* Caption text */
+[data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] p {
+    color: var(--color-text-secondary) !important;
+}
+
+/* st.info() body text */
+[data-testid="stAlert"] [data-testid="stMarkdownContainer"] p {
+    color: var(--color-text-primary) !important;
+}

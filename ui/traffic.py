@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+from ui.design_tokens import T
 from utils.calculations.common import calc_growth_pct
 from config.settings import TRAFFIC_GREEN_PCT, TRAFFIC_RED_PCT
 
@@ -16,13 +17,13 @@ def yoy_badge(cp, pp):
 def traffic_light(cp, pp):
     """Returns a CSS-styled traffic light indicator (no emoji)."""
     if pp is None or (isinstance(pp, float) and np.isnan(pp)) or pp <= 0:
-        return '<span style="color: #8E8E93; font-size: 12px;">●</span>'
+        return f'<span style="color: {T.C["gray"]}; font-size: 12px;">●</span>'
     pct = calc_growth_pct(cp, pp, fill_value=0)
     if pct > TRAFFIC_GREEN_PCT:
-        return '<span style="color: #1A7F37; font-size: 12px;">●</span>'
+        return f'<span style="color: {T.COLOR_SUCCESS}; font-size: 12px;">●</span>'
     if pct < -TRAFFIC_RED_PCT:
-        return '<span style="color: #CF222E; font-size: 12px;">●</span>'
-    return '<span style="color: #B45309; font-size: 12px;">●</span>'
+        return f'<span style="color: {T.COLOR_DANGER}; font-size: 12px;">●</span>'
+    return f'<span style="color: {T.COLOR_WARNING}; font-size: 12px;">●</span>'
 
 
 def tgt_badge(pct):

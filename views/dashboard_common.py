@@ -234,9 +234,9 @@ def style_table_bold_total(row, location_col="Location"):
     for _ in row:
         style = ""
         if is_total:
-            style += "font-weight: 700; background-color: #E8F0FE;"
+            style += f"font-weight: 700; background-color: {T.COLOR_INFO_BG};"
         elif is_odd:
-            style += "background-color: #F9F9FB;"
+            style += f"background-color: {T.COLOR_SURFACE2};"
         styles.append(style)
     return styles
 
@@ -290,16 +290,23 @@ def navigate_to_page(page_name: str, drill_params: dict = None) -> None:
         drill_params: Optional dict of drill-through parameters (location, category, etc.)
     """
     from services.state_manager import StateManager
+    from services.route_service import get_route_service
     
     # Set drill-through parameters in parts_ namespace
     if drill_params:
         for key, value in drill_params.items():
             StateManager.set(f"parts_{key}", value)
-        StateManager.set("parts_drill_from_page", st.session_state.get("current_page", "Unknown"))
+        
+        # In the new architecture, the active page's title could be retrieved from st.context if available,
+        # but for simplicity we rely on the drill params from page string or default "Previous Page"
+        StateManager.set("parts_drill_from_page", "Previous Page")
     
-    # Navigate to target page
-    st.session_state["current_page"] = page_name
-    st.rerun()
+    # Navigate to target page using native st.switch_page
+    target_page_obj = get_route_service().get_registry().get_page_by_title(page_name)
+    if target_page_obj:
+        st.switch_page(target_page_obj)
+    else:
+        st.error(f"Cannot navigate: Page '{page_name}' not found in registry.")
 
 
 def get_drill_params() -> dict:

@@ -66,19 +66,19 @@ SERVICE_ACCOUNT = "service_account.json"
 # Plotly theme configuration — Executive Light v2.0
 PLY = dict(
     template="simple_white",
-    font=dict(family="Inter, -apple-system, BlinkMacSystemFont, sans-serif", color="#1D1D1F", size=12),
-    paper_bgcolor="#FFFFFF", plot_bgcolor="#FFFFFF",
-    xaxis=dict(gridcolor="#F0F0F5", linecolor="#E5E5EA", tickfont=dict(size=12, family="Inter")),
-    yaxis=dict(gridcolor="#F0F0F5", linecolor="#E5E5EA", tickfont=dict(size=12, family="Inter")),
+    font=dict(family=T.FONT_FAMILY, color=T.COLOR_TEXT_PRIMARY, size=12),
+    paper_bgcolor=T.COLOR_SURFACE, plot_bgcolor=T.COLOR_SURFACE,
+    xaxis=dict(gridcolor=T.COLOR_BORDER_SUB, linecolor=T.COLOR_BORDER, tickfont=dict(size=12, family="Inter")),
+    yaxis=dict(gridcolor=T.COLOR_BORDER_SUB, linecolor=T.COLOR_BORDER, tickfont=dict(size=12, family="Inter")),
     margin=dict(l=52, r=24, t=52, b=44),
-    hoverlabel=dict(bgcolor="#FFFFFF", font_size=13, font_family="Inter, -apple-system, sans-serif", bordercolor="#E5E5EA"),
-    legend=dict(bgcolor="rgba(255,255,255,0.92)", bordercolor="#E5E5EA", borderwidth=1,
+    hoverlabel=dict(bgcolor=T.COLOR_SURFACE, font_size=13, font_family=T.FONT_FAMILY, bordercolor=T.COLOR_BORDER),
+    legend=dict(bgcolor="rgba(255,255,255,0.92)", bordercolor=T.COLOR_BORDER, borderwidth=1,
                 font=dict(size=12, family="Inter"), orientation="h", yanchor="bottom", y=1.02,
                 xanchor="right", x=1),
 )
 
 # Plotly title styling (used separately to avoid duplicate key errors)
-PLY_TITLE = dict(font=dict(size=16, color="#1D1D1F", family="Inter", weight=700), x=0.01, xanchor="left", pad=dict(t=4))
+PLY_TITLE = dict(font=dict(size=16, color=T.COLOR_TEXT_PRIMARY, family="Inter", weight=700), x=0.01, xanchor="left", pad=dict(t=4))
 
 
 def get_ply_layout(**kwargs):
@@ -100,18 +100,18 @@ def get_ply_layout(**kwargs):
 # NOTE: green/red are WCAG AA compliant on-light text values (not fills).
 # For chart fills / icon fills, use COLOR_SUCCESS_FILL / COLOR_DANGER_FILL from design_tokens.
 C = {
-    "primary": "#0071E3",
-    "green":   "#1A7F37",   # 4.6:1 on white — WCAG AA ✅
-    "red":     "#CF222E",   # 5.5:1 on white — WCAG AA ✅
-    "orange":  "#B45309",   # 4.7:1 on white — WCAG AA ✅
-    "gray":    "#8E8E93",
-    "gold":    "#D4AF37",
+    "primary": T.COLOR_PRIMARY,
+    "green":   T.COLOR_SUCCESS,
+    "red":     T.COLOR_DANGER,
+    "orange":  T.COLOR_WARNING,
+    "gray":    T.C["gray"],
+    "gold":    T.COLOR_DIVIDER,
     "purple":  "#7C3AED",
     "pink":    "#DB2777",
     "teal":    "#0891B2",
 }
 # Chart fill colours (for bars/markers on white background — not as text)
-CHART_CP = "#0071E3"   # Current Period bars
-CHART_PP = "#C0C0C8"   # Previous Period bars — lighter neutral
-LOC_COLORS = {"Arena": "#0071E3", "Nexa": "#1A7F37", "Other": "#8E8E93"}
-MP_COLORS = {"MP": "#0071E3", "PB": "#FF9500", "WS": "#0071E3", "BS": "#FF9500"}
+CHART_CP = T.CHART_CP
+CHART_PP = T.CHART_PP
+LOC_COLORS = {"Arena": T.COLOR_PRIMARY, "Nexa": T.COLOR_SUCCESS, "Other": T.C["gray"]}
+MP_COLORS = {"MP": T.COLOR_PRIMARY, "PB": T.CHART_GROWTH, "WS": T.COLOR_PRIMARY, "BS": T.CHART_GROWTH}

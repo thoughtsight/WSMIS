@@ -22,6 +22,7 @@ import os
 import importlib.util
 
 from ui.components.core import UniversalHeader, UniversalFooter
+from ui.design_tokens import T
 
 from services.audit_service import load_data as load_audit_data
 from services.state_registry import register_all_namespaces
@@ -277,7 +278,7 @@ def render_month_picker(df, page):
         return st.session_state.selected_months_custom, build_pairs(st.session_state.selected_months_custom, all_months, MONTH_SORT_ORDER, "YoY" if st.session_state.get("comparison_mode_radio") == "YoY" else "MoM"), capabilities.get("comparison_mode", False)
 
     # PAGE FILTERS (FilterToolbar UI)
-    st.markdown('<div class="filter-toolbar" style="background:#f9f9fb; padding:12px 16px; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:16px;">', unsafe_allow_html=True)
+    st.markdown(f'<div class="filter-toolbar" style="background:{T.COLOR_SURFACE2}; padding:12px 16px; border-radius:8px; border:1px solid {T.COLOR_BORDER}; margin-bottom:16px;">', unsafe_allow_html=True)
     
     # We figure out how many columns we need
     show_svc = capabilities.get("show_service_type_filter", False)
@@ -355,7 +356,7 @@ def render_month_picker(df, page):
     if is_labour:
         with cols[col_idx]:
             cur_biz = StateManager.get("lab_business_view", "All")
-            st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Business View</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="margin-bottom:8px;font-size:14px;color:{T.COLOR_TEXT_PRIMARY};">Business View</div>', unsafe_allow_html=True)
             if "lab_biz_ui" not in st.session_state:
                 st.session_state["lab_biz_ui"] = cur_biz
             if hasattr(st, "segmented_control"):
@@ -368,7 +369,7 @@ def render_month_picker(df, page):
         col_idx += 1
         
         with cols[col_idx]:
-            st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Service Type</div>', unsafe_allow_html=True)
+            st.markdown(f'<div style="margin-bottom:8px;font-size:14px;color:{T.COLOR_TEXT_PRIMARY};">Service Type</div>', unsafe_allow_html=True)
             svc_type_opts = sorted(df['Service Type'].dropna().unique().tolist())
             svc_type = st.multiselect("Service Type", svc_type_opts, default=[], key="filter_svc_type_labour", placeholder="All")
             st.session_state.filter_svc_type = svc_type
@@ -412,8 +413,8 @@ def render_month_picker(df, page):
 
     if is_custom:
         if pairs:
-            pair_tags = " ".join(f'<span style="background:#E8F0FE;color:#0071E3;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px;">{cm} ↔ {pm}</span>' for cm, pm, _ in pairs)
-            st.markdown(f'<div style="margin-bottom:12px;font-size:12px;color:#6E6E73;"><b>Matched Pairs ({mode_label}):</b><br>{pair_tags}</div>', unsafe_allow_html=True)
+            pair_tags = " ".join(f'<span style="background:{T.COLOR_INFO_BG};color:{T.COLOR_PRIMARY};padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px;">{cm} ↔ {pm}</span>' for cm, pm, _ in pairs)
+            st.markdown(f'<div style="margin-bottom:12px;font-size:12px;color:{T.COLOR_TEXT_SECONDARY};"><b>Matched Pairs ({mode_label}):</b><br>{pair_tags}</div>', unsafe_allow_html=True)
         else:
             if selected_months:
                 if len(selected_months) == 1 and not comparison_mode:
@@ -518,12 +519,12 @@ def main():
     deployment_password = deployment_password or os.environ.get("DEPLOYMENT_PASSWORD")
 
     if deployment_password and not st.session_state["authenticated"]:
-        st.markdown("""
-        <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#F5F5F7;">
-            <div style="background:#FFFFFF;padding:40px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.1);text-align:center;max-width:400px;">
+        st.markdown(f"""
+        <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:{T.COLOR_APP_BG};">
+            <div style="background:{T.COLOR_SURFACE};padding:40px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.1);text-align:center;max-width:400px;">
                 <div style="font-size:48px;margin-bottom:16px;">🔐</div>
-                <h2 style="margin:0 0 8px 0;color:#1D1D1F;">WSMIS Pilot</h2>
-                <p style="color:#8E8E93;margin-bottom:24px;">Enter deployment password to continue</p>
+                <h2 style="margin:0 0 8px 0;color:{T.COLOR_TEXT_PRIMARY};">WSMIS Pilot</h2>
+                <p style="color:{T.C['gray']};margin-bottom:24px;">Enter deployment password to continue</p>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -650,12 +651,12 @@ def main():
         sorted_cp = sorted(selected_months, key=lambda x: MONTH_SORT_ORDER.get(x, 99))
         sorted_pp = sorted(pp_months, key=lambda x: MONTH_SORT_ORDER.get(x, 99))
         st.markdown(
-            f'<div style="background:#E8F0FE;border-radius:8px;padding:5px 14px;'
-            f'font-size:12px;font-weight:600;color:#185FA5;display:inline-block;margin-bottom:8px;">'
-            f'📅 {sorted_cp[0]} → {sorted_cp[-1]} '
-            f'vs {sorted_pp[0]} → {sorted_pp[-1]} '
-            f'&nbsp;|  {len(df_filtered_cp):,} rows '
-            f'&nbsp;|  {df_filtered_cp["Location Name"].nunique()} locations'
+            f'<div style="background:{T.COLOR_INFO_BG};border-radius:8px;padding:5px 14px;'
+            f'font-size:12px;font-weight:600;color:{T.COLOR_PRIMARY};display:inline-block;margin-bottom:8px;">'
+            f'📅 {sorted_cp[0]} → {sorted_cp[-1]} '
+            f'vs {sorted_pp[0]} → {sorted_pp[-1]} '
+            f'&nbsp;|  {len(df_filtered_cp):,} rows '
+            f'&nbsp;|  {df_filtered_cp["Location Name"].nunique()} locations'
             f'</div>',
             unsafe_allow_html=True
         )

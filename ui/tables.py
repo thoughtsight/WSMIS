@@ -39,7 +39,8 @@ def html_table(df, total_row=False, height="500px"):
                 except: pass
             cells += f"<td{cc}>{sv}</td>"
         body += f"<tr{cls}>{cells}</tr>"
-    st.markdown(f"""<div style="max-height:{height};overflow:auto;border-radius:12px;border:1px solid #E5E5EA;">
+    from ui.design_tokens import T
+    st.markdown(f"""<div style="max-height:{height};overflow:auto;border-radius:12px;border:1px solid {T.COLOR_BORDER};">
         <table class="styled-table"><thead><tr>{hdr}</tr></thead><tbody>{body}</tbody></table>
     </div>""", unsafe_allow_html=True)
 

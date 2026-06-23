@@ -156,5 +156,5 @@ def prepare_customdata(
     formatted_pp = [fmt_inr_full(v) for v in pp_values]
     formatted_diff = [fmt_inr_full(cp - pp) for cp, pp in zip(cp_values, pp_values)]
     formatted_growth = [f"▲ {g:.1f}%" if g > 0 else f"▼ {abs(g):.1f}%" if g < 0 else "0.0%" for g in growth_values]
-    growth_colors = ["#16A34A" if g >= 0 else T.COLOR_DANGER_FILL for g in growth_values]
+    growth_colors = [T.COLOR_SUCCESS if g >= 0 else T.COLOR_DANGER_FILL for g in growth_values]
     return list(zip(months, formatted_cp, formatted_pp, formatted_diff, formatted_growth, growth_colors))

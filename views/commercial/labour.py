@@ -8,7 +8,10 @@ Multi-Location Mar Dealership  ·  Apple Light-Theme  ·  v2.0
 """
 from ui.executive_tooltip import prepare_customdata, get_revenue_tooltip
 from services.state_manager import StateManager
-from views.dashboard_common import inject_responsive_css, apply_period_filters
+from views.dashboard_common import (
+    inject_responsive_css, apply_period_filters,
+    render_cross_filter_bar, render_kpi_card, render_svc_panel,
+)
 
 
 def _init_state():
@@ -160,30 +163,22 @@ def _prepare_datasets(cp, pp, df):
 
 
 
-def _render_cross_filter_bar():
-    chips = []
-    cross_month = StateManager.get("lab_cross_month")
-    if cross_month:
-        chips.append(("\U0001f4c5 " + cross_month, "lab_cross_month"))
-    if not chips:
-        return
-    html = f'<div style="display:flex;gap:{T.SPACE_2}px;align-items:center;padding:4px 0 8px 0;flex-wrap:wrap">'
-    html += f'<span style="font-size:{T.TYPE_XS}px;color:var(--color-text-secondary);font-weight:600">Filtered by:</span>'
-    for label, key in chips:
-        html += (f'<span style="background:{T.COLOR_INFO_BG};color:{T.COLOR_PRIMARY};border:1px solid {T.COLOR_BORDER};'
-                 f'border-radius:{T.RADIUS_FULL}px;padding:{T.SPACE_1}px {T.SPACE_2}px;font-size:{T.TYPE_XS}px;font-weight:600">'
-                 f'{label} \u2715</span>')
-    html += (f'<span style="font-size:{T.TYPE_XS}px;color:{T.COLOR_DANGER};cursor:pointer;margin-left:{T.SPACE_1}px;'
-             f'font-weight:600">Clear all filters</span></div>')
-    st.markdown(html, unsafe_allow_html=True)
-
-    for label, key in chips:
-        if st.button(label + " \u2715", key=f"chip_{key}", label_visibility="visible"):
-            StateManager.set(key, None)
-            st.rerun()
-    if st.button("Clear all filters", key="chip_clear_all", label_visibility="visible"):
-        StateManager.set("lab_cross_month", None)
-        st.rerun()
+def _build_delta_pill(delta: float) -> str:
+    """Build a revenue delta pill HTML for service panel headers."""
+    if delta == 0:
+        return ""
+    s = fmt_inr_short(abs(delta))
+    if delta > 0:
+        return (
+            f'<span style="background:{T.COLOR_SUCCESS_BG};color:{T.COLOR_SUCCESS};'
+            f'border-radius:{T.RADIUS_FULL}px;padding:2px 8px;font-size:{T.TYPE_XS}px;'
+            f'font-weight:600;margin-left:8px;">+{s} \u20b9</span>'
+        )
+    return (
+        f'<span style="background:{T.COLOR_DANGER_BG};color:{T.COLOR_DANGER};'
+        f'border-radius:{T.RADIUS_FULL}px;padding:2px 8px;font-size:{T.TYPE_XS}px;'
+        f'font-weight:600;margin-left:8px;">-{s} \u20b9</span>'
+    )
 
 
 
@@ -203,94 +198,22 @@ def _render_executive_panel(datasets, mode_str):
     load_cp = fmt_num(d['cp_jc'])
     load_pp = fmt_num(d['pp_jc'])
     load_g = calc_growth_pct(d["cp_jc"], d["pp_jc"], fill_value=0)
-    
-    def _arrow(val):
-        if val > 0: return f'<span class="delta-pill pos">▲ {val:.1f}% vs PP</span>'
-        if val < 0: return f'<span class="delta-pill neg">▼ {abs(val):.1f}% vs PP</span>'
-        return f'<span class="delta-pill">0% vs PP</span>'
-
-    def _kpi_card(title, cp_val, pp_val, g_val, delta_val=None):
-        if g_val > 0:
-            badge = f'<div class="kpi-delta-pos">\u25b2 {g_val:.1f}% vs PP</div>'
-        elif g_val < 0:
-            badge = f'<div class="kpi-delta-neg">\u25bc {abs(g_val):.1f}% vs PP</div>'
-        else:
-            badge = '<div class="kpi-delta-new">0% vs PP</div>'
-        
-        delta_html = ""
-        if delta_val is not None:
-            delta_str = fmt_inr_short(abs(delta_val))
-            if delta_val > 0:
-                delta_html = f'<div class="kpi-delta-pos">\u25b2 {delta_str} \u20b9</div>'
-            elif delta_val < 0:
-                delta_html = f'<div class="kpi-delta-neg">\u25bc {delta_str} \u20b9</div>'
-        
-        return (
-            f'<div class="kpi-card">'
-            f'  <div class="kpi-label">{title}</div>'
-            f'  <div class="kpi-value">{cp_val}</div>'
-            f'  <div class="kpi-sub">PP {pp_val}</div>'
-            f'  {badge}'
-            f'  {delta_html}'
-            f'</div>')
-            
-    def _svc_row(label, cp_v, pp_v):
-        return (
-            f'<div style="display:flex;justify-content:space-between;align-items:center;'
-            f'padding:{T.SPACE_1}px 0;border-bottom:1px solid var(--color-border-sub);">'
-            f'  <div style="color:var(--color-text-secondary);font-size:var(--type-xs);font-weight:600;">{label}</div>'
-            f'  <div style="display:flex;align-items:baseline;gap:{T.SPACE_2}px;">'
-            f'    <span style="color:var(--color-text-primary);font-weight:700;font-size:var(--type-md);">{cp_v}</span>'
-            f'    <span style="color:var(--color-text-secondary);font-size:var(--type-sm);font-weight:500;">PP {pp_v}</span>'
-            f'  </div>'
-            f'</div>'
-        )
-
-    def _svc_panel(title, stats):
-        cp_jobs = str(int(stats['cp_jobs'])) if stats['cp_jobs'] > 0 else "0"
-        pp_jobs = str(int(stats['pp_jobs'])) if stats['pp_jobs'] > 0 else "0"
-        # Display "\u2014" when Job Cards = 0
-        cp_rpc = "\u2014" if stats["cp_rpc"] == 0 and stats["cp_jobs"] == 0 else fmt_inr_short(stats["cp_rpc"])
-        pp_rpc = "\u2014" if stats["pp_rpc"] == 0 and stats["pp_jobs"] == 0 else fmt_inr_short(stats["pp_rpc"])
-        cp_rev = fmt_inr_short(stats["cp_rev"])
-        pp_rev = fmt_inr_short(stats["pp_rev"])
-        
-        # Calculate delta for pills
-        rev_delta = stats["cp_rev"] - stats["pp_rev"]
-        delta_pill = ""
-        if rev_delta != 0:
-            delta_str = fmt_inr_short(abs(rev_delta))
-            if rev_delta > 0:
-                delta_pill = f'<span style="background:#E8F5E9;color:#34C759;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;margin-left:8px;">+{delta_str} \u20b9</span>'
-            else:
-                delta_pill = f'<span style="background:#FFEBEE;color:#FF3B30;border-radius:12px;padding:2px 8px;font-size:11px;font-weight:600;margin-left:8px;">-{delta_str} \u20b9</span>'
-        
-        return (
-            f'<div class="section-card" style="padding:var(--space-4);margin:0;">'
-            f'  <div class="kpi-label" style="margin-bottom:var(--space-2);display:flex;align-items:center;">{title}{delta_pill}</div>'
-            f'  {_svc_row("Jobs", cp_jobs, pp_jobs)}'
-            f'  {_svc_row("Avg Labour", cp_rpc, pp_rpc)}'
-            f'  {_svc_row("Revenue", cp_rev, pp_rev)}'
-            f'</div>'
-        )
 
     # ── Executive Summary — Four KPI Cards ─────────────────────────────────
-    # Four-column KPI row: Labour Revenue, Load, Avg Labour, Growth
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         rev_delta = d["cp_val"] - d["pp_val"]
-        st.markdown(_kpi_card("LABOUR REVENUE", rev_cp, rev_pp, rev_g, rev_delta), unsafe_allow_html=True)
+        st.markdown(render_kpi_card("LABOUR REVENUE", rev_cp, rev_pp, rev_g, rev_delta), unsafe_allow_html=True)
     with col2:
         load_delta = d["cp_jc"] - d["pp_jc"]
-        st.markdown(_kpi_card("LOAD", load_cp, load_pp, load_g, load_delta), unsafe_allow_html=True)
+        st.markdown(render_kpi_card("LOAD", load_cp, load_pp, load_g, load_delta), unsafe_allow_html=True)
     with col3:
         rpc_delta = d["cp_rpc"] - d["pp_rpc"]
-        st.markdown(_kpi_card("AVG LABOUR", rpc_cp, rpc_pp, rpc_g, rpc_delta), unsafe_allow_html=True)
+        st.markdown(render_kpi_card("AVG LABOUR", rpc_cp, rpc_pp, rpc_g, rpc_delta), unsafe_allow_html=True)
     with col4:
         growth_val = fmt_pct(rev_g, sign=True)
-        growth_pp = "0%"
-        growth_g = 0  # Growth itself doesn't have growth
-        st.markdown(_kpi_card("GROWTH", growth_val, growth_pp, growth_g, None), unsafe_allow_html=True)
+        growth_g = 0
+        st.markdown(render_kpi_card("GROWTH", growth_val, "0%", growth_g, None), unsafe_allow_html=True)
 
     st.markdown('<div style="margin:var(--space-4) 0 var(--space-3) 0;border-top:1px solid var(--color-border);"></div>', unsafe_allow_html=True)
     
@@ -321,9 +244,11 @@ def _render_executive_panel(datasets, mode_str):
 
     col4, col5 = st.columns(2)
     with col4:
-        st.markdown(_svc_panel("PMS", d["pms_stats"]), unsafe_allow_html=True)
+        pms_pill = _build_delta_pill(d["pms_stats"]["cp_rev"] - d["pms_stats"]["pp_rev"])
+        st.markdown(render_svc_panel("PMS", d["pms_stats"], delta_pill=pms_pill), unsafe_allow_html=True)
     with col5:
-        st.markdown(_svc_panel("Bodyshop (BR)", d["br_stats"]), unsafe_allow_html=True)
+        br_pill = _build_delta_pill(d["br_stats"]["cp_rev"] - d["br_stats"]["pp_rev"])
+        st.markdown(render_svc_panel("Bodyshop (BR)", d["br_stats"], delta_pill=br_pill), unsafe_allow_html=True)
 
 
 def _render_neg_labour_audit(data):
@@ -436,7 +361,8 @@ def _render_charts(datasets, active_pairs, mode_str):
     )
     
     # Location Growth Horizontal Bar Chart
-    st.markdown('<div class="section-title" style="margin-top:var(--space-5);">\U0001f4ca Location Growth</div>', unsafe_allow_html=True)
+    spacer(20)
+    section_title("\U0001f4ca Location Growth")
     
     loc_growth_data = data["loc_df"].copy()
     loc_growth_data = loc_growth_data[loc_growth_data["PP"] > 10000]  # Filter meaningful locations
@@ -726,10 +652,11 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     n_locs = d["n_total"]
 
 
-    _render_cross_filter_bar()
+    PageBreadcrumb(["Commercial", "Labour"])
+    render_cross_filter_bar("lab_cross_month")
     _render_executive_panel(datasets, mode_str)
     _render_neg_labour_audit(d)
     _render_charts(datasets, active_pairs, mode_str)
     _render_executive_table(datasets, active_pairs, mode_str)
     _render_monthly_detail(datasets, active_pairs, mode_str)
-
+    UniversalFooter()

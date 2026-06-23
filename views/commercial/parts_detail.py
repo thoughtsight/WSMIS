@@ -1,6 +1,6 @@
 from views.shared import *
 from views.components.chart_engine import ChartEngine
-from views.dashboard_common import style_table_bold_total, style_margin_color, get_drill_params, clear_drill_params
+from views.dashboard_common import style_table_bold_total, style_margin_color, get_drill_params, clear_drill_params, inject_responsive_css
 from utils.constants import CATEGORY_COLORS
 
 """
@@ -70,7 +70,7 @@ def _apply_detail_filters(df):
 
 
 def _render_category_table(fdf, sel_cat):
-    st.markdown('<div class="section-title">📦 Parts Category Revenue by Location</div>', unsafe_allow_html=True)
+    section_title("📦 Parts Category Revenue by Location")
     
     CAT_COLS_LIST = list(CAT_MAP.values())
     numeric_cols = CAT_COLS_LIST + ["Pre-GST Parts", "Parts Profit", "Parts Discount"]
@@ -169,7 +169,7 @@ def _render_category_table(fdf, sel_cat):
 
 
 def _render_category_mix_chart(fdf, mode_str):
-    st.markdown('<div class="section-title">📊 Category Mix — CP vs PP</div>', unsafe_allow_html=True)
+    section_title("📊 Category Mix — CP vs PP")
     
     has_cat = fdf[list(CAT_MAP.values())].sum().sum() > 0
     if not has_cat:
@@ -203,7 +203,7 @@ def _render_category_mix_chart(fdf, mode_str):
 
 
 def _render_service_contribution(fdf):
-    st.markdown('<div class="section-title">🔧 Parts Revenue by Service Type</div>', unsafe_allow_html=True)
+    section_title("🔧 Parts Revenue by Service Type")
 
     # Use cached service_summary for efficiency
     svc_gb = service_summary(fdf, as_index=True)
@@ -277,7 +277,7 @@ def _render_service_contribution(fdf):
 
 def _render_service_mix_donut(fdf):
     """Render Service Type Mix Analysis as a donut chart."""
-    st.markdown('<div class="section-title">🍩 Service Type Mix Analysis</div>', unsafe_allow_html=True)
+    section_title("🍩 Service Type Mix Analysis")
 
     # Use cached service_summary for efficiency
     svc_gb = service_summary(fdf, as_index=True)
@@ -321,7 +321,7 @@ def _render_service_mix_donut(fdf):
 
 def _render_monthly_trend_table(fdf):
     """Render Monthly Trend Table showing last 6 months of data."""
-    st.markdown('<div class="section-title">📈 Monthly Trend (Last 6 Months)</div>', unsafe_allow_html=True)
+    section_title("📈 Monthly Trend (Last 6 Months)")
 
     # Use cached monthly_summary for efficiency
     month_gb = monthly_summary(fdf, as_index=True)
@@ -372,7 +372,7 @@ def _render_monthly_trend_table(fdf):
 
 
 def _render_discount_table(fdf):
-    st.markdown('<div class="section-title">🏷 Parts Discount by Location</div>', unsafe_allow_html=True)
+    section_title("🏷 Parts Discount by Location")
     
     for c in ["Pre-GST Parts", "Parts Profit", "Parts Discount"] + list(CAT_MAP.values()):
         if c in fdf.columns:
@@ -412,13 +412,13 @@ def _render_discount_table(fdf):
 
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
+    inject_responsive_css()
+    PageBreadcrumb(["Commercial", "Parts Executive", "Parts Detail"])
     if df.empty:
         EmptyState("No parts data for the selected period.")
         return
     
     mode_str = "YoY" if comparison_mode else "MoM"
-    
-    st.markdown('<div class="section-title">📋 Parts Detail — Drill-Down View</div>', unsafe_allow_html=True)
     
     fdf, sel_cat = _apply_detail_filters(df)
     
@@ -437,3 +437,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     _render_monthly_trend_table(fdf)
     st.markdown("---")
     _render_discount_table(fdf)
+    UniversalFooter()

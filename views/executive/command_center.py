@@ -103,6 +103,7 @@ def generate_executive_narrative(cp, pp, cp_months, pp_months):
 
 def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None):
     inject_responsive_css()
+    PageBreadcrumb(["Executive", "Command Center"])
     with st.spinner("Loading Executive Command Center..."):
         if df.empty:
             EmptyState('No data available for the selected period.')
@@ -389,3 +390,5 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None):
             with col:
                 if st.button(label, key=f"nav_drill_{page_key}", use_container_width=True):
                     navigate_to_page(page_key)
+
+    UniversalFooter()

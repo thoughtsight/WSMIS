@@ -168,3 +168,32 @@ def divider():
     """Renders a standard divider."""
     from ui.design_tokens import T
     st.markdown(f'<hr style="border:0; border-top:1px solid var(--color-border); margin:{T.SPACE_4}px 0;" />', unsafe_allow_html=True)
+
+
+def PageBreadcrumb(crumbs: list):
+    """
+    Renders a breadcrumb navigation trail showing domain hierarchy.
+    crumbs: ordered list of strings from root domain to current page.
+    The last item is rendered as the active (bold) page.
+    """
+    parts = []
+    for i, label in enumerate(crumbs):
+        is_last = (i == len(crumbs) - 1)
+        if is_last:
+            parts.append(
+                f'<span style="color:var(--color-text-primary);font-weight:600;font-size:12px;">'
+                f'{label}</span>'
+            )
+        else:
+            parts.append(
+                f'<span style="color:var(--color-text-secondary);font-size:12px;">{label}</span>'
+            )
+        if not is_last:
+            parts.append(
+                '<span style="color:var(--color-text-tertiary);font-size:12px;margin:0 5px;">›</span>'
+            )
+    inner = "".join(parts)
+    st.markdown(
+        f'<div style="margin-bottom:10px;padding:2px 0;line-height:1.5;">{inner}</div>',
+        unsafe_allow_html=True
+    )

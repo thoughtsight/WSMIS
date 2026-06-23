@@ -737,9 +737,7 @@ def _render_charts(d, active_pairs, mode_str, targets_df=None):
 
 
 def _render_executive_table(d, active_pairs, mode_str):
-    st.markdown(
-        f'<div class="section-title">📊 Executive Location Performance — {mode_str}</div>',
-        unsafe_allow_html=True)
+    section_title(f"📊 Executive Location Performance — {mode_str}")
     
     all_locs = sorted(set(d["cp_loc_month_piv"]["Location Name"]) |
                       set(d["pp_loc_month_piv"]["Location Name"]))
@@ -874,9 +872,7 @@ def _render_executive_table(d, active_pairs, mode_str):
 
 def _render_monthly_detail(d, active_pairs, mode_str):
     with st.expander("▶ Monthly Location Performance (Detailed View)", expanded=False):
-        st.markdown(
-            f'<div class="section-title">📊 Monthly Detail — {mode_str}</div>',
-            unsafe_allow_html=True)
+        section_title(f"📊 Monthly Detail — {mode_str}")
         
         all_locs = sorted(set(d["cp_loc_month_piv"]["Location Name"]) |
                           set(d["pp_loc_month_piv"]["Location Name"]))
@@ -929,6 +925,7 @@ def _render_monthly_detail(d, active_pairs, mode_str):
 
 def render(df, targets_df, pairs, comparison_mode=True, selected_months=None):
     inject_responsive_css()
+    PageBreadcrumb(["Commercial", "Parts Executive"])
     if df.empty:
         EmptyState("No parts data for the selected period.")
         return
@@ -959,3 +956,4 @@ def render(df, targets_df, pairs, comparison_mode=True, selected_months=None):
     _render_executive_table(d, active_pairs, mode_str)
     _render_low_margin_locations(d)
     _render_monthly_detail(d, active_pairs, mode_str)
+    UniversalFooter()

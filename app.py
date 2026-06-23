@@ -13,7 +13,6 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import gspread
 from google.oauth2.service_account import Credentials
 from datetime import datetime
 from io import BytesIO
@@ -490,322 +489,6 @@ def render_global_filters(df):
 
 
 
-# ── V2 URL Routing Infrastructure ────────────────────────────────────────
-# Activated when LEGACY_NAV = False in config/settings.py
-# URL format: ?page=<slug>  (e.g., ?page=cockpit, ?page=labour)
-
-PAGE_SLUGS = {
-    "cockpit":           "Cockpit",
-    "overview":          "Overview",
-    "executive":         "Executive",
-    "labour":            "Labour",
-    "parts-executive":   "Parts Executive",
-    "parts-detail":      "Parts Detail",
-    "margin":            "Margin",
-    "sales-mix":         "Sales Mix",
-    "discounts":         "Discounts",
-    "leakage-centre":    "Leakage Center",
-    "advisors":          "Advisors",
-    "advisor-mom":       "Advisor MoM",
-    "locations":         "Locations",
-    "trends":            "Trends",
-    "targets":           "Targets",
-    "expense-analysis":  "Expense Analysis",
-    "profit-and-loss":   "Profit & Loss",
-    "reports":           "Reports",
-    "internal-audit":    "Internal Audit",
-    "audit-intelligence":"Audit Intelligence",
-    "system-health":     "System Health",
-}
-SLUG_TO_PAGE = PAGE_SLUGS
-PAGE_TO_SLUG = {v: k for k, v in PAGE_SLUGS.items()}
-
-def resolve_page() -> str:
-    """Resolve the active page from URL params (V2) or session state (V1)."""
-    from config.settings import LEGACY_NAV
-    
-    # Initialize services
-    auth_service = get_auth_service()
-    route_service = get_route_service()
-    
-    if LEGACY_NAV:
-        # V1: Use session state with route validation
-        page_name = st.session_state.get("current_page", "Cockpit")
-        
-        # Validate route exists in registry (even in V1 for consistency)
-        route_path = f"/{page_name}"
-        if not route_service.get_registry().is_valid_route(route_path):
-            # Invalid route - fall back to Cockpit
-            page_name = "Cockpit"
-            st.session_state["current_page"] = "Cockpit"
-        
-        # --- TEMPORARY DEBUG LOGGING ---
-        clicked_slug = st.query_params.get("page", "None")
-        print("\n=== ROUTING DEBUG (V1) ===")
-        print(f"Clicked page (URL Slug): {clicked_slug}")
-        print(f"Resolved slug: (Ignored in V1 due to LEGACY_NAV=True)")
-        print(f"Current session page: {st.session_state.get('current_page', 'None')}")
-        print(f"Resolved page: {page_name}")
-        print(f"Final rendered page: {page_name}")
-        print("==========================\n")
-        
-        return page_name
-
-    # V2: read from st.query_params["page"]
-    page_slug = st.query_params.get("page", "")
-    if page_slug and page_slug in SLUG_TO_PAGE:
-        page_name = SLUG_TO_PAGE[page_slug]
-    elif page_slug:
-        # Unknown slug — fall back to default, do not crash
-        page_name = "Cockpit"
-    else:
-        # No ?page= param — use session state (first visit defaults to Cockpit)
-        page_name = st.session_state.get("current_page", "Cockpit")
-
-    # Sync to session state so render_page_router works unchanged
-    st.session_state["current_page"] = page_name
-    return page_name
-
-def set_page_url(page_name: str) -> None:
-    """Update the URL query parameter to reflect the current page (V2 only)."""
-    from config.settings import LEGACY_NAV
-    if LEGACY_NAV:
-        return
-    slug = PAGE_TO_SLUG.get(page_name, "cockpit")
-    st.query_params["page"] = slug
-
-def sidebar_navigation():
-    from config.settings import LEGACY_NAV
-    if LEGACY_NAV:
-        _sidebar_v1()
-    else:
-        _sidebar_v2()
-
-def _sidebar_v1():
-    with st.sidebar:
-        st.markdown("### 🚗 Navigation")
-        st.markdown("---")
-    
-        # Helper for active state buttons
-        def nav_btn(label, target_page):
-            # Using 'secondary' for inactive, 'primary' for active
-            is_active = st.session_state.get("current_page") == target_page
-            btn_type = "primary" if is_active else "secondary"
-            if st.button(label, use_container_width=True, type=btn_type):
-                st.session_state["current_page"] = target_page
-                st.rerun()
-
-        # 📊 OVERVIEW
-        nav_btn("📊 Executive Command Center", "Cockpit")
-    
-        # 💰 REVENUE
-        with st.expander("💰 REVENUE"):
-            nav_btn("Labour", "Labour")
-            nav_btn("Parts Executive", "Parts Executive")
-            nav_btn("Parts Detail", "Parts Detail")
-            nav_btn("Margin", "Margin")
-            nav_btn("Sales Mix", "Sales Mix")
-            nav_btn("Discounts", "Discounts")
-            nav_btn("Leakage Center", "Leakage Center")
-
-        # 👥 PEOPLE
-        with st.expander("👥 PEOPLE"):
-            nav_btn("Advisors", "Advisors")
-            nav_btn("Advisor MoM", "Advisor MoM")
-
-        # 📈 PERFORMANCE
-        with st.expander("📈 PERFORMANCE"):
-            nav_btn("Locations", "Locations")
-            nav_btn("Trends", "Trends")
-            nav_btn("Targets", "Targets")
-
-        # 🏦 FINANCE
-        with st.expander("🏦 FINANCE"):
-            nav_btn("Expense Analysis", "Expense Analysis")
-            nav_btn("Profit & Loss", "Profit & Loss")
-
-        # 🛠 ADMIN
-        with st.expander("🛠 ADMIN"):
-            nav_btn("Reports", "Reports")
-            nav_btn("Internal Audit", "Internal Audit")
-            nav_btn("Audit Intelligence", "Audit Intelligence")
-
-        # ⚙️ OPERATIONS (Hidden)
-        if st.query_params.get("admin") == "true":
-            with st.expander("⚙️ OPERATIONS"):
-                nav_btn("System Health", "System Health")
-
-def _sidebar_v2():
-    """V2 sidebar — URL-driven navigation via st.query_params."""
-    current = st.session_state.get("current_page", "Cockpit")
-
-    def nav_btn(label, target_page):
-        slug = PAGE_TO_SLUG.get(target_page, "cockpit")
-        is_active = current == target_page
-        btn_type = "primary" if is_active else "secondary"
-        if st.button(label, use_container_width=True, type=btn_type,
-                      key=f"v2_{slug}"):
-            set_page_url(target_page)
-            st.session_state["current_page"] = target_page
-            st.rerun()
-
-    with st.sidebar:
-        st.markdown("### 🚗 Navigation")
-        st.markdown("---")
-
-        nav_btn("📊 Executive Command Center", "Cockpit")
-
-        with st.expander("💰 REVENUE"):
-            nav_btn("Labour", "Labour")
-            nav_btn("Parts Executive", "Parts Executive")
-            nav_btn("Parts Detail", "Parts Detail")
-            nav_btn("Margin", "Margin")
-            nav_btn("Sales Mix", "Sales Mix")
-            nav_btn("Discounts", "Discounts")
-            nav_btn("Leakage Center", "Leakage Center")
-
-        with st.expander("👥 PEOPLE"):
-            nav_btn("Advisors", "Advisors")
-            nav_btn("Advisor MoM", "Advisor MoM")
-
-        with st.expander("📈 PERFORMANCE"):
-            nav_btn("Locations", "Locations")
-            nav_btn("Trends", "Trends")
-            nav_btn("Targets", "Targets")
-
-        with st.expander("🏦 FINANCE"):
-            nav_btn("Expense Analysis", "Expense Analysis")
-            nav_btn("Profit & Loss", "Profit & Loss")
-
-        with st.expander("🛠 ADMIN"):
-            nav_btn("Reports", "Reports")
-            nav_btn("Internal Audit", "Internal Audit")
-            nav_btn("Audit Intelligence", "Audit Intelligence")
-
-        if st.query_params.get("admin") == "true":
-            with st.expander("⚙️ OPERATIONS"):
-                nav_btn("System Health", "System Health")
-
-def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, alerts, comparison_mode, selected_months, targets_df, client_config, exp_df_filtered_cp=None):
-    # Initialize services
-    auth_service = get_auth_service()
-    route_service = get_route_service()
-    
-    page = st.session_state.get("current_page", "Cockpit")
-    route_path = f"/{page}"
-    
-    # Validate route exists
-    if not route_service.get_registry().is_valid_route(route_path):
-        # Invalid route - render 404 page
-        from views.unauthorized import render_not_found_page
-        render_not_found_page()
-        return
-    
-    # Check admin route protection
-    from services.route_service import RouteType
-    route_type = route_service.get_registry().get_route_type(route_path)
-    if route_type == RouteType.ADMIN:
-        # Admin routes require admin role (for now, check query param)
-        if st.query_params.get("admin") != "true":
-            # Unauthorized - render 403 page
-            from views.unauthorized import render_unauthorized_page
-            render_unauthorized_page()
-            return
-
-    if page == "Cockpit":
-        with st.spinner("Loading Cockpit..."):
-            from views.cockpit import render
-        render(df_filtered_full, pairs, alerts, comparison_mode, selected_months)
-    elif page == "Overview":
-        with st.spinner("Crunching numbers..."):
-            from views.overview import render
-        safe_render(render, df_filtered_full, pairs, alerts, comparison_mode, selected_months)
-    elif page == "Labour":
-        with st.spinner("Crunching numbers..."):
-            from views.labour import render
-        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
-    elif page == "Parts Executive":
-        with st.spinner("Crunching numbers..."):
-            from views.parts_executive import render
-        safe_render(render, df_filtered_full, targets_df, pairs, comparison_mode, selected_months)
-    elif page == "Parts Detail":
-        with st.spinner("Crunching numbers..."):
-            from views.parts_detail import render
-        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
-    elif page == "Margin":
-        with st.spinner("Crunching numbers..."):
-            from views.margin import render
-        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
-    elif page == "Discounts":
-        with st.spinner("Crunching numbers..."):
-            from views.discount import render
-        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
-    elif page == "Leakage Center":
-        with st.spinner("Crunching numbers..."):
-            from views.leakage import render
-        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
-    elif page == "Sales Mix":
-        with st.spinner("Crunching numbers..."):
-            from views.sales_mix import render
-        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
-    elif page == "Advisors":
-        with st.spinner("Crunching numbers..."):
-            from views.advisor import render
-        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
-    elif page == "Advisor MoM":
-        with st.spinner("Crunching numbers..."):
-            from views.advisor_mom import render
-        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
-    elif page == "Locations":
-        with st.spinner("Crunching numbers..."):
-            from views.locations import render
-        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
-    elif page == "Trends":
-        with st.spinner("Crunching numbers..."):
-            from views.trends import render
-        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
-    elif page == "Targets":
-        with st.spinner("Crunching numbers..."):
-            from views.targets import render
-        safe_render(render, df_filtered_cp, targets_df, pairs)
-    elif page == "Reports":
-        with st.status("📄 Generating reports...", expanded=False) as _s:
-            from views.reports import render
-        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
-        _s.update(label="Reports ready", state="complete", expanded=False)
-    elif page == "Executive":
-        with st.status("📊 Building executive summary...", expanded=False) as _s:
-            from views.executive import render
-        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
-        _s.update(label="Executive summary ready", state="complete", expanded=False)
-    elif page == "Expense Analysis":
-        with st.spinner("Loading Expense Analysis..."):
-            from views.expense import render
-        safe_render(render, exp_df_filtered_cp, selected_months)
-    elif page == "Profit & Loss":
-        with st.spinner("Loading Profit & Loss..."):
-            from views.pnl import render
-        safe_render(render, df_filtered_cp, exp_df_filtered_cp, selected_months)
-    elif page == "Audit Intelligence":
-        with st.spinner("Loading Audit Intelligence..."):
-            from views.audit_intelligence import render
-        safe_render(render, df_filtered_full, pairs, alerts, comparison_mode, selected_months)
-    elif page == "Internal Audit":
-        with st.status("🔍 Running audit analysis...", expanded=False) as _s:
-            st.caption("⏳ Exception scan · Leakage detection · Risk register")
-            from views.internal_audit import render
-        safe_render(render, df_filtered, client_config, cp=df_filtered_cp)
-        _s.update(label="Audit analysis complete", state="complete", expanded=False)
-    elif page == "System Health":
-        with st.spinner("Loading System Health..."):
-            from views.system_health import render
-        safe_render(render, df_filtered_full, exp_df_filtered_cp)
-    else:
-        st.error(f"Page '{page}' not found.")
-
-    # ── Universal Footer ──────────────────────────────────────────
-    UniversalFooter()
-
 def main():
     # ── Environment Validation (once per session) ───────────────────
     if "env_validated" not in st.session_state:
@@ -869,13 +552,15 @@ def main():
     if "startup_time" not in st.session_state:
         st.session_state["startup_time"] = round(time.time() - START_TIME, 2)
 
-    # ── Resolve active page (V1: session state, V2: URL query param) ──
-    resolve_page()
+    # ── Initialize Navigation & Sidebar ─────────────────────────────
+    # Instantiate pg early so the sidebar is built before global filters.
+    # The returned 'active_page' provides the .title which we use to check capabilities.
+    from services.route_service import get_route_service, AppContext
+    route_service = get_route_service()
+    pages = route_service.get_blueprint_pages()
+    active_page = st.navigation(pages)
 
     client_names = list(CLIENTS.keys())
-
-    # ── Sidebar Navigation ────────────────────────────────────────
-    sidebar_navigation()
 
     # ── Sidebar Workspace ─────────────────────────────────────────
     with st.sidebar:
@@ -908,15 +593,16 @@ def main():
         return
 
     # ── Month picker & filters ─────────────────────────────────────
-    selected_months, pairs, comparison_mode = render_month_picker(df, st.session_state.get('current_page'))
+    # Pass active_page.title to preserve PAGE_CAPABILITIES lookups
+    selected_months, pairs, comparison_mode = render_month_picker(df, active_page.title)
     df_filtered, active_filter_count = render_global_filters(df)
-    df_filtered, page_active_count = render_page_header_filters(df_filtered, st.session_state.get('current_page'))
+    df_filtered, page_active_count = render_page_header_filters(df_filtered, active_page.title)
 
     # ── Universal Header ──────────────────────────────────────────
     synced_at_str = (st.session_state.get("data_synced_at") or data_loaded_time).strftime('%d %b %Y, %I:%M %p') if (data_loaded_time or st.session_state.get("data_synced_at")) else "Unknown"
     UniversalHeader(
         client_name=sel_client,
-        report_title="Executive Command Center" if st.session_state.get('current_page', 'Cockpit') in ["Cockpit", "Overview", "Executive"] else st.session_state.get('current_page', 'Cockpit'),
+        report_title="Executive Command Center" if active_page.title in ["Cockpit", "Overview", "Executive"] else active_page.title,
         selected_months=selected_months,
         synced_at=synced_at_str
     )
@@ -956,11 +642,11 @@ def main():
     alerts = compute_alerts(cp, pp)
 
     # Negative labour — shown on all pages except Labour (Labour has its own Section G audit)
-    if st.session_state.get("current_page") != "Labour":
+    if active_page.title != "Labour":
         render_neg_labour_alert(cp)
 
     # Period summary pill
-    if selected_months and pp_months and st.session_state.get("current_page") != "Labour":
+    if selected_months and pp_months and active_page.title != "Labour":
         sorted_cp = sorted(selected_months, key=lambda x: MONTH_SORT_ORDER.get(x, 99))
         sorted_pp = sorted(pp_months, key=lambda x: MONTH_SORT_ORDER.get(x, 99))
         st.markdown(
@@ -976,8 +662,22 @@ def main():
 
 
 
-    # ── Page Router ───────────────────────────────────────────────
-    render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, alerts, comparison_mode, selected_months, targets_df, CLIENTS[sel_client], exp_df_filtered_cp)
+    # ── Create AppContext & Execute Active Page ───────────────────
+    st.session_state.app_context = AppContext(
+        df_filtered_full=df_filtered_full,
+        df_filtered_cp=df_filtered_cp,
+        df_filtered=df_filtered,
+        pairs=pairs,
+        alerts=alerts,
+        comparison_mode=comparison_mode,
+        selected_months=selected_months,
+        targets_df=targets_df,
+        client_config=CLIENTS[sel_client],
+        exp_df_filtered_cp=exp_df_filtered_cp
+    )
+
+    # Execute the selected page wrapper
+    active_page.run()
 
 if __name__ == "__main__":
     main()

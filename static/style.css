@@ -394,11 +394,14 @@ html, body, [class*="css"] {
 /* ─────────────────────────────────────────────────────────────────────────── */
 div[role="radiogroup"] { flex-wrap: nowrap; overflow-x: auto; gap: 0 !important; }
 div[role="radiogroup"] > label > div:first-of-type { display: none !important; }
-div[role="radiogroup"] > label {
+
+div[role="radiogroup"] > label,
+button[kind="segmented_control"],
+button[kind="segmented_controlActive"] {
   padding: 6px 14px !important;
-  background: var(--color-surface2);
-  border-radius: 20px;
-  border: 1px solid var(--color-border);
+  background: var(--color-surface2) !important;
+  border-radius: 20px !important;
+  border: 1px solid var(--color-border) !important;
   margin-right: 6px !important;
   margin-bottom: 0 !important;
   cursor: pointer;
@@ -407,14 +410,18 @@ div[role="radiogroup"] > label {
   align-items: center;
   justify-content: center;
 }
+
 div[role="radiogroup"] > label[data-checked="true"],
-div[role="radiogroup"] > label:has(input:checked) {
+div[role="radiogroup"] > label:has(input:checked),
+button[kind="segmented_controlActive"] {
   background: var(--color-primary) !important;
   border-color: var(--color-primary) !important;
   box-shadow: var(--color-primary-alpha);
 }
+
 div[role="radiogroup"] > label[data-checked="true"] p,
-div[role="radiogroup"] > label:has(input:checked) p { color: var(--color-surface) !important; font-weight: 600; }
+div[role="radiogroup"] > label:has(input:checked) p,
+button[kind="segmented_controlActive"] p { color: var(--color-surface) !important; font-weight: 600; }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* SCORING (scorecards, traffic)                                               */
@@ -685,4 +692,18 @@ section[data-testid="stSidebar"] [aria-current="page"] {
   .section-title      { font-size: 13pt !important; }
   .insight-title      { font-size: 10pt !important; }
   .insight-stat       { font-size: 9pt !important; }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* STREAMLIT COMPONENT OVERRIDES (RC1)                                            */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+/* RC1 - Improve Streamlit widget label readability */
+[data-testid="stWidgetLabel"] p {
+    color: var(--color-text-primary) !important;
+}
+
+/* RC1 - Improve unselected segmented-control readability */
+button[kind="segmented_control"] p {
+    color: var(--color-text-primary) !important;
 }

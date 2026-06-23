@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 
 """
 pages.audit_intelligence — Audit Intelligence Report page (PR-027)
@@ -145,10 +146,12 @@ def _render_docx_download(markdown: str, filename: str = "audit_intelligence_rep
 
 
 def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
-    st.markdown('<div class="section-card"><div class="section-title">🧠 Audit Intelligence</div>', unsafe_allow_html=True)
+    inject_responsive_css()
+    PageBreadcrumb(["Audit", "Audit Intelligence"])
+    section_title("🧠 Audit Intelligence")
 
     if df is None or df.empty:
-        st.warning("No data available for this period.")
+        EmptyState("No data available for this period.")
         return
 
     # Period labels for context
@@ -215,8 +218,8 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
         st.markdown(report.markdown)
 
         # Download buttons
-        st.markdown("---")
-        st.markdown("### Download Report")
+        divider()
+        section_title("📥 Download Report")
         dl_col1, dl_col2, dl_col3 = st.columns(3)
         with dl_col1:
             _render_markdown_download(report.markdown)
@@ -227,3 +230,4 @@ def render(df, pairs, alerts, comparison_mode=True, selected_months=None):
 
     else:
         st.info("Click 'Generate Audit Intelligence Report' to create a new report.")
+    UniversalFooter()

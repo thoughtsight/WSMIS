@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 
 import sys
 import os
@@ -58,7 +59,9 @@ def get_test_count():
         return "Not available"
 
 def render(df_full, exp_df):
-    st.markdown('<div class="section-title">🩺 System Health & Diagnostics</div>', unsafe_allow_html=True)
+    inject_responsive_css()
+    PageBreadcrumb(["Administration", "System Health"])
+    section_title("🩺 System Health & Diagnostics")
     
     metrics, data_metrics, health_status = check_health(df_full, exp_df)
     
@@ -77,7 +80,7 @@ def render(df_full, exp_df):
     with c4: st.metric("Streamlit", metrics["Streamlit Version"])
     with c5: st.metric("Pandas", metrics["Pandas Version"])
     
-    st.markdown("---")
+    divider()
     
     # 2. Data Metrics
     st.markdown('### 📊 Data Pipeline')
@@ -87,7 +90,7 @@ def render(df_full, exp_df):
     with d3: st.metric("Memory Usage", data_metrics["Total Memory"])
     with d4: st.metric("DataFrame Size", f"{data_metrics['Columns Loaded']} cols")
     
-    st.markdown("---")
+    divider()
     
     # 3. Performance & Times
     st.markdown('### ⚡ Performance Profiling')
@@ -100,7 +103,7 @@ def render(df_full, exp_df):
     with p2: st.metric("Last Refresh", last_refresh)
     with p3: st.metric("Tests Verified", tests)
     
-    st.markdown("---")
+    divider()
     
     # 4. Health Status (UI Green/Yellow/Red)
     st.markdown('### 🛡️ Core Services Status')
@@ -111,3 +114,4 @@ def render(df_full, exp_df):
     h2.markdown(f"**Configuration Valid:**<br>{get_badge(health_status['Configuration Valid'])}", unsafe_allow_html=True)
     h3.markdown(f"**Credentials Loaded:**<br>{get_badge(health_status['Credentials Loaded'])}", unsafe_allow_html=True)
     h4.markdown(f"**Environment Loaded:**<br>{get_badge(health_status['Environment Loaded'])}", unsafe_allow_html=True)
+    UniversalFooter()

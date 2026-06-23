@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 
 
 
@@ -11,6 +12,8 @@ from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
+    inject_responsive_css()
+    PageBreadcrumb(["Operations", "Locations"])
     if df.empty:
         EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
         return
@@ -72,7 +75,6 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         loc_data = loc_data.sort_values("Health_Color")
     
     # Render cards
-    st.markdown(f'<div style="margin-bottom:{T.SPACE_4}px;">', unsafe_allow_html=True)
     for i in range(0, len(loc_data), 3):
         cols = st.columns(3)
         for j in range(3):
@@ -123,20 +125,14 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                         st.session_state.filter_loc_group = []
                         st.rerun()
     
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Location ranking chart
-    st.markdown('<div class="section-card"><div class="section-title">📊 Location Ranking by Net Labour</div>', unsafe_allow_html=True)
+    section_title("📊 Location Ranking by Net Labour")
     fig = px.bar(loc_data, x="NL", y="Location Name", orientation="h", color="Grp", color_discrete_map=LOC_COLORS)
     fig.update_layout(**get_ply_layout(height=400, xaxis_title="", yaxis_title=""))
     st.plotly_chart(fig, width='stretch', key="loc_health_rank",
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d","lasso2d"],
                             "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Arena vs Nexa comparison
-    st.markdown('<div class="section-card"><div class="section-title">⚖️ Arena vs Nexa Comparison</div>', unsafe_allow_html=True)
+    section_title("⚖️ Arena vs Nexa Comparison")
     group_comp = loc_data.groupby("Grp", dropna=False).agg(
         JCs=("JCs","sum"),
         NL=("NL","sum"),
@@ -166,5 +162,5 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
                                 "toImageButtonOptions": {"format":"png","scale":2}})
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    UniversalFooter()
 

@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 
 
 
@@ -11,6 +12,8 @@ from config.settings import LABOUR_DISC_BENCH
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
+    inject_responsive_css()
+    PageBreadcrumb(["Performance", "Reports"])
     with st.spinner("Computing Reports..."):
         if df.empty:
             EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
@@ -20,7 +23,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     cp = df
     pp = apply_month_filter(df, "Month Name", pp_months)
     
-    st.markdown('<div class="section-card"><div class="section-title">📄 Report Generator</div>', unsafe_allow_html=True)
+    section_title("📄 Report Generator")
     
     # Report 1: Monthly MIS Summary (Excel)
     st.markdown("### 1. Monthly MIS Summary (Excel)")
@@ -71,7 +74,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         except ImportError:
             st.error("openpyxl not installed")
     
-    st.markdown("---")
+    divider()
     
     # Report 2: Advisor Performance Report
     st.markdown("### 2. Advisor Performance Report")
@@ -105,7 +108,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         except ImportError:
             st.error("openpyxl not installed")
     
-    st.markdown("---")
+    divider()
     
     # Report 3: Discount Leakage Report
     st.markdown("### 3. Discount Leakage Report")
@@ -146,7 +149,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         except ImportError:
             st.error("openpyxl not installed")
 
-    st.markdown("---")
+    divider()
 
     # Report 4: Advisor Incentive Sheet
     st.markdown("### 4. Advisor Incentive Sheet")
@@ -207,7 +210,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         except ImportError:
             st.error("openpyxl not installed")
 
-    st.markdown("---")
+    divider()
 
     # Report 5: AI Narrative Summary
     st.markdown("### 5. AI Narrative Summary")
@@ -267,5 +270,5 @@ VOR Charges: {fmt_inr(get_vor_charges(df_cp))} —
             key="narrative_download"
         )
     
-    st.markdown('</div>', unsafe_allow_html=True)
+    UniversalFooter()
 

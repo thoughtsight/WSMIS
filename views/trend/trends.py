@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 
 
 
@@ -12,6 +13,8 @@ from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.design_tokens import T
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
+    inject_responsive_css()
+    PageBreadcrumb(["Performance", "Trends"])
     if df.empty:
         EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
         return
@@ -19,7 +22,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     # Auto Insights
     c1, c2 = st.columns([3, 7])
     with c1:
-        st.markdown('<div class="section-card" style="height:100%"><div class="section-title">🤖 Auto Insights</div>', unsafe_allow_html=True)
+        section_title("🤖 Auto Insights")
         pp_months = [p[1] for p in pairs]
         # df is already filtered by selected_months at main level, use it directly for current period
         cp = df
@@ -60,10 +63,9 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         if new_locs:
             st.markdown(f'<div class="insight-card"><div class="insight-title">🆕 New Locations</div><div class="insight-stat">{len(new_locs)} added this FY: {", ".join(new_locs[:3])}{"..." if len(new_locs)>3 else ""}</div></div>', unsafe_allow_html=True)
             
-        st.markdown('</div>', unsafe_allow_html=True)
         
     with c2:
-        st.markdown('<div class="section-card"><div class="section-title">📊 YoY Comparison Area</div>', unsafe_allow_html=True)
+        section_title("📊 YoY Comparison Area")
         both = pd.concat([cp.assign(P="This FY"), pp.assign(P="Last FY")])
         tr = both.groupby(["Month_Sort", "Month Name", "P"], as_index=False, dropna=False)["Net_Labour"].sum().sort_values("Month_Sort")
         fig = px.area(tr, x="Month Name", y="Net_Labour", color="P", color_discrete_map={"This FY":C["primary"], "Last FY":C["gold"]})
@@ -72,11 +74,10 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
                                 "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
         
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="section-card"><div class="section-title">📈 MoM Labour Growth %</div>', unsafe_allow_html=True)
+        section_title("📈 MoM Labour Growth %")
         mom = both.groupby(["P", "Month_Sort", "Month Name"], as_index=False, dropna=False)["Net_Labour"].sum()
         mom = mom.sort_values(["P", "Month_Sort"])
         mom["MoM"] = mom.groupby("P", dropna=False)["Net_Labour"].pct_change() * 100
@@ -86,9 +87,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
                                 "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
     with c2:
-        st.markdown('<div class="section-card"><div class="section-title">⚖️ L100P Location × Month</div>', unsafe_allow_html=True)
+        section_title("⚖️ L100P Location × Month")
         l1 = cp.groupby(["Location Name", "Month_Sort", "Month Name"], as_index=False, dropna=False).agg(NL=("Net_Labour","sum"), NP=("Net_Parts","sum")).sort_values("Month_Sort")
         l1["L100P"] = np.where(l1["NP"]>0, l1["NL"]/l1["NP"]*100, 0)
         fig = px.line(l1, x="Month Name", y="L100P", color="Location Name", markers=True)
@@ -98,9 +98,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
                                 "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
         
-    st.markdown('<div class="section-card"><div class="section-title">🏢 WS vs BS Trend (Stacked Area)</div>', unsafe_allow_html=True)
+    section_title("🏢 WS vs BS Trend (Stacked Area)")
     wbs = cp.groupby(["Month_Sort", "Month Name", "Service_Type_Group"], as_index=False, dropna=False)["Net_Labour"].sum().sort_values("Month_Sort")
     fig = px.area(wbs, x="Month Name", y="Net_Labour", color="Service_Type_Group", color_discrete_map=MP_COLORS)
     fig.update_layout(**get_ply_layout(height=350, xaxis_title="", yaxis_title=""))
@@ -108,10 +107,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d","lasso2d"],
                             "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
-    
     # Forecasting Section
-    st.markdown('<div class="forecast-card"><div class="section-title">📈 3-Month Forecast (Linear Trend)</div>', unsafe_allow_html=True)
+    section_title("📈 3-Month Forecast (Linear Trend)")
 
     def forecast_metric(df, metric_col, n_forecast=3):
         hist = df.groupby('Month_Sort', dropna=False)[metric_col].sum().reset_index().sort_values('Month_Sort')
@@ -142,7 +139,6 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         forecast_df = pd.DataFrame(forecast_data)
         
         # Combined chart
-        st.markdown('<div style="margin-bottom:16px;">', unsafe_allow_html=True)
         fig = go.Figure()
         
         for metric in metrics_to_forecast:
@@ -175,7 +171,6 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d","lasso2d"],
                                 "toImageButtonOptions": {"format":"png","scale":2}})
-        st.markdown('</div>', unsafe_allow_html=True)
         
         # Forecast KPI cards
         st.markdown('<p class="forecast-note">Simple linear projection. Actual results may vary based on seasonality.</p>', unsafe_allow_html=True)
@@ -189,5 +184,4 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                         st.markdown(f"<div style='font-size:14px;font-weight:600;'>{row['Month']}: {fmt_inr(row['Value'])}</div>", unsafe_allow_html=True)
     else:
         st.info("Insufficient data for forecasting (need at least 6 months of data)")
-    
-    st.markdown('</div>', unsafe_allow_html=True)
+    UniversalFooter()

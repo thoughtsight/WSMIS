@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 
 
 
@@ -11,6 +12,8 @@ from ui.traffic import yoy_badge, traffic_light, tgt_badge
 
 def render(exp_df, selected_months):
     """Expense Analysis Executive Dashboard - uses EXP worksheet."""
+    inject_responsive_css()
+    PageBreadcrumb(["Finance", "Expense Analysis"])
     import exp_report
 
     if exp_df is None or exp_df.empty:
@@ -53,3 +56,4 @@ def render(exp_df, selected_months):
         components.html(exp_html, height=2800, scrolling=True)
     except Exception as e:
         st.error(f"Error generating Expense Analysis dashboard: {e}")
+    UniversalFooter()

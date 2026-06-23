@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 from ui.helpers import _render_finding
 
 
@@ -12,6 +13,8 @@ from config.settings import LABOUR_DISC_BENCH, PARTS_DISC_BENCH, HIGH_DISC_ALERT
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
+    inject_responsive_css()
+    PageBreadcrumb(["Audit", "Leakage Center"])
     with st.spinner("Computing Leakage..."):
         if df.empty:
             EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
@@ -68,7 +71,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     locs_above_bench    = int((loc_lab["Disc_Pct"] > LAB_BENCH).sum()) if not loc_lab.empty else 0
 
     # ── Hero KPIs ────────────────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">💸 Leakage Summary</div>', unsafe_allow_html=True)
+    section_title("💸 Leakage Summary")
     KPIEngine.render_grid([
         {"label": "Labour Leakage ₹",     "value": fmt_inr(total_lab_leakage)},
         {"label": "Parts Leakage ₹",      "value": fmt_inr(total_parts_leakage)},
@@ -76,10 +79,9 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         {"label": "Leakage % of Revenue", "value": f"{overall_disc_pct:.1f}%"},
         {"label": "Locs Above Benchmark", "value": str(locs_above_bench)},
     ], cols=5)
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Location Leakage Table ────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">📍 Location Leakage Table</div>', unsafe_allow_html=True)
+    section_title("📍 Location Leakage Table")
     if not loc_merged.empty:
         def _sev(d_pct):
             if d_pct >= 20: return "🔴"
@@ -97,10 +99,9 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         html_table(disp_loc, height="400px")
     else:
         st.info("No location data available")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Advisor Leakage Table ─────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">🎯 Advisor Leakage Table</div>', unsafe_allow_html=True)
+    section_title("🎯 Advisor Leakage Table")
     if not adv_lab.empty:
         disp_adv = pd.DataFrame({
             "Advisor":        adv_lab[ADV_COL],
@@ -112,18 +113,16 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         html_table(disp_adv, height="400px")
     else:
         st.info("No advisor data available")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Heatmap ──────────────────────────────────────────────────
     heat_view = st.radio("Heatmap View", ["By Location", "By Advisor"], horizontal=True, key="lc_heat_view")
-    st.markdown('<div class="section-card"><div class="section-title">🗺️ Recoverable Leakage Heatmap</div>', unsafe_allow_html=True)
+    section_title("🗺️ Recoverable Leakage Heatmap")
     render_discount_heatmap(cp, heat_view, "lc")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Leakage Trend ─────────────────────────────────────────────
     c1, c2 = st.columns(2)
     with c1:
-        st.markdown('<div class="section-card"><div class="section-title">📉 Labour Discount % Trend</div>', unsafe_allow_html=True)
+        section_title("📉 Labour Discount % Trend")
         ltr = monthly_summary(cp, as_index=False).agg(
             L=("Pre-GST Labour", "sum"), D=("Labour Discount", "sum")
         ).sort_values("Month_Sort")
@@ -136,9 +135,8 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d", "lasso2d"],
                                 "toImageButtonOptions": {"format": "png", "scale": 2}})
-        st.markdown('</div>', unsafe_allow_html=True)
     with c2:
-        st.markdown('<div class="section-card"><div class="section-title">📉 Parts Discount % Trend</div>', unsafe_allow_html=True)
+        section_title("📉 Parts Discount % Trend")
         ptr = monthly_summary(cp, as_index=False).agg(
             L=("Pre-GST Parts", "sum"), D=("Parts Discount", "sum")
         ).sort_values("Month_Sort")
@@ -151,10 +149,9 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d", "lasso2d"],
                                 "toImageButtonOptions": {"format": "png", "scale": 2}})
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Top 5 Recovery Opportunities ─────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">💎 Top 5 Recovery Opportunities</div>', unsafe_allow_html=True)
+    section_title("💎 Top 5 Recovery Opportunities")
     if not loc_merged.empty:
         opps = loc_merged[loc_merged["Total_Leakage"] > 0].head(5)
         if opps.empty:
@@ -174,10 +171,9 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
             )
     else:
         st.info("No location data to evaluate")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Management Actions ────────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">✅ Management Actions</div>', unsafe_allow_html=True)
+    section_title("✅ Management Actions")
     actions = []
 
     if not loc_lab.empty:
@@ -209,10 +205,9 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         render_alerts(actions)
     else:
         st.success("✅ All locations and advisors within discount benchmarks")
-    st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Drilldown ─────────────────────────────────────────────────
-    st.markdown('<div class="section-card"><div class="section-title">🔍 Drilldown</div>', unsafe_allow_html=True)
+    section_title("🔍 Drilldown")
     dc1, dc2 = st.columns(2)
     with dc1:
         all_locs = sorted(cp["Location Name"].dropna().unique().tolist())
@@ -266,5 +261,5 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                 "Leakage":    adv_monthly["Leakage"].apply(fmt_inr),
             })
             html_table(disp_adv_drill, height="250px")
-    st.markdown('</div>', unsafe_allow_html=True)
+    UniversalFooter()
 

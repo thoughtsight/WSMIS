@@ -2,6 +2,7 @@ from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
 from ui.helpers import _render_finding
+from views.dashboard_common import inject_responsive_css
 
 import streamlit as st
 
@@ -15,6 +16,8 @@ from services.export_service import ExportMeta
 
 def render(df_jctat, client_config, cp=None):
     """Internal Dealer Audit Report V2 — Investigation layer + native dashboard."""
+    inject_responsive_css()
+    PageBreadcrumb(["Audit", "Internal Audit"])
     ia_tabs = st.tabs(["⚠️ Exception Audit", "💰 Revenue Leakage Dashboard", "🔧 Dealer Audit (Operational)"])
 
     # V2 INVESTIGATION LAYER (uses WSMIS CP data)
@@ -22,7 +25,7 @@ def render(df_jctat, client_config, cp=None):
         audit_df = cp if (cp is not None and not cp.empty) else pd.DataFrame()
 
         if not audit_df.empty and "Location Name" in audit_df.columns:
-            st.markdown('<div class="section-card"><div class="section-title">🔍 Internal Audit V2 — Investigation Layer</div>', unsafe_allow_html=True)
+            section_title("🔍 Internal Audit V2 — Investigation Layer")
 
             LAB_BENCH   = LABOUR_DISC_BENCH
             PARTS_BENCH = PARTS_DISC_BENCH
@@ -375,8 +378,7 @@ def render(df_jctat, client_config, cp=None):
                 label="Export Audit Data",
             )
 
-            st.markdown('</div>', unsafe_allow_html=True)
-            st.markdown("---")
+            divider()
 
     # LABOUR COMPLIANCE & LEAKAGE TAB
     with ia_tabs[1]:
@@ -521,4 +523,5 @@ def render(df_jctat, client_config, cp=None):
             )
         except Exception as e:
             st.error(f"Dealer Audit Error: {e}")
+    UniversalFooter()
 

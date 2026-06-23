@@ -1,6 +1,7 @@
 from views.shared import *
 from views.components.kpi_engine import KPIEngine
 from views.components.chart_engine import ChartEngine
+from views.dashboard_common import inject_responsive_css
 
 
 
@@ -12,10 +13,11 @@ from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.design_tokens import T
 
 def render(df_act, targets_df, pairs):
+    inject_responsive_css()
+    PageBreadcrumb(["Performance", "Targets"])
     if df_act.empty:
         EmptyState("No data available.")
         return
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
     if targets_df.empty:
         st.info(
             f'📊 No targets loaded. Create a Google Sheet tab named exactly '
@@ -23,7 +25,6 @@ def render(df_act, targets_df, pairs):
             f'Format: `Month Name | Location Name | WS_Labour_Target | '
             f'BS_Labour_Target | WS_Parts_Target | BS_Parts_Target`'
         )
-        st.markdown('</div>', unsafe_allow_html=True)
         return
 
     # df_act is already filtered by selected_months at main level, use it directly
@@ -33,7 +34,6 @@ def render(df_act, targets_df, pairs):
     if tgt.empty:
         tgt_months = sorted(act["Month Name"].unique(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))
         st.warning(f"No targets found for periods: {', '.join(tgt_months)}")
-        st.markdown('</div>', unsafe_allow_html=True)
         return
 
     # aggregate actuals by location + ws/bs
@@ -81,8 +81,7 @@ def render(df_act, targets_df, pairs):
          "sub": f"Act: {fmt_inr(bs_pts_a)} / Tgt: {fmt_inr(bs_pts_t)}", "cp": bs_pts_a, "pp": bs_pts_t},
     ], cols=4)
 
-    st.markdown(f'<div class="section-title" style="margin-top:{T.SPACE_4}px">'
-                '🎯 Location-wise Target Achievement</div>', unsafe_allow_html=True)
+    section_title("🎯 Location-wise Target Achievement")
 
     rows = []
     for _, r in merged.sort_values("WS_Lab_Ach", ascending=False).iterrows():
@@ -145,5 +144,5 @@ def render(df_act, targets_df, pairs):
                     config={"displayModeBar": True, "displaylogo": False,
                             "modeBarButtonsToRemove": ["select2d","lasso2d"],
                             "toImageButtonOptions": {"format":"png","scale":2}})
-    st.markdown('</div>', unsafe_allow_html=True)
+    UniversalFooter()
 

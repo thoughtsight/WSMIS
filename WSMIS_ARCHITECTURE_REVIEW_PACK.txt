@@ -1,0 +1,1039 @@
+================================================================================
+ WSMIS ARCHITECTURE REVIEW PACK
+ Workshop Management Information System
+ v1.0.0-RC  |  Prepared: 2026-06-23
+ Purpose: External Product Architecture Review (Claude Opus Web 4.8 / GPT-5.5)
+================================================================================
+
+
+################################################################################
+# SECTION 1 — REPOSITORY OVERVIEW
+################################################################################
+
+1.1 FOLDER STRUCTURE
+---------------------
+
+WSMIS/
+├── app.py                        # Entry point (983 lines)
+├── config/
+│   ├── settings.py               # App constants, benchmarks, thresholds
+│   ├── environment.py            # Google credential resolution (3-tier)
+│   ├── ai_config.py              # AI provider configuration
+│   ├── paths.py                  # Path utilities
+│   └── users.yaml                # RBAC user/role definitions
+├── services/
+│   ├── state_manager.py          # Namespace-driven session state
+│   ├── state_registry.py         # Namespace registration
+│   ├── route_service.py          # Route registry, validation, protection
+│   ├── auth_service.py           # RBAC authentication
+│   ├── aggregation_cache.py      # In-memory LRU aggregation cache
+│   ├── benchmark_provider.py     # Benchmark threshold provider (ABC)
+│   ├── executive_alert_engine.py # Structured alert evaluation
+│   ├── export_service.py         # CSV/Excel/PDF export
+│   ├── financial_service.py      # Unified financial metrics facade
+│   ├── error_handler.py          # Exception hierarchy + safe_render
+│   ├── logger.py                 # Application logger
+│   ├── logging_service.py        # Performance logging decorator
+│   └── ai/                       # AI narrative generation
+├── utils/
+│   ├── constants.py              # CLIENTS, locations, months, palettes
+│   ├── loaders.py                # Google Sheets data loaders (6 functions)
+│   ├── aggregations.py           # Aggregation facade (delegates to cache)
+│   ├── filters.py                # DataFrame filter functions
+│   ├── cleaning.py               # Raw data normalization
+│   └── calculations/
+│       ├── common.py             # safe_divide, calc_growth_pct, calc_ratio
+│       ├── fact_metrics.py       # Column extraction helpers (20+ metrics)
+│       ├── revenue.py            # Revenue calculations
+│       ├── margin.py             # Margin calculations
+│       ├── discount.py           # Discount calculations
+│       └── leakage.py            # Leakage/recovery calculations
+├── ui/
+│   ├── design_tokens.py          # Design token registry (T class)
+│   ├── formatters.py             # INR/percent/number formatters
+│   ├── tables.py                 # HTML table rendering
+│   ├── traffic.py                # YoY badge, traffic light, target badge
+│   ├── helpers.py                # Chart helpers, alerts, heatmap
+│   ├── export_buttons.py         # Download button components
+│   ├── executive_tooltip.py      # Custom tooltip builder
+│   └── components/
+│       ├── core.py               # UniversalHeader, Footer, EmptyState, badge
+│       ├── metrics.py            # MetricCard, KPIGrid
+│       ├── filters.py            # Filter components
+│       └── tables.py             # Table components
+├── views/
+│   ├── shared.py                 # Global imports (wildcard) for all views
+│   ├── dashboard_common.py       # Shared dashboard utilities
+│   ├── commercial/               # Revenue dashboards
+│   │   ├── parts_executive.py    # Parts Executive (961 lines)
+│   │   ├── parts_detail.py       # Parts Detail (439 lines)
+│   │   ├── sales_mix.py          # Sales Mix (243 lines)
+│   │   ├── labour.py             # Labour Revenue (735 lines)
+│   │   ├── discount.py           # Discount & Leakage (983 lines)
+│   │   └── margin.py             # Margin Analysis (137 lines)
+│   ├── executive/                # Executive dashboards
+│   │   ├── command_center.py     # Command Center (393 lines)
+│   │   ├── executive.py          # Thin wrapper -> command_center
+│   │   ├── overview.py           # Thin wrapper -> command_center
+│   │   └── cockpit.py            # Thin wrapper -> command_center
+│   ├── performance/
+│   │   └── targets.py            # Target vs Actual (149 lines)
+│   ├── financial/
+│   │   ├── expense.py            # Expense Analysis (55 lines)
+│   │   └── pnl.py                # Profit & Loss (31 lines)
+│   ├── components/
+│   │   ├── chart_engine.py       # Plotly chart standardizer
+│   │   └── kpi_engine.py         # KPI grid renderer
+│   └── [other pages]             # advisor, locations, trends, reports, etc.
+├── static/
+│   └── style.css                 # Apple Light Theme CSS
+└── tests/
+    └── test_golden_snapshot.py   # Golden snapshot tests
+
+1.2 MAJOR MODULES
+------------------
+
+  Module               Lines   Purpose
+  ────────────────────────────  ──────────────────────────────────────
+  app.py                983     Entry point, routing, filters, orchestration
+  Commercial reports   ~3,500   Revenue dashboards (6 modules)
+  Executive reports      ~550   Command Center + Targets
+  Services layer       ~1,400   State, routing, caching, auth, export
+  Utils layer          ~1,100   Loaders, calculations, aggregations, filters
+  UI layer               ~900   Design tokens, formatters, components
+
+1.3 ENTRY POINT
+----------------
+
+  app.py::main()
+  ├── Environment validation (config/environment.py)
+  ├── Service initialization (auth_service, route_service)
+  ├── URL/session synchronization
+  ├── Deployment password gate (optional)
+  ├── Page resolution (V1 session state / V2 URL params)
+  ├── Sidebar navigation
+  ├── Data loading (Google Sheets via loaders.py)
+  │   ├── load_data() -> df, exp_df
+  │   └── load_targets() -> targets_df
+  ├── Month picker & global filters
+  ├── Universal Header
+  ├── Alert computation (compute_alerts)
+  └── render_page_router() -> page-specific render()
+
+1.4 ROUTING
+------------
+
+  Navigation Modes:
+  - V1 (LEGACY_NAV=True):  Session state based (current_page key)
+  - V2 (LEGACY_NAV=False): URL query param based (?page=slug)
+
+  Page Slugs (20 pages):
+    cockpit, overview, executive, labour, parts-executive, parts-detail,
+    margin, sales-mix, discounts, leakage-centre, advisors, advisor-mom,
+    locations, trends, targets, expense-analysis, profit-and-loss,
+    reports, internal-audit, audit-intelligence, system-health
+
+  Route Registry (services/route_service.py):
+    - RouteType.PUBLIC:    /, /login, /logout
+    - RouteType.PROTECTED: All 20 dashboard routes
+    - RouteType.ADMIN:     /admin, /admin/users, /admin/roles, /admin/audit
+
+  Route Validation:
+    - render_page_router() validates route exists in registry
+    - Admin routes require ?admin=true query param
+    - Invalid routes render 404 page
+
+1.5 STATE MANAGEMENT
+---------------------
+
+  StateManager (services/state_manager.py):
+    - Namespace-driven architecture (lab_, parts_, cockpit_, flt_)
+    - Protected keys survive Reset All (auth, cache, system state)
+    - Reset Page: clears active namespace + global filters
+    - Reset All: clears everything except protected keys
+
+  Registered Namespaces (services/state_registry.py):
+    - lab_:       business_view, cross_month
+    - parts_:     cross_month, drill_location, drill_category, drill_from_page
+    - cockpit_:   alert_tab
+
+  Global Filter Keys (shared across pages):
+    - month_preset, selected_months_custom, comparison_mode_radio
+    - filter_location, filter_mp_pb, filter_svc_type, filter_advisor
+
+1.6 DATA FLOW
+--------------
+
+  Google Sheets -> loaders.py -> clean_dataframe() -> df (cached 5min)
+                                  ├── df_filtered_full (CP + PP months)
+                                  ├── df_filtered_cp   (CP months only)
+                                  └── exp_df_filtered_cp
+                                        │
+  load_targets() -> targets_df ─────────┤
+                                        │
+  render_page_router(df_filtered_full, df_filtered_cp, df_filtered,
+                     pairs, alerts, comparison_mode, selected_months,
+                     targets_df, client_config, exp_df_filtered_cp)
+                                        │
+                    ┌───────────────────┼───────────────────┐
+                    ▼                   ▼                   ▼
+              Commercial Pages    Executive Pages    Finance Pages
+              (df_filtered_full/   (df_filtered_full)  (exp_df_filtered_cp)
+               df_filtered_cp)
+
+
+################################################################################
+# SECTION 2 — APPLICATION NAVIGATION
+################################################################################
+
+2.1 SIDEBAR STRUCTURE
+-----------------------
+
+  V1 Sidebar (_sidebar_v1):
+    ┌─────────────────────────────┐
+    │ ### Navigation              │
+    │ ---                         │
+    │ [Executive Command Center]  │  ← Primary entry (Cockpit page)
+    │                             │
+    │ ▸ REVENUE                   │  ← Expander
+    │   Labour                    │
+    │   Parts Executive           │
+    │   Parts Detail              │
+    │   Margin                    │
+    │   Sales Mix                 │
+    │   Discounts                 │
+    │   Leakage Center            │
+    │                             │
+    │ ▸ PEOPLE                    │
+    │   Advisors                  │
+    │   Advisor MoM               │
+    │                             │
+    │ ▸ PERFORMANCE               │
+    │   Locations                 │
+    │   Trends                    │
+    │   Targets                   │
+    │                             │
+    │ ▸ FINANCE                   │
+    │   Expense Analysis          │
+    │   Profit & Loss             │
+    │                             │
+    │ ▸ ADMIN                     │
+    │   Reports                   │
+    │   Internal Audit            │
+    │   Audit Intelligence        │
+    │                             │
+    │ ▸ OPERATIONS (hidden)       │  ← Only if ?admin=true
+    │   System Health             │
+    └─────────────────────────────┘
+
+  V2 Sidebar (_sidebar_v2): Same layout, URL-driven (set_page_url).
+
+  Client Selector (below navigation):
+    ┌─────────────────────────────┐
+    │ ### Workspace               │
+    │ [Rukmani Motors ▾]          │
+    └─────────────────────────────┘
+
+2.2 PAGE HIERARCHY
+--------------------
+
+  Level 0: Executive Command Center (Cockpit) — default page
+  Level 1: Revenue
+    ├── Labour
+    ├── Parts Executive → Parts Detail (drill-through)
+    ├── Margin
+    ├── Sales Mix
+    ├── Discounts
+    └── Leakage Center
+  Level 2: People
+    ├── Advisors
+    └── Advisor MoM
+  Level 3: Performance
+    ├── Locations
+    ├── Trends
+    └── Targets
+  Level 4: Finance
+    ├── Expense Analysis
+    └── Profit & Loss
+  Level 5: Admin
+    ├── Reports
+    ├── Internal Audit
+    └── Audit Intelligence
+  Level 6: Operations (admin-only)
+    └── System Health
+
+2.3 CURRENT NAVIGATION FLOW
+
+  User lands → Cockpit (default)
+    → Clicks sidebar button → st.session_state["current_page"] = target
+    → st.rerun() → app re-executes → render_page_router() dispatches
+
+  Drill-through flow (Parts module):
+    Parts Executive → navigate_to_page("Parts Detail", {location, category})
+    → Sets parts_drill_location, parts_drill_category in StateManager
+    → Parts Detail reads drill params via get_drill_params()
+
+2.4 PAGE ROUTING LOGIC
+------------------------
+
+  render_page_router() in app.py (lines 689-807):
+    1. Get current page from session state
+    2. Validate route exists in RouteRegistry
+    3. Check admin route protection (?admin=true)
+    4. Lazy-import page render function
+    5. Call safe_render() wrapping the render function
+    6. Render UniversalFooter
+
+  Page Capabilities (app.py lines 50-69):
+    - default_period: "1M" or "3M"
+    - comparison_mode: True/False
+    - show_period_filter: True/False
+    - show_comparison_filter: True/False
+    - show_service_type_filter: True/False
+    - additional_module_filters: ["Advisor"], etc.
+
+
+################################################################################
+# SECTION 3 — ARCHITECTURE (Core Files Only)
+################################################################################
+
+3.1 APP.PY — Entry Point & Orchestrator
+-----------------------------------------
+
+  Key Functions:
+    main()                          # Main entry, session init, data load
+    resolve_page()                  # V1/V2 page resolution
+    set_page_url(page_name)         # V2 URL sync
+    sidebar_navigation()            # Dispatches to V1/V2 sidebar
+    render_month_picker(df, page)   # Period/comparison/location filters
+    render_global_filters(df)       # Location + BU filters
+    render_page_header_filters()    # Service type + advisor filters
+    compute_alerts(df_cp, df_pp)    # Alert system (4 alert types)
+    build_pairs(selected, all, sort, mode)  # YoY/MoM pair builder
+    render_page_router(...)         # Page dispatch (20 pages)
+    classify_location(name, config) # Arena/Nexa/Other classifier
+
+  Constants:
+    PAGE_CAPABILITIES  # 20 pages × filter capabilities
+    PAGE_SLUGS         # 20 slug→page mappings
+
+3.2 ROUTING — Route Registry & Validation
+-------------------------------------------
+
+  services/route_service.py:
+
+  class RouteType(Enum): PUBLIC, PROTECTED, ADMIN
+
+  @dataclass Route:
+    path, type, title, handler, allowed_roles, allowed_dashboards, query_params
+
+  class RouteRegistry:
+    _routes: Dict[str, Route]
+    _initialize_default_routes()  # Registers all 20+ routes
+    register_route(route)
+    is_valid_route(path) -> bool
+    get_route_type(path) -> RouteType
+
+  class RouteValidator:
+    validate_route(path) -> (bool, error)
+    validate_query_params(path, params) -> (bool, error)
+    check_route_access(path, role) -> (bool, error)
+
+  class RouteService:
+    registry: RouteRegistry
+    validator: RouteValidator
+    navigate_to(path, params)
+    sync_url_to_session()
+
+3.3 STATE MANAGER — Namespace-Driven Session State
+----------------------------------------------------
+
+  services/state_manager.py:
+
+  @dataclass NamespaceConfig:
+    prefix: str
+    defaults: Dict[str, Any]
+    description: str
+
+  class StateManager:
+    GLOBAL_NAMESPACE = "flt_"
+    PROTECTED_KEYS = {authenticated, user_email, data_synced_at, ...}
+    _namespaces: Dict[str, NamespaceConfig]
+
+    register_namespace(config)
+    initialize_namespace(prefix)
+    get(key, default) / set(key, value)
+    reset_page(active_namespace) -> int
+    reset_all() -> int
+    validate_namespaces() -> Dict
+    get_state_summary() -> Dict
+
+3.4 NAVIGATION — Sidebar & Page Resolution
+--------------------------------------------
+
+  V1: Session state based
+    - st.session_state["current_page"] = page_name
+    - Route validation via RouteRegistry
+
+  V2: URL query param based
+    - st.query_params["page"] = slug
+    - SLUG_TO_PAGE / PAGE_TO_SLUG mappings
+
+3.5 DASHBOARD FRAMEWORK — Shared View Utilities
+--------------------------------------------------
+
+  views/dashboard_common.py:
+
+  inject_responsive_css()          # CSS overrides (idempotent)
+  apply_period_filters(df, pairs, cross_month_key)  # CP/PP split
+  render_kpi_card(title, cp, pp, g, delta, is_margin, margin_g)
+  render_svc_row_with_delta(label, cp_v, pp_v, cp_raw, pp_raw)
+  render_svc_panel(title, stats, delta_pill)
+  render_cross_filter_bar(cross_month_key, month_label)
+  style_table_bold_total(row, location_col)
+  style_color_growth(val)
+  style_margin_color(val)
+  format_rank_movement(val)
+  compute_rank_movement(loc, cp_ranks, pp_ranks)
+  navigate_to_page(page_name, drill_params)
+  get_drill_params() / clear_drill_params()
+
+3.6 KPI FRAMEWORK — MetricCard & KPIGrid
+-------------------------------------------
+
+  ui/components/metrics.py:
+
+  MetricCard(label, value, sub, cp, pp, pp_label, benchmark, target,
+             invert_trend, sparkline, sparkline_color)
+    - Renders HTML card with growth badge, sparkline, meta
+    - Growth calc via calc_growth_pct()
+    - Inverted trend support (discounts: negative = good)
+
+  KPIGrid(metrics, cols)
+    - Responsive grid of MetricCards
+    - Auto-column count from metric list length
+
+  views/components/kpi_engine.py:
+
+  KPIEngine.render_grid(metrics, cols)
+    - Thin wrapper around KPIGrid
+
+3.7 CHART FRAMEWORK — ChartEngine
+------------------------------------
+
+  views/components/chart_engine.py:
+
+  class ChartEngine:
+    apply_chart(fig, title, height, text_col, bar_text_pos, size,
+                x_title, y_title, barmode)
+      - Standardizes Plotly figures: margins, fonts, hover, legend
+      - 4 size presets: small (280px), medium (360px), large (440px), full (520px)
+      - Trace-specific text positioning (bar vs scatter)
+
+    render_card(title, fig, description, height, x_title, y_title, barmode)
+      - Wrapped chart card with HTML header
+
+3.8 FILTER FRAMEWORK
+----------------------
+
+  utils/filters.py:
+
+  apply_location_filter(df, col, locations) -> df
+  apply_location_group_filter(df, col, groups) -> df
+  apply_service_type_filter(df, col, svc_types) -> df
+  apply_advisor_filter(df, col, advisors) -> df
+  apply_month_filter(df, col, months) -> df
+  split_cp_pp(df, col, cp_months, pp_months) -> (cp, pp)
+  filter_valid_advisors(df, adv_col) -> df
+  apply_global_filters(df, locations, group, svc_group, svc_types, advisors) -> df
+
+  Filter Pipeline (app.py):
+    1. render_month_picker() → period, comparison, BU, location, service type
+    2. render_global_filters() → location + BU
+    3. render_page_header_filters() → service type + advisor
+    4. Result: df_filtered → df_filtered_full (CP+PP) / df_filtered_cp (CP only)
+
+3.9 AGGREGATION FRAMEWORK
+----------------------------
+
+  utils/aggregations.py (facade):
+    location_summary(df, loc_col, as_index, dropna, **kwargs)
+    advisor_summary(df, adv_col, as_index, dropna, **kwargs)
+    monthly_summary(df, month_cols, as_index, dropna, sort_col, **kwargs)
+    service_summary(df, svc_col, as_index, dropna, **kwargs)
+    group_summary(df, group_cols, as_index, dropna, **kwargs)
+    dealer_summary(df, **kwargs)
+    pivot_summary(df, index, columns, values, aggfunc, fill_value)
+    top_n(df, group_cols, metric_col, n, ascending)
+    bottom_n(df, group_cols, metric_col, n)
+    rank_entities(df, group_col, metric_col, ascending)
+    category_summary(df, cat_cols, as_index, dropna, **kwargs)
+
+  services/aggregation_cache.py (LRU cache):
+    - MD5 hash of DataFrame shape + index for cache key
+    - LRU eviction (max 10 entries, 1hr TTL)
+    - Thread-safe (threading.RLock)
+    - Memoizes GroupBy objects AND aggregation results
+    - Specialized: get_location_summary, get_advisor_summary, get_month_summary
+
+3.10 EXPORT FRAMEWORK
+-----------------------
+
+  services/export_service.py:
+
+  @dataclass ExportMeta:
+    report_title, location, date_range, app_name, version, generated_at
+
+  build_filename(location, report_name, ext) -> str
+  export_csv(df, meta) -> bytes           # UTF-8 with metadata header
+  export_excel(df, meta) -> bytes         # openpyxl, styled workbook
+  export_pdf(df, meta) -> bytes           # reportlab, landscape A4
+
+  ui/export_buttons.py:
+  render_export_buttons(df, meta, formats, key_prefix, label, collapsed)
+    - CSV / Excel / PDF download buttons
+    - Filename: <Location>_<Report>_<YYYY-MM-DD>.<ext>
+
+
+################################################################################
+# SECTION 4 — COMMERCIAL REPORTS
+################################################################################
+
+4.1 PARTS EXECUTIVE (views/commercial/parts_executive.py — 961 lines)
+-----------------------------------------------------------------------
+
+  render(df, targets_df, pairs, comparison_mode, selected_months)
+
+  Internal functions (13):
+    _init_state, _apply_filters, _compute_metrics,
+    _render_cross_filter_bar, _render_narrative_banner, _render_ai_narrative,
+    _render_executive_panel, _render_waterfall, _render_low_margin_locations,
+    _render_category_heatmap, _render_charts, _render_executive_table,
+    _render_monthly_detail
+
+  Dependencies:
+    - views.shared.* (wildcard imports)
+    - ChartEngine, KPIGrid, StateManager
+    - dashboard_common (inject_responsive_css, apply_period_filters,
+      render_cross_filter_bar, render_svc_panel, style_table_bold_total,
+      style_color_growth, style_margin_color, compute_rank_movement,
+      format_rank_movement, navigate_to_page)
+
+  NOTE: Only commercial report with non-standard signature (extra targets_df).
+
+4.2 PARTS DETAIL (views/commercial/parts_detail.py — 439 lines)
+------------------------------------------------------------------
+
+  render(df, pairs, comparison_mode, selected_months)
+
+  Internal functions (7):
+    _apply_detail_filters, _render_category_table, _render_category_mix_chart,
+    _render_service_contribution, _render_service_mix_donut,
+    _render_monthly_trend_table, _render_discount_table
+
+  Key constant: CAT_MAP (category name → column name mapping)
+
+4.3 SALES MIX (views/commercial/sales_mix.py — 243 lines)
+------------------------------------------------------------
+
+  render(df, pairs, comparison_mode, selected_months)
+
+  Internal functions (6):
+    _apply_filters, _compute_metrics, _get_table_data,
+    _render_kpis, _render_tables, _render_charts
+
+4.4 LABOUR (views/commercial/labour.py — 735 lines)
+------------------------------------------------------
+
+  render(df, pairs, comparison_mode, selected_months)
+
+  Internal functions (11):
+    _init_state, _apply_filters, _compute_metrics, _prepare_datasets,
+    _render_cross_filter_bar, _render_executive_panel,
+    _render_neg_labour_audit, _render_charts, _render_executive_table,
+    _format_growth_pct, _render_monthly_detail
+
+  Extra filters: Business View (Workshop/Bodyshop/All), Service Type
+
+4.5 DISCOUNT (views/commercial/discount.py — 983 lines)
+---------------------------------------------------------
+
+  render(df, pairs, comparison_mode, selected_months)
+
+  Internal functions (11):
+    _prepare_data, _compute_discount_metrics, _render_ceo_alert_banner,
+    _render_ceo_kpis, _render_trend_chart, _render_location_table,
+    _render_heatmap, _render_service_breakdown, _render_advisor_table,
+    _render_anomaly_table, _render_parts_discount
+
+  External loader: load_discount_thresholds(sheet_id)
+
+4.6 MARGIN (views/commercial/margin.py — 137 lines)
+------------------------------------------------------
+
+  render(df, pairs, comparison_mode, selected_months)
+
+  No internal helper functions — single flat render().
+
+4.7 P&L (views/financial/pnl.py — 31 lines)
+----------------------------------------------
+
+  render(df_filtered, exp_df_filtered, selected_months)
+
+  Delegates to: pnl_report.py (lazy import)
+
+4.8 EXPENSE (views/financial/expense.py — 55 lines)
+------------------------------------------------------
+
+  render(exp_df, selected_months)
+
+  Delegates to: exp_report.py (lazy import)
+
+
+################################################################################
+# SECTION 5 — EXECUTIVE REPORTS
+################################################################################
+
+5.1 COMMAND CENTER (views/executive/command_center.py — 393 lines)
+--------------------------------------------------------------------
+
+  render(df, pairs, alerts=None, comparison_mode=True, selected_months=None)
+
+  External loader: load_targets(sheet_id) — independent load
+  External services: ExecutiveAlertEngine, DefaultBenchmarkProvider
+
+  Internal functions:
+    generate_executive_narrative(cp, pp, cp_months, pp_months)
+
+  Zones:
+    Zone A: Identity & Health Strip (KPIs: Revenue, Margin%, JCs, Avg Labour/JC, Discount%, Revenue vs Target)
+    Zone B: Alert & Opportunity Rail (ExecutiveAlertEngine.evaluate)
+
+5.2 EXECUTIVE DASHBOARD (views/executive/executive.py — 6 lines)
+------------------------------------------------------------------
+
+  Thin wrapper: render = render_executive
+  Delegates to: command_center.render()
+
+5.3 OVERVIEW (views/executive/overview.py — 6 lines)
+-------------------------------------------------------
+
+  Thin wrapper: render = render_overview
+  Delegates to: command_center.render()
+
+5.4 COCKPIT (views/executive/cockpit.py — 6 lines)
+------------------------------------------------------
+
+  Thin wrapper: render = render_cockpit
+  Delegates to: command_center.render()
+
+5.5 TARGETS (views/performance/targets.py — 149 lines)
+---------------------------------------------------------
+
+  render(df_act, targets_df, pairs)
+
+  Reads: TARGET_TAB constant (utils/loaders.py)
+  Flow: Filter targets by month → aggregate actuals by location → merge → achievement KPIs + charts
+
+
+################################################################################
+# SECTION 6 — SHARED SERVICES
+################################################################################
+
+6.1 LOADERS (utils/loaders.py — 351 lines)
+---------------------------------------------
+
+  Authentication:
+    get_gc() -> gspread.client.Client     # Cached, 20s timeout
+    # 3-tier: Streamlit Secrets > Env Var > Local file
+
+  Core Loaders:
+    load_raw_worksheet(sheet_id, tab)     # Main WSMIS data
+    load_raw_expense(sheet_id)            # EXP sheet
+    load_contacts(sheet_id)               # Help tab (location mapping)
+    load_targets(sheet_id)                # MP_PB_Targets tab
+    load_discount_thresholds(sheet_id)    # MP_PB_Targets tab (same!)
+    load_unbilled_sheets(sheet_id)        # 3 unbilled tabs
+
+  Constants:
+    TARGET_TAB = "MP_PB_Targets"
+    APPROVED_DISC_TAB = "MP_PB_Targets"  # Same tab as targets!
+    TARGET_COLS = ["Month Name", "Location Name", "WS_Labour_Target", ...]
+    GSHEET_TIMEOUT = 20  # seconds
+
+  Infrastructure:
+    _timed_op(label, func)  # Structured logging + timeout guard
+
+6.2 CALCULATIONS (utils/calculations/)
+-----------------------------------------
+
+  common.py (45 lines):
+    safe_divide(num, den, fill)     # Division by zero safe
+    calc_ratio(num, den, mult, fill) # Percentage/ratio
+    calc_growth_pct(current, prior, fill)  # YoY/MoM growth %
+    calc_contribution_pct(part, total, fill)
+    calc_achievement_pct(actual, target, fill)
+    calc_variance(current, target)
+
+  fact_metrics.py (118 lines):
+    _get_metric(df, col, aggregate)  # Core extraction helper
+    20+ metric extractors: get_labour_sales, get_parts_sales,
+    get_net_labour, get_net_parts, get_labour_discount, get_parts_discount,
+    get_oil_sales, get_tyre_sales, get_battery_sales, get_accessory_sales,
+    get_parts_profit, get_fsc_income, get_otc_income, get_msil_labour_claim,
+    get_internal_consumption, get_dealer_foc, get_vor_charges,
+    get_total_margin, get_jobcard_count
+    get_revenue_components(df) -> dict
+    get_margin_components(df) -> dict
+
+  revenue.py (30 lines):
+    calculate_gross_revenue, calculate_net_revenue, calculate_total_revenue
+    calculate_revenue_per_jobcard, calculate_revenue_growth
+
+  margin.py (46 lines):
+    calculate_total_margin, calculate_parts_margin, calculate_margin_per_jobcard
+    calculate_margin_growth, calculate_margin_kpis
+
+  discount.py (76 lines):
+    calculate_total_discount, calculate_labour_discount_pct
+    calculate_parts_discount_pct, calculate_overall_discount_pct
+    calculate_discount_per_jobcard, calculate_discount_growth
+    calculate_discount_kpis
+
+  leakage.py (64 lines):
+    compute_discount_aggregates(df, group_col, benchmark)
+    compute_parts_leakage(df, group_col, benchmark)
+    compute_leakage_delta(cp, pp, group_col, benchmark)
+
+6.3 AGGREGATION CACHE (services/aggregation_cache.py — 208 lines)
+--------------------------------------------------------------------
+
+  Architecture:
+    _CACHE: Dict[df_hash -> {cache_key -> GroupBy|DataFrame, timestamp, ttl}]
+    Thread-safe via threading.RLock
+    LRU eviction (max 10 entries)
+    1-hour default TTL
+
+  Cache key construction:
+    df_hash = MD5(VERSION + shape + columns + index.values)
+    cache_key = f"gb_{group_cols}_{as_index}_{dropna}"
+
+  Functions:
+    group_summary(df, group_cols, as_index, dropna, **kwargs)
+    get_location_summary(df, ...)
+    get_advisor_summary(df, ...)    # Filters "Unassigned" advisors
+    get_month_summary(df, ...)      # Sorts by Month_Sort
+    get_service_summary(df, ...)
+    get_revenue_summary(df, ...)
+    get_margin_summary(df, ...)
+    get_discount_summary(df, ...)
+    get_category_summary(df, cat_cols, ...)
+
+6.4 BENCHMARK PROVIDER (services/benchmark_provider.py — 34 lines)
+--------------------------------------------------------------------
+
+  class BenchmarkProvider(ABC):
+    get_benchmark(key) -> Any
+
+  class DefaultBenchmarkProvider(BenchmarkProvider):
+    # Reads from config.settings:
+    #   labour_discount_target (15%)
+    #   high_discount_alert (25%)
+    #   yoy_decline_alert (15%)
+    #   vor_alert_threshold (₹200,000)
+    Supports overrides dict for testing/customization.
+
+6.5 EXPORT SERVICE (services/export_service.py — 561 lines)
+-------------------------------------------------------------
+
+  ExportMeta: report_title, location, date_range, app_name, version, generated_at
+  build_filename(location, report_name, ext) -> str
+
+  export_csv(df, meta) -> bytes
+    - UTF-8, comment-prefixed metadata header
+
+  export_excel(df, meta) -> bytes
+    - openpyxl, blue headers, alternating rows, auto-width
+    - Indian number formatting, percentage formatting
+    - Frozen header, footer note
+
+  export_pdf(df, meta) -> bytes
+    - reportlab, landscape A4, 1.5cm margins
+    - Repeated headers, page numbers, 500 row limit
+
+
+################################################################################
+# SECTION 7 — KNOWN ARCHITECTURE DOCUMENTS
+################################################################################
+
+7.1 PARTS MODULE FREEZE REPORT
+--------------------------------
+
+  File: PARTS_MODULE_FREEZE_REPORT.md (313 lines)
+  Date: June 23, 2026
+  Status: READY FOR FREEZE (v2.0)
+  Summary: 13 features delivered across Phase 1-4. Code audit found zero TODOs,
+           dead code, duplicate helpers, duplicate calculations, or unused imports.
+           Pending final browser verification.
+
+7.2 PARTS FORENSIC AUDIT (MiMo)
+---------------------------------
+
+  File: WSMIS_Parts_Forensic_Audit_MiMo.md (505 lines)
+  Date: June 23, 2026
+  Auditor: MiMo v2.5 (Independent Reviewer)
+  Status: Complete — Read-Only Audit
+  Summary: Module health: DEGRADED (2 of 3 reports defective).
+    Parts Detail: PASS
+    Parts Executive: FAIL — pivot_summary() index corruption (95% confidence)
+    Sales Mix: FAIL — Series.sort_values() API misuse (93% confidence)
+  Two fixes required before Parts module freeze.
+
+7.3 ARCHITECTURE CLEANUP BACKLOG
+----------------------------------
+
+  File: WSMIS_ARCHITECTURE_CLEANUP_BACKLOG.md (402 lines)
+  Date: June 23, 2026
+  Status: Audit complete; 15 issues prioritized
+  Summary: 2 Critical (before v1.0), 6 High (after v1.0), 4 Medium, 3 Low.
+    Epics: Duplicate Google Sheets Loaders, Duplicate Calculations,
+    and others. Each with severity, effort estimate, regression risk.
+
+7.4 TARGET USAGE MAP
+----------------------
+
+  File: TARGET_USAGE_MAP.md (313 lines)
+  Date: June 23, 2026
+  Status: Complete
+  Summary: Full usage audit of targets_df, load_targets(), load_discount_thresholds().
+    Key finding: Both functions read the SAME Google Sheet tab (MP_PB_Targets).
+    Redundant independent loads in command_center.py and discount.py.
+
+
+################################################################################
+# SECTION 8 — CURRENT APPLICATION TREE
+################################################################################
+
+Navigation
+│
+├── Sidebar (V1: session state / V2: URL params)
+│   ├── Executive Command Center (default)
+│   ├── ▸ REVENUE
+│   │   ├── Labour
+│   │   ├── Parts Executive ──→ Parts Detail (drill-through)
+│   │   ├── Margin
+│   │   ├── Sales Mix
+│   │   ├── Discounts
+│   │   └── Leakage Center
+│   ├── ▸ PEOPLE
+│   │   ├── Advisors
+│   │   └── Advisor MoM
+│   ├── ▸ PERFORMANCE
+│   │   ├── Locations
+│   │   ├── Trends
+│   │   └── Targets
+│   ├── ▸ FINANCE
+│   │   ├── Expense Analysis
+│   │   └── Profit & Loss
+│   ├── ▸ ADMIN
+│   │   ├── Reports
+│   │   ├── Internal Audit
+│   │   └── Audit Intelligence
+│   └── ▸ OPERATIONS (admin-only)
+│       └── System Health
+│
+Pages
+│
+├── app.py::render_page_router()
+│   ├── safe_render(render, df_filtered_full/df_filtered_cp, ...)
+│   │   ├── Cockpit/Overview/Executive → command_center.render()
+│   │   ├── Labour → labour.render()
+│   │   ├── Parts Executive → parts_executive.render(df, targets_df, ...)
+│   │   ├── Parts Detail → parts_detail.render()
+│   │   ├── Margin → margin.render()
+│   │   ├── Sales Mix → sales_mix.render()
+│   │   ├── Discounts → discount.render()
+│   │   ├── Leakage Center → leakage.render()
+│   │   ├── Targets → targets.render(df_act, targets_df, pairs)
+│   │   ├── Expense Analysis → expense.render(exp_df, ...)
+│   │   └── Profit & Loss → pnl.render(df, exp_df, ...)
+│   └── UniversalFooter()
+│
+Shared Components
+│
+├── ui/design_tokens.py          # T class (all design tokens)
+├── ui/formatters.py             # fmt_inr, fmt_pct, fmt_num, etc.
+├── ui/components/core.py        # UniversalHeader, Footer, EmptyState, badge
+├── ui/components/metrics.py     # MetricCard, KPIGrid
+├── ui/tables.py                 # html_table, searchable_table
+├── ui/traffic.py                # yoy_badge, traffic_light, tgt_badge
+├── ui/helpers.py                # apply_chart (deprecated), csv_btn, render_neg_labour_alert
+├── ui/export_buttons.py         # render_export_buttons
+├── views/shared.py              # Wildcard imports for all views
+├── views/dashboard_common.py    # Shared dashboard utilities
+├── views/components/chart_engine.py  # ChartEngine
+├── views/components/kpi_engine.py    # KPIEngine
+│
+Services
+│
+├── services/state_manager.py    # Namespace-driven session state
+├── services/route_service.py    # Route registry & validation
+├── services/auth_service.py     # RBAC authentication
+├── services/aggregation_cache.py # LRU aggregation cache
+├── services/benchmark_provider.py # Benchmark thresholds (ABC)
+├── services/executive_alert_engine.py # Structured alerts
+├── services/export_service.py   # CSV/Excel/PDF export
+├── services/financial_service.py # Unified financial metrics
+├── services/error_handler.py    # Exception hierarchy + safe_render
+├── services/logger.py           # Application logger
+├── services/logging_service.py  # Performance logging
+│
+Utilities
+│
+├── utils/constants.py           # CLIENTS, locations, months, palettes
+├── utils/loaders.py             # Google Sheets data loaders
+├── utils/aggregations.py        # Aggregation facade
+├── utils/filters.py             # DataFrame filter functions
+├── utils/cleaning.py            # Raw data normalization
+├── utils/profiler.py            # Performance profiler
+├── utils/calculations/
+│   ├── common.py                # safe_divide, calc_growth_pct, calc_ratio
+│   ├── fact_metrics.py          # Column extraction helpers
+│   ├── revenue.py               # Revenue calculations
+│   ├── margin.py                # Margin calculations
+│   ├── discount.py              # Discount calculations
+│   └── leakage.py               # Leakage/recovery calculations
+│
+Configuration
+│
+├── config/settings.py           # APP_NAME, VERSION, thresholds
+├── config/environment.py        # Google credential resolution
+├── config/users.yaml            # RBAC user/role definitions
+│
+Static Assets
+│
+├── static/style.css             # Apple Light Theme CSS
+
+
+################################################################################
+# SECTION 9 — TODOs, DEFERRED ITEMS, LIMITATIONS & TECHNICAL DEBT
+################################################################################
+
+9.1 TODOs (from codebase grep)
+-------------------------------
+
+  File: utils/loaders.py (lines 163-165)
+    TODO (schema pending): map real approved-discount columns once added to
+    MP_PB_Targets.
+    - Approved Labour Discount % -> column name TBD
+    - Approved Parts Discount %  -> column name TBD
+    Impact: load_discount_thresholds() uses placeholder defaults (15% labour,
+    1% parts) until sheet schema is finalized.
+
+9.2 DEPRECATED ITEMS
+----------------------
+
+  File: ui/helpers.py (line 13-96)
+    DEPRECATED: apply_chart() — Use ChartEngine.apply_chart() instead.
+    Retained for backwards compatibility with legacy pages and
+    render_discount_heatmap(). Do not use for new code.
+
+  File: ui/design_tokens.py (lines 96-97)
+    DEPRECATED: COLOR_SUCCESS_FILL, COLOR_DANGER_FILL
+    Use COLOR_ICON_SUCCESS / COLOR_ICON_DANGER instead.
+
+9.3 KNOWN ARCHITECTURAL ISSUES (from Cleanup Backlog)
+-------------------------------------------------------
+
+  CRITICAL (before v1.0):
+    1. Duplicate Google Sheets Loaders
+       - load_data() vs load_raw_worksheet() — unclear ownership
+       - load_contacts() vs Help tab reading pattern
+       - Redundant gspread import in app.py (unused)
+    2. Parts Executive pivot_summary() bug
+       - pivot_summary() unconditionally calls reset_index()
+       - Converts Location Name from index to RangeIndex
+       - Causes silent data corruption (all-zero table)
+
+  HIGH (after v1.0):
+    3. Sales Mix Series.sort_values() API misuse
+       - sales_mix.py:140 calls .sort_values("Oil_Sale", ascending=True)
+       - First arg is `axis`, not `by` — raises ValueError
+    4. Duplicate calculations
+       - Inline growth calcs vs canonical calc_growth_pct()
+       - Multiple places compute discount % manually
+    5. load_discount_thresholds reads same tab as load_targets
+       - Both use MP_PB_Targets — redundant API calls
+       - Separate caches despite same data
+    6. command_center.py loads targets independently
+       - app.py already loads targets_df, but command_center re-loads
+    7. views/shared.py wildcard imports
+       - from utils.calculations.* import * — namespace pollution
+    8. views/shared.py imports entire constants module
+       - from utils.constants import * — all constants in scope
+
+  MEDIUM (after v1.0):
+    9. Three render wrappers (executive.py, overview.py, cockpit.py)
+       - All delegate to command_center.render() — consider direct routing
+    10. expense.py and pnl.py use lazy imports to exp_report/pnl_report
+        - Separate monolithic files, not integrated into calculation layer
+    11. No test coverage for calculation modules
+        - Only test_golden_snapshot.py exists for loaders
+    12. Hardcoded "Advisior Name" typo column (ADV_COL = "Advisior Name")
+        - Preserved for backwards compatibility with Google Sheet
+
+  LOW (deferred to v2.0):
+    13. No unit tests for views/pages
+    14. No integration tests
+    15. profiler.py writes profile_results.json on exit (DEBUG mode only)
+
+9.4 KNOWN LIMITATIONS
+-----------------------
+
+  Data Source:
+    - Single Google Sheets workbook per client
+    - 20-second network timeout per operation
+    - 5-minute TTL on cached data (load_data)
+    - 5-minute TTL on targets/discount data
+    - 1-hour TTL on aggregation cache
+
+  Authentication:
+    - Deployment password gate (optional, single password)
+    - RBAC defined but not fully enforced (RouteType.ADMIN only)
+    - No session timeout enforcement in UI layer
+
+  Export:
+    - PDF limited to 500 rows
+    - Excel requires openpyxl (optional dependency)
+    - PDF requires reportlab (optional dependency)
+
+  Navigation:
+    - V1/V2 dual-mode adds complexity
+    - LEGACY_NAV=True by default
+    - Debug logging in resolve_page() (print statements)
+
+  Performance:
+    - Aggregation cache is in-memory (per-session, not shared)
+    - No persistent caching across sessions
+    - Streamlit rerun triggers full data reload on filter changes
+
+9.5 REGRESSION RISK ASSESSMENT
+--------------------------------
+
+  Before v1.0 Release:
+    - Parts Executive pivot_summary() bug must be fixed
+    - Sales Mix sort_values() bug must be fixed
+    - Duplicate loader pattern should be consolidated
+
+  After v1.0:
+    - Wildcard imports in views/shared.py may mask naming conflicts
+    - No test coverage for calculation accuracy
+    - RBAC enforcement incomplete (route protection is structural only)
+
+
+================================================================================
+ END OF ARCHITECTURE REVIEW PACK
+ Total files referenced: 50+
+ Total lines reviewed: ~12,000
+ Prepared for: Claude Opus Web 4.8 / GPT-5.5 Architecture Review
+================================================================================

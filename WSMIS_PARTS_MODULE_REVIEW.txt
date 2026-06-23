@@ -1,0 +1,885 @@
+================================================================================
+WSMIS — PARTS MODULE REVIEW PACKAGE
+Prepared for: Claude Sonnet 4.6 Architecture Review
+Date: 23 Jun 2026
+================================================================================
+
+
+================================================================================
+PART 1: ARCHITECTURE SUMMARY
+================================================================================
+
+CURRENT FLOW (All 3 Parts Reports):
+
+  Data (Google Sheets via gspread)
+       |
+       v
+  Load & Clean (app.py: load_data -> clean_dataframe)
+       |
+       v
+  Global Filters (app.py: render_month_picker, render_global_filters)
+       |  - Period (1M/3M/6M/FY/Custom)
+       |  - Comparison (YoY/MoM)
+       |  - Business Unit (MP/PB)
+       |  - Location (multiselect)
+       |  - Service Type (multiselect)
+       |
+       v
+  Split CP/PP (app.py: build_pairs -> apply_month_filter)
+       |
+       v
+  Page Router (app.py: render_page_router)
+       |
+       +---> views/commercial/parts_executive.py  (receives df_filtered_full — includes CP+PP months)
+       +---> views/commercial/parts_detail.py     (receives df_filtered_full — includes CP+PP months)
+       +---> views/commercial/sales_mix.py        (receives df_filtered_cp — CP months only)
+       |
+       v
+  Shared Calculation Layer:
+       |  - utils/calculations/fact_metrics.py  (get_parts_sales, get_parts_profit, etc.)
+       |  - utils/calculations/common.py        (calc_ratio, calc_growth_pct, safe_divide)
+       |
+       v
+  Cached Aggregation Layer:
+       |  - utils/aggregations.py               (location_summary, monthly_summary, category_summary, etc.)
+       |  - services/aggregation_cache.py        (per-session memoization)
+       |
+       v
+  Shared UI Components:
+       |  - ui/components/metrics.py            (MetricCard, KPIGrid)
+       |  - ui/components/core.py               (EmptyState, section_title, spacer, etc.)
+       |  - ui/components/tables.py             (TableCard)
+       |  - views/components/chart_engine.py    (ChartEngine.apply_chart, render_card)
+       |  - views/dashboard_common.py           (render_kpi_card, render_svc_panel, style helpers)
+       |
+       v
+  Charts (Plotly)  |  Tables (Streamlit dataframe + Pandas Styler)
+       |                   |
+       v                   v
+  Rendered Report (Streamlit)
+
+
+================================================================================
+PART 2: BUSINESS PURPOSE
+================================================================================
+
+The Parts module covers three reports forming one business domain:
+
+PARTS EXECUTIVE
+  - Executive summary of parts revenue performance
+  - Mirrors the Labour Executive page in structure
+  - High-level KPIs: Revenue, Growth, Load (Job Cards), Margin %
+  - Category breakdown: Standard Parts, Oil, Add-ons (Accessories+Tyres+Battery+Other)
+  - Trend chart with cross-filter (click bar to filter by month)
+  - Location growth ranking chart
+  - Executive Location Performance table with rank movement
+  - Monthly Location Detail (expandable)
+
+PARTS DETAIL
+  - Operational drill-down into parts revenue
+  - Category revenue by location (6 categories: Standard Parts, Oil, Accessories, Tyres, Battery, Other)
+  - Category mix stacked bar chart (CP vs PP)
+  - Service type contribution table (Free/Paid/Running Repair/Accidental)
+  - Discount analysis by location
+
+SALES MIX
+  - Product mix analysis across all non-labour categories
+  - Oil, Tyres, Batteries, Accessories, Standard Parts
+  - KPIs for revenue and quantity per category
+  - Monthly trend charts per category
+  - Location ranking charts
+  - Oil revenue per litre analysis
+
+
+================================================================================
+PART 3: NAVIGATION
+================================================================================
+
+URL Routing (app.py):
+  parts-executive  -> "Parts Executive"
+  parts-detail     -> "Parts Detail"
+  sales-mix        -> "Sales Mix"
+
+Sidebar Navigation (both V1 and V2):
+  Under "REVENUE" expander:
+    - Labour
+    - Parts Executive      <---
+    - Parts Detail         <---
+    - Margin
+    - Sales Mix            <---
+    - Discounts
+    - Leakage Center
+
+Page Capabilities (app.py: PAGE_CAPABILITIES):
+  Parts Executive:
+    default_period: "3M"
+    comparison_mode: True
+    show_period_filter: True
+    show_comparison_filter: True
+    show_service_type_filter: True
+    additional_module_filters: []
+
+  Parts Detail:
+    (Same as Parts Executive — inherits from PAGE_CAPABILITIES["Parts"])
+
+  Sales Mix:
+    default_period: "3M"
+    comparison_mode: True
+    show_period_filter: True
+    show_comparison_filter: True
+    show_service_type_filter: True
+    additional_module_filters: []
+
+Page Router (app.py: render_page_router):
+  "Parts Executive" -> receives df_filtered_full (CP+PP months)
+  "Parts Detail"    -> receives df_filtered_full (CP+PP months)
+  "Sales Mix"       -> receives df_filtered_cp (CP months only)
+
+NOTE: Sales Mix receives only CP months but its own _apply_filters returns
+      the full CP without PP. It does NOT use YoY/MoM comparison despite
+      having comparison_mode=True in capabilities.
+
+
+================================================================================
+PART 4: PARTS EXECUTIVE
+================================================================================
+
+File: views/commercial/parts_executive.py (539 lines)
+
+Imports:
+  from views.shared import *                          # Wildcard: all calculations, formatters, UI, aggregations
+  from views.components.kpi_engine import KPIEngine    # KPIGrid wrapper (unused directly — KPIGrid comes from shared)
+  from views.components.chart_engine import ChartEngine # Chart styling
+  from services.state_manager import StateManager
+  from views.dashboard_common import (
+      inject_responsive_css, apply_period_filters, render_cross_filter_bar,
+      render_kpi_card, render_svc_panel,
+      style_table_bold_total, style_color_growth, style_margin_color,
+      compute_rank_movement, format_rank_movement,
+  )
+
+Page Entry Point:
+  render(df, pairs, comparison_mode=True, selected_months=None)
+
+Sections Rendered (in order):
+  1. Cross-filter chip bar (_render_cross_filter_bar)
+  2. Narrative alert banner (_render_narrative_banner) — shows decline/low-margin/concentration alerts
+  3. Executive Panel (_render_executive_panel):
+     - 4 KPI cards: Parts Revenue, Growth Rate, Load (JCs), Parts Margin
+     - 3 Category panels: Standard Parts, Oil/Lubricants, Add-ons (if category data available)
+  4. Charts (_render_charts):
+     - Monthly Revenue Trend (grouped bar + growth line, clickable for cross-filter)
+     - Location Growth ranking (horizontal bar)
+  5. Executive Location Table (_render_executive_table):
+     - Columns: Location, Revenue, Growth %, Margin %, Job Cards, Avg Parts/JC, Difference, Rank Delta
+     - Styled with Pandas Styler (bold TOTAL, color-coded growth, margin color thresholds)
+     - Export buttons
+  6. Monthly Location Detail (_render_monthly_detail):
+     - Expandable expander with month-by-month CP/PP/YoY% per location
+
+Key Functions:
+  _init_state()             - Initialize "parts_" namespace in StateManager
+  _apply_filters(df, pairs) - Delegates to dashboard_common.apply_period_filters with key "parts_cross_month"
+  _compute_metrics(cp, pp, df) - Computes all metrics: revenue, growth, margin, location breakdown, monthly trend, category panels
+  _render_narrative_banner(d) - Alert banner for declining revenue, declining locations, low margins, concentration risk
+  _render_executive_panel(d, mode_str) - 4 KPI cards + 3 category breakdown panels
+  _render_charts(d, active_pairs, mode_str) - Trend chart + location chart
+  _render_executive_table(d, active_pairs, mode_str) - Location performance table
+  _render_monthly_detail(d, active_pairs, mode_str) - Expandable monthly detail
+
+Dependencies:
+  - dashboard_common.render_kpi_card: Legacy KPI card with delta badges (used instead of MetricCard)
+  - dashboard_common.render_svc_panel: Category breakdown panels with row deltas
+  - dashboard_common.apply_period_filters: CP/PP filtering with cross-filter support
+  - dashboard_common.render_cross_filter_bar: Chip bar for month cross-filter
+  - dashboard_common.style_table_bold_total: TOTAL row highlighting
+  - dashboard_common.style_color_growth: Green/red growth coloring
+  - dashboard_common.style_margin_color: Margin threshold coloring (13%/11%)
+  - dashboard_common.compute_rank_movement: Rank delta computation
+  - dashboard_common.format_rank_movement: Rank arrow formatting
+  - ChartEngine.apply_chart: Plotly chart styling
+  - StateManager: Cross-filter state persistence
+  - Export buttons: CSV/Excel export
+
+Data Flow:
+  df (full) -> apply_period_filters -> (cp, pp) -> _compute_metrics -> render functions
+  Category data available from Jan-26 onwards (falls back to total if not available)
+
+
+================================================================================
+PART 5: PARTS DETAIL
+================================================================================
+
+File: views/commercial/parts_detail.py (258 lines)
+
+Imports:
+  from views.shared import *                          # Wildcard
+  from views.components.kpi_engine import KPIEngine    # Unused directly
+  from views.components.chart_engine import ChartEngine # Chart styling
+  from views.dashboard_common import style_table_bold_total, style_margin_color
+
+Page Entry Point:
+  render(df, pairs, comparison_mode=True, selected_months=None)
+
+CAT_MAP (constant):
+  {
+    "Standard Parts": "Parts_Sale",
+    "Oil":            "Oil_Sale",
+    "Accessories":    "Accessory_Sale",
+    "Tyres":          "Tyre_Sale",
+    "Battery":        "Battery_Sale",
+    "Other":          "Other_Sale",
+  }
+
+Sections Rendered (in order):
+  1. Title: "Parts Detail — Drill-Down View"
+  2. Inline Filters (_apply_detail_filters):
+     - Location selectbox
+     - Month selectbox
+     - Service Type selectbox
+     - Category selectbox (not actually used for filtering — just stored)
+  3. Category Revenue Table (_render_category_table):
+     - Rows: each location + TOTAL
+     - Columns: 6 categories + Total + Margin %
+     - Styled with bold TOTAL, margin color thresholds
+     - Export buttons
+  4. Category Mix Chart (_render_category_mix_chart):
+     - Stacked bar: CP (This FY) vs PP (Last FY) by category
+     - 6 colors hardcoded: ["#1D6AE5", "#34C759", "#FF9500", "#FF3B30", "#AF52DE", "#8E8E93"]
+  5. Service Type Contribution (_render_service_contribution):
+     - Table: Service Type, Revenue, Job Cards, Avg Parts/JC, Margin %, % of Total, Rank
+     - Styled with margin color thresholds
+     - Export buttons
+  6. Discount Table (_render_discount_table):
+     - Table: Location, Revenue, Discount, Discount %
+     - Color-coded: >2% red, >1% amber
+     - Export buttons
+
+Key Functions:
+  _apply_detail_filters(df)        - 4 inline selectboxes, returns (filtered_df, selected_category)
+  _render_category_table(fdf)      - Category revenue by location
+  _render_category_mix_chart(fdf, mode_str) - Stacked bar CP vs PP
+  _render_service_contribution(fdf) - Service type breakdown
+  _render_discount_table(fdf)      - Discount analysis by location
+
+Dependencies:
+  - category_summary: Cached aggregation of category columns
+  - location_summary: Cached location-level aggregation
+  - service_summary: Cached service-type aggregation
+  - get_parts_sales, get_parts_profit: Canonical metric helpers
+  - calc_ratio, calc_growth_pct: Calculation helpers
+  - style_table_bold_total, style_margin_color: Table styling
+  - ChartEngine.apply_chart: Chart styling
+  - Export buttons: CSV/Excel export
+
+Data Flow:
+  df (full) -> _apply_detail_filters (inline selectboxes) -> render functions
+  NOTE: Does NOT use apply_period_filters — no cross-filter support
+  NOTE: Uses "year" column ("This FY" / "Last FY") for CP/PP split in chart
+
+
+================================================================================
+PART 6: SALES MIX
+================================================================================
+
+File: views/commercial/sales_mix.py (123 lines)
+
+Imports:
+  from views.shared import *                          # Wildcard
+  from views.components.kpi_engine import KPIEngine    # Unused directly
+  from views.components.chart_engine import ChartEngine # Chart styling
+
+Page Entry Point:
+  render(df, pairs, comparison_mode=True, selected_months=None)
+
+Sections Rendered (in order):
+  1. KPI Grid (_render_kpis): 8 KPI cards in 4-column grid
+     - Oil (INR), Oil (Ltrs), Tyre (INR), Tyre (Nos)
+     - Battery (INR), Battery (Nos), Accessory (INR), Parts Sale (INR)
+  2. Summary (_render_summary): Empty function — no content
+  3. Tables (_render_tables):
+     - Oil Sales (location x month pivot)
+     - Battery Sales (location x month pivot)
+     - Tyre Sales (location x month pivot)
+     - Accessory Sales (location x month pivot)
+  4. Charts (_render_charts):
+     - Oil Trend: Bar (INR) + Line (Litres) dual-axis
+     - Batt + Tyre: Grouped bar
+     - Oil Ranking: Horizontal bar (top 10 locations)
+     - Mix (Acc vs Pts): Donut pie
+     - Oil Revenue per Litre by Location: Horizontal bar
+  5. Footer: UniversalFooter (wrapped in try/except)
+
+Key Functions:
+  _apply_filters(df, pairs)    - Returns (df, None) — no actual filtering
+  _compute_metrics(cp, pp)     - Computes category revenues and quantities, builds KPI data
+  _get_table_data(cp, col)     - Creates location x month pivot table with TOTAL row
+  _render_kpis(metrics)        - KPIGrid with 8 metrics
+  _render_summary(metrics)     - Empty (pass)
+  _render_tables(metrics)      - 4 pivot tables in 2x2 grid
+  _render_charts(metrics)      - 5 charts across 2 rows
+  _render_exports(metrics)     - Empty (pass)
+
+Dependencies:
+  - get_oil_sales, get_tyre_sales, get_battery_sales, get_accessory_sales: Category metrics
+  - monthly_summary: Cached monthly aggregation
+  - location_summary: Cached location aggregation
+  - KPIGrid: KPI card grid
+  - ChartEngine.apply_chart and render_card: Chart styling
+  - TableCard: Table wrapper
+  - spacer: Vertical spacing helper
+  - fmt_inr, fmt_num: Formatters
+
+Data Flow:
+  df (CP only — from app.py df_filtered_cp) -> _apply_filters (no-op) -> _compute_metrics -> render
+  NOTE: Receives only CP months but _compute_metrics ignores PP entirely
+  NOTE: comparison_mode and pairs parameters are accepted but UNUSED
+
+
+================================================================================
+PART 7: SHARED COMPONENTS
+================================================================================
+
+The following shared components are used across the Parts module.
+Code is included ONCE with notes on which reports use each.
+
+--- SHARED IMPORTS (views/shared.py) ---
+Used by: Parts Executive, Parts Detail, Sales Mix
+
+  All three reports import: from views.shared import *
+  This re-exports:
+    - st, np, pd, px, go (Streamlit, NumPy, Pandas, Plotly)
+    - All calculation functions (fact_metrics, revenue, margin, discount, leakage, common)
+    - All aggregation functions (location_summary, monthly_summary, category_summary, etc.)
+    - All filter functions (apply_month_filter, apply_location_filter, etc.)
+    - All constants (ADV_COL, CLIENTS, C, LOC_COLORS, MP_COLORS, etc.)
+    - All formatters (fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num)
+    - All UI components (KPIGrid, MetricCard, TableCard, EmptyState, section_title, etc.)
+    - ChartEngine, KPIEngine
+    - All ui.helpers functions (apply_chart, clean_hover, render_alerts, _render_finding, etc.)
+    - render_export_buttons
+
+
+--- CALCULATION FUNCTIONS (utils/calculations/fact_metrics.py) ---
+Used by: Parts Executive, Parts Detail, Sales Mix (via shared wildcard)
+
+  def _get_metric(df, col_name, aggregate=True):
+      """Helper to safely extract and optionally sum a column."""
+      if col_name not in df.columns:
+          return 0.0 if aggregate else pd.Series(dtype=float, ...)
+      s = df[col_name]
+      return float(s.sum()) if aggregate else s
+
+  def get_parts_sales(df, aggregate=True):
+      """Extracts 'Pre-GST Parts' — canonical revenue column"""
+      return _get_metric(df, "Pre-GST Parts", aggregate)
+
+  def get_parts_profit(df, aggregate=True):
+      """Extracts 'Parts_Margin'"""
+      return _get_metric(df, "Parts_Margin", aggregate)
+
+  def get_parts_discount(df, aggregate=True):
+      """Extracts 'Parts Discount'"""
+      return _get_metric(df, "Parts Discount", aggregate)
+
+  def get_oil_sales(df, aggregate=True):
+      """Extracts 'Oil_Sale'"""
+      return _get_metric(df, "Oil_Sale", aggregate)
+
+  def get_tyre_sales(df, aggregate=True):
+      """Extracts 'Tyre_Sale'"""
+      return _get_metric(df, "Tyre_Sale", aggregate)
+
+  def get_battery_sales(df, aggregate=True):
+      """Extracts 'Battery_Sale'"""
+      return _get_metric(df, "Battery_Sale", aggregate)
+
+  def get_accessory_sales(df, aggregate=True):
+      """Extracts 'Accessory_Sale'"""
+      return _get_metric(df, "Accessory_Sale", aggregate)
+
+  def get_jobcard_count(df, aggregate=True):
+      """Extracts 'JC_Nos.'"""
+      return _get_metric(df, "JC_Nos.", aggregate)
+
+  Also available (not directly used by Parts): get_labour_sales, get_net_labour,
+  get_net_parts, get_labour_discount, get_fsc_income, get_otc_income, etc.
+
+
+--- CALCULATION FUNCTIONS (utils/calculations/common.py) ---
+Used by: Parts Executive, Parts Detail, Sales Mix (via shared wildcard)
+
+  def safe_divide(numerator, denominator, fill_value=0.0):
+      """Safely divide, returning fill_value on division by zero."""
+      if isinstance(numerator, (pd.Series, pd.DataFrame)) or isinstance(denominator, (pd.Series, pd.DataFrame)):
+          res = numerator / denominator
+          return res.replace([np.inf, -np.inf], np.nan).fillna(fill_value)
+      if denominator == 0 or pd.isna(denominator):
+          return fill_value
+      return numerator / denominator
+
+  def calc_ratio(numerator, denominator, multiplier=1.0, fill_value=0.0):
+      """Calculates ratio (e.g. percentage if multiplier=100)"""
+      return safe_divide(numerator, denominator, fill_value) * multiplier
+
+  def calc_growth_pct(current, prior, fill_value=0.0):
+      """Calculates YoY or MoM growth percentage."""
+      return safe_divide(current - prior, prior, fill_value) * 100
+
+
+--- CACHED AGGREGATIONS (utils/aggregations.py) ---
+Used by: Parts Executive, Parts Detail, Sales Mix (via shared wildcard)
+
+  def location_summary(df, loc_col="Location Name", as_index=False, dropna=False):
+      """Cached location-level aggregation."""
+      # Delegates to aggregation_cache.get_location_summary()
+
+  def monthly_summary(df, month_cols=["Month_Sort","Month Name"], as_index=False, ...):
+      """Cached monthly aggregation."""
+      # Delegates to aggregation_cache.get_month_summary()
+
+  def service_summary(df, svc_col="Service Type", as_index=False, ...):
+      """Cached service-type aggregation."""
+      # Delegates to aggregation_cache.get_service_summary()
+
+  def category_summary(df, cat_cols, as_index=False, ...):
+      """Cached category-level aggregation for parts categories."""
+      # Delegates to aggregation_cache.get_category_summary()
+
+  def pivot_summary(df, index, columns=None, values=None, aggfunc="sum", fill_value=0):
+      """Generic pivot table utility."""
+
+
+--- KPI CARD (ui/components/metrics.py) ---
+Used by: Sales Mix (via KPIGrid), Parts Executive (indirectly via shared)
+
+  def MetricCard(label, value, sub=None, cp=None, pp=None, pp_label=None,
+                 benchmark=None, target=None, invert_trend=False):
+      """Executive Light KPI Card with growth badge."""
+      # Renders: .kpi-card > .kpi-label + .kpi-value + .kpi-sub + .kpi-delta-* + .kpi-meta
+
+  def KPIGrid(metrics, cols=None):
+      """Renders responsive grid of MetricCards."""
+      # metrics = [{"label":"...", "value":"...", "cp":..., "pp":...}, ...]
+
+
+--- LEGACY KPI CARD (views/dashboard_common.py) ---
+Used by: Parts Executive (renders KPI cards with this instead of MetricCard)
+
+  def render_kpi_card(title, cp_val, pp_val, g_val, delta_val=None, is_margin=False, margin_g=0):
+      """Render a KPI card with delta badges — returns HTML string."""
+      # Returns: <div class="kpi-card">...</div>
+      # Used in Parts Executive _render_executive_panel for the 4 top KPI cards
+
+  def render_svc_panel(title, stats, delta_pill=""):
+      """Render a service panel with rows and optional delta pill — returns HTML string."""
+      # Returns: <div class="section-card">...</div>
+      # Used in Parts Executive _render_executive_panel for category breakdown panels
+
+
+--- CHART ENGINE (views/components/chart_engine.py) ---
+Used by: Parts Executive, Parts Detail, Sales Mix
+
+  class ChartEngine:
+      @staticmethod
+      def apply_chart(fig, title, height=360, text_col=None, bar_text_pos="outside",
+                      size="medium", x_title=None, y_title=None, barmode=None):
+          """Apply Executive Light styling to a Plotly figure."""
+          # Sets: font, margins, grid, hover, legend, title styling
+          # Uses T.FONT_FAMILY, T.COLOR_TEXT_PRIMARY, etc.
+
+      @staticmethod
+      def render_card(title, fig, description=None, height=400, x_title=None, y_title=None, barmode=None):
+          """Standardized Chart Card wrapper."""
+          # Renders: .chart-card div + st.plotly_chart()
+
+
+--- TABLE CARD (ui/components/tables.py) ---
+Used by: Sales Mix
+
+  def TableCard(df, height=400, index=False, column_config=None):
+      """Standardized Data Table wrapper."""
+      # Renders: .table-card div + st.dataframe()
+
+
+--- EMPTY STATE (ui/components/core.py) ---
+Used by: Parts Executive, Parts Detail, Sales Mix
+
+  def EmptyState(message="No data available...", icon=""):
+      """Standardized Empty State visualization."""
+      # Renders: .empty-state div
+
+
+--- SECTION TITLE (ui/components/core.py) ---
+Used by: Parts Executive (via shared), Parts Detail (direct HTML), Sales Mix (via shared)
+
+  def section_title(title):
+      """Renders a standard section title."""
+      # Renders: .section-title div
+
+
+--- SPACER (ui/components/core.py) ---
+Used by: Sales Mix
+
+  def spacer(height=16):
+      """Renders a vertical spacer."""
+      # Renders: <div style="height:{height}px;"></div>
+
+
+--- FORMATTERS (ui/formatters.py) ---
+Used by: All three reports (via shared wildcard)
+
+  def fmt_inr(v):
+      """Indian style: ₹1.00 Cr, ₹50.00 L, ₹5.0 K"""
+
+  def fmt_inr_short(v):
+      """Compact Indian: ₹1.0Cr, ₹50.0L"""
+
+  def fmt_inr_full(v):
+      """Full comma: ₹1,23,45,678"""
+
+  def fmt_num(v):
+      """Comma number: 1,234"""
+
+  def fmt_pct(v, sign=False):
+      """Percentage: 5.1%"""
+
+
+--- DASHBOARD COMMON HELPERS (views/dashboard_common.py) ---
+Used by: Parts Executive (all), Parts Detail (style helpers only), Sales Mix (not used)
+
+  def inject_responsive_css():
+      """Inject responsive CSS — called by Parts Executive only."""
+      # Overrides: .kpi-sub color, media queries
+
+  def apply_period_filters(df, active_pairs, cross_month_key):
+      """Apply CP/PP period filters with optional cross-filter."""
+      # Used by Parts Executive. NOT used by Parts Detail or Sales Mix.
+
+  def render_cross_filter_bar(cross_month_key, month_label=None):
+      """Render cross-filter chip bar with clear buttons."""
+      # Used by Parts Executive. NOT used by Parts Detail or Sales Mix.
+
+  def style_table_bold_total(row, location_col="Location"):
+      """Style function: bold and highlight TOTAL row."""
+      # Used by: Parts Executive, Parts Detail
+
+  def style_color_growth(val):
+      """Style function: color growth values green/red."""
+      # Used by: Parts Executive
+
+  def style_margin_color(val):
+      """Style function: color margin values based on thresholds (13%/11%)."""
+      # Used by: Parts Executive, Parts Detail
+
+  def compute_rank_movement(loc, cp_ranks, pp_ranks):
+      """Compute rank movement between CP and PP."""
+      # Used by: Parts Executive
+
+  def format_rank_movement(val):
+      """Format rank movement with CSS classes."""
+      # Used by: Parts Executive
+
+
+--- TRAFFIC UTILITIES (ui/traffic.py) ---
+Used by: None directly in Parts module (available via shared wildcard)
+
+  def yoy_badge(cp, pp): ...    # HTML badge
+  def traffic_light(cp, pp): ... # Emoji indicator
+  def tgt_badge(pct): ...       # Target badge
+
+
+--- EXPORT BUTTONS (ui/export_buttons.py) ---
+Used by: Parts Executive, Parts Detail
+
+  def render_export_buttons(df, meta, formats=["csv"], key_prefix="", collapsed=True):
+      """Render CSV/Excel export buttons."""
+
+
+================================================================================
+PART 8: STYLING
+================================================================================
+
+--- CSS TOKENS (static/style.css) — :root ---
+Used by: All three reports (global stylesheet)
+
+  /* Backgrounds */
+  --color-app-bg:    #F2F2F7;
+  --color-surface:   #FFFFFF;
+  --color-surface2:  #F8F8FA;
+
+  /* Borders */
+  --color-border:     #E5E5EA;
+  --color-border-sub: #F0F0F5;
+
+  /* Text */
+  --color-text-primary:   #1D1D1F;
+  --color-text-secondary: #6E6E73;
+  --color-text-tertiary:  #8E8E93;
+
+  /* Semantic */
+  --color-primary:   #0071E3;
+  --color-success:   #1A7F37;
+  --color-danger:    #CF222E;
+  --color-warning:   #B45309;
+
+  /* Badge backgrounds */
+  --color-success-bg: #E8F9EE;
+  --color-danger-bg:  #FFEBE9;
+  --color-warning-bg: #FFF3E0;
+  --color-info-bg:    #E8F0FE;
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --type-xs: 11px; --type-sm: 12px; --type-base: 14px;
+  --type-md: 16px; --type-lg: 20px; --type-xl: 32px; --type-2xl: 40px;
+
+  /* Spacing (4px base) */
+  --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px;
+
+  /* Radius */
+  --radius-sm: 6px; --radius-md: 8px; --radius-lg: 10px;
+
+  /* Shadows (5-tier) */
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 8px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 24px rgba(0,0,0,0.08), 0 4px 8px rgba(0,0,0,0.04);
+
+
+--- CSS CLASSES USED BY PARTS MODULE ---
+
+  .kpi-card          — KPI cards (Parts Executive uses render_kpi_card, Sales Mix uses MetricCard)
+  .kpi-label         — Card label (uppercase, xs, semibold)
+  .kpi-value         — Card value (xl, bold)
+  .kpi-sub           — Sub-value (xs, secondary text)
+  .kpi-delta-pos     — Positive growth badge (green)
+  .kpi-delta-neg     — Negative growth badge (red)
+  .kpi-meta          — Benchmark/target metadata
+  .section-card      — Category panel wrapper (render_svc_panel)
+  .section-title     — Section headings
+  .insight-card      — Alert cards (not used by Parts directly)
+  .styled-table      — Data tables
+  .table-card        — TableCard wrapper
+  .filter-toolbar    — Filter bar
+  .badge-pos/neg     — Growth badges
+  .cell-neg/pos      — Table cell coloring
+  .empty-state       — Empty data placeholder
+
+
+--- PYTHON TOKENS (ui/design_tokens.py) ---
+Used by: All three reports (via ChartEngine, MetricCard, shared)
+
+  class T:
+      # Typography
+      TYPE_XS=11, TYPE_SM=12, TYPE_BASE=14, TYPE_MD=16, TYPE_LG=20, TYPE_XL=32, TYPE_2XL=40
+      FONT_FAMILY = "Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+
+      # Colors
+      COLOR_PRIMARY="#0071E3", COLOR_SUCCESS="#1A7F37", COLOR_DANGER="#CF222E", COLOR_WARNING="#B45309"
+      COLOR_TEXT_PRIMARY="#1D1D1F", COLOR_TEXT_SECONDARY="#6E6E73", COLOR_TEXT_TERTIARY="#8E8E93"
+      COLOR_SURFACE="#FFFFFF", COLOR_BORDER="#E5E5EA"
+
+      # Radius
+      RADIUS_SM=6, RADIUS_MD=8, RADIUS_LG=10
+
+      # Spacing
+      SPACE_1=4, SPACE_2=8, SPACE_3=12, SPACE_4=16, SPACE_5=20, SPACE_6=24
+
+      # Legacy color dict
+      C = {"primary":"#0071E3", "green":"#1A7F37", "red":"#CF222E", "orange":"#B45309", ...}
+
+
+--- LEGACY COLOR DICT (utils/constants.py) ---
+Used by: Sales Mix (uses C["primary"], C["orange"], C["green"], C["purple"], C["pink"], C["teal"])
+
+  C = {
+      "primary": "#0071E3",
+      "green":   "#1A7F37",
+      "red":     "#CF222E",
+      "orange":  "#B45309",
+      "gray":    "#8E8E93",
+      "gold":    "#D4AF37",
+      "purple":  "#7C3AED",
+      "pink":    "#DB2777",
+      "teal":    "#0891B2",
+  }
+
+  MP_COLORS = {"MP": "#0071E3", "PB": "#FF9500", "WS": "#0071E3", "BS": "#FF9500"}
+
+
+================================================================================
+PART 9: DUPLICATION ANALYSIS
+================================================================================
+
+1. CATEGORY METRIC HELPERS
+   get_oil_sales, get_tyre_sales, get_battery_sales, get_accessory_sales
+   Used by: Parts Executive (_compute_metrics via category_summary), Sales Mix (_compute_metrics directly)
+   Status: Canonical — defined once in fact_metrics.py, correctly reused.
+
+2. CATEGORY SUMMARY
+   category_summary(df, cat_cols)
+   Used by: Parts Executive (_compute_metrics), Parts Detail (_render_category_table)
+   Status: Correctly shared via aggregations.py.
+
+3. LOCATION SUMMARY
+   location_summary(df, as_index=True)
+   Used by: Parts Executive (location breakdown), Parts Detail (category_table, discount_table), Sales Mix (charts)
+   Status: Correctly shared via aggregations.py.
+
+4. MONTHLY SUMMARY
+   monthly_summary(df, as_index=True)
+   Used by: Parts Executive (monthly trend), Sales Mix (charts)
+   Status: Correctly shared via aggregations.py.
+
+5. KPI CARD RENDERING
+   - Parts Executive uses dashboard_common.render_kpi_card (legacy HTML string)
+   - Sales Mix uses ui/components/metrics.py KPIGrid (canonical component)
+   Status: DUPLICATION — two different KPI card systems. Parts Executive should migrate to MetricCard/KPIGrid.
+
+6. CHART ENGINE
+   - Parts Executive: ChartEngine.apply_chart
+   - Parts Detail: ChartEngine.apply_chart
+   - Sales Mix: ChartEngine.apply_chart + ChartEngine.render_card
+   Status: Correctly shared.
+
+7. STYLE HELPERS
+   - style_table_bold_total: Used by Parts Executive, Parts Detail
+   - style_margin_color: Used by Parts Executive, Parts Detail
+   - style_color_growth: Used by Parts Executive only
+   Status: Correctly shared from dashboard_common.
+
+8. HARDCODED COLORS IN PARTS DETAIL
+   _render_category_mix_chart: cat_colors = ["#1D6AE5", "#34C759", "#FF9500", "#FF3B30", "#AF52DE", "#8E8E93"]
+   Status: Should use T.COLOR_PRIMARY, T.COLOR_SUCCESS, etc. or a dedicated token.
+
+9. HARDCODED COLORS IN PARTS EXECUTIVE
+   _render_narrative_banner: colors dict with hardcoded hex "#FEE2E2", "#FEF9C3", "#EFF6FF"
+   _render_executive_panel delta pills: "#E8F5E9", "#34C759", "#FFEBEE", "#FF3B30"
+   Status: Should use T.COLOR_*_BG and T.COLOR_* tokens.
+
+10. HARDCODED COLORS IN SALES MIX
+    Uses C["primary"], C["orange"], C["green"], C["purple"], C["pink"], C["teal"] from constants.py
+    Status: Should migrate to T.COLOR_* tokens.
+
+
+================================================================================
+PART 10: REVIEW QUESTIONS
+================================================================================
+
+Please review the complete Parts reporting module. Focus on:
+
+1. Can Parts Executive, Parts Detail and Sales Mix be simplified?
+   - Parts Executive has 539 lines with heavy metric computation
+   - Parts Detail has 258 lines with 4 tables
+   - Sales Mix has 123 lines but 2 empty functions (_render_summary, _render_exports)
+
+2. Are there duplicated KPIs?
+   - Parts Revenue appears in Parts Executive KPIs and could overlap with Sales Mix total
+   - Oil/Tyre/Battery/Accessory revenue appears in both Parts Executive category panels and Sales Mix KPIs
+   - Parts Margin appears in Parts Executive but NOT in Parts Detail or Sales Mix
+
+3. Are there duplicated charts?
+   - Parts Executive has a monthly trend chart — Sales Mix has per-category trend charts
+   - Parts Executive has a location growth chart — Sales Mix has oil ranking and per-litre charts
+   - No direct chart duplication, but thematic overlap in location analysis
+
+4. Are there duplicated tables?
+   - Parts Executive: Location Performance table (Revenue, Growth, Margin, JCs, Avg Parts/JC, Rank)
+   - Parts Detail: Category Revenue by Location (categories x locations), Service Contribution, Discount
+   - Sales Mix: 4 pivot tables (Oil, Battery, Tyre, Accessory by Location x Month)
+   - Overlap: Location-level revenue data is computed independently in all three
+
+5. Can any reports be merged?
+   - Sales Mix could potentially be a tab/section within Parts Detail
+   - Parts Detail's discount table could be a section in Parts Executive
+   - Sales Mix has no comparison capability despite PAGE_CAPABILITIES saying it does
+
+6. What important executive KPIs are missing?
+   - Parts revenue as % of total revenue (labour + parts)
+   - Parts revenue per workshop order
+   - Category mix trend (are standard parts growing vs oil?)
+   - Top/bottom category by margin contribution
+   - Inventory turnover (if data available)
+   - Warranty parts revenue (if data available)
+   - Parts revenue per advisor
+
+7. What operational KPIs are missing?
+   - Average parts markup by category
+   - Parts returns/credit notes
+   - Category-level discount breakdown
+   - Parts fulfilment rate
+   - Stock-out frequency (if data available)
+   - Category revenue per service type (Free vs Paid)
+
+8. What drill-downs are missing?
+   - Parts Executive -> Parts Detail should be clickable (location/category drill-down)
+   - Sales Mix -> Location detail should be clickable
+   - Category-level trend drill-down (which category is driving growth/decline?)
+   - Advisor-level parts performance
+   - Time-of-day/month parts demand pattern
+
+9. What benchmarking should be added?
+   - MSIL (Maruti) parts target vs actual
+   - Industry benchmarks for parts-to-labour ratio
+   - Category-wise margin benchmarks
+   - Oil penetration rate benchmark (target 70%)
+   - Parts revenue per JC benchmark across locations
+
+10. How can the reporting be made more boardroom-ready?
+    - Parts Executive lacks an AI-generated narrative (unlike Command Center)
+    - No executive summary / one-paragraph insight
+    - No traffic-light status for overall parts health
+    - No period-over-period sparklines in KPI cards
+    - No forecast/prediction for parts revenue
+    - Sales Mix lacks any comparison capability (YoY/MoM)
+
+11. Compare against premium MIS products (Power BI, Tableau, SAP Analytics Cloud):
+    - No cross-report drill-through (Power BI standard)
+    - No bookmarks or personal views (Tableau standard)
+    - No what-if analysis or parameter sliders
+    - No conditional formatting rules engine
+    - No mobile-optimized layout
+    - No scheduled email/pdf export
+    - No annotation/commenting on data points
+    - No anomaly detection or AI insights
+    - Static category grouping (no user-defined categories)
+
+12. Suggest an ideal information hierarchy:
+    Level 1 (Executive): Overall parts health score, revenue vs target, top 3 insights
+    Level 2 (Summary): KPI cards, category mix, location ranking
+    Level 3 (Detail): Category x Location matrix, service type breakdown
+    Level 4 (Drill-down): Individual location/category/advisor analysis
+    Currently: Parts Executive = Level 2, Parts Detail = Level 3, Sales Mix = mixed Level 2-3
+
+13. Recommend features that should be added:
+    - Cross-report drill-through from Command Center to Parts Executive
+    - Parts revenue forecasting (simple linear regression)
+    - Category contribution waterfall chart
+    - Parts-to-labour ratio trend
+    - Oil penetration rate tracking
+    - Parts discount recovery analysis
+    - Location-wise parts efficiency score
+    - Advisor parts performance leaderboard
+
+14. Recommend features that should be removed:
+    - Sales Mix _render_summary (empty function)
+    - Sales Mix _render_exports (empty function)
+    - Sales Mix comparison_mode parameter (accepted but unused)
+    - Parts Detail sel_cat filter (selected but never used for filtering)
+    - Duplicate KPI: "Growth Rate" in Parts Executive is redundant with Parts Revenue growth badge
+
+15. Recommend restructuring while preserving all business logic:
+    - Merge Sales Mix into Parts Detail as a "Product Mix" tab
+    - Migrate Parts Executive from render_kpi_card to MetricCard/KPIGrid
+    - Unify hardcoded colors to use T.COLOR_* tokens
+    - Add cross-filter support to Parts Detail (currently missing)
+    - Make Parts Executive category panels clickable to drill into Parts Detail
+    - Extract shared location table logic into a common function
+    - Add AI narrative to Parts Executive (like Command Center)
+    - Fix Sales Mix to actually use comparison data if comparison_mode=True
+
+================================================================================
+END OF REVIEW PACKAGE
+================================================================================

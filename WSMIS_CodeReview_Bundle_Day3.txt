@@ -1,0 +1,1686 @@
+================================================================================
+                  WSMIS CODE REVIEW BUNDLE — DAY 3
+                  Workshop Management Information System
+                  v1.0.0-rc1 | 2026-06-22
+================================================================================
+
+
+================================================================================
+1. REPOSITORY SUMMARY
+================================================================================
+
+  Python Version:           3.14.6
+  Streamlit Version:        1.58.0
+  Pandas Version:           3.0.3
+  NumPy Version:            2.4.6
+  Plotly Version:           6.8.0
+  Current Branch:           feature/v2-architecture
+  Total Python Files:       148 (production) — 9,400 total including test_venv
+  Current Engineering Phase: Phase 1 — Cleanup & Shared Components
+  Feature Flags:            LEGACY_NAV = True (config/settings.py:6)
+
+
+  FOLDER TREE (3 levels, excluding test_venv / __pycache__):
+  ─────────────────────────────────────────────────────────────
+  WSMIS/
+  ├── app.py
+  ├── config/
+  │   ├── __init__.py
+  │   ├── environment.py
+  │   ├── paths.py
+  │   └── settings.py
+  ├── services/
+  │   ├── __init__.py
+  │   ├── aggregation_cache.py
+  │   ├── ai/
+  │   │   ├── __init__.py
+  │   │   ├── context_builder.py
+  │   │   ├── gemini_provider.py
+  │   │   ├── models.py
+  │   │   ├── prompt_builder.py
+  │   │   ├── report_generator.py
+  │   │   └── templates.py
+  │   ├── audit_service.py
+  │   ├── benchmark_provider.py
+  │   ├── error_handler.py
+  │   ├── executive_alert_engine.py
+  │   ├── export_service.py
+  │   ├── financial_service.py
+  │   ├── logger.py
+  │   ├── logging_service.py
+  │   ├── state_manager.py
+  │   └── state_registry.py
+  ├── ui/
+  │   ├── __init__.py
+  │   ├── components/
+  │   │   ├── __init__.py
+  │   │   ├── charts.py
+  │   │   ├── core.py
+  │   │   ├── filters.py
+  │   │   ├── metrics.py
+  │   │   └── tables.py
+  │   ├── design_tokens.py
+  │   ├── executive_tooltip.py
+  │   ├── export_buttons.py
+  │   ├── formatters.py
+  │   ├── helpers.py
+  │   ├── tables.py
+  │   └── traffic.py
+  ├── utils/
+  │   ├── __init__.py
+  │   ├── aggregations.py
+  │   ├── calculations/
+  │   │   ├── __init__.py
+  │   │   ├── common.py
+  │   │   ├── discount.py
+  │   │   ├── fact_metrics.py
+  │   │   ├── leakage.py
+  │   │   ├── margin.py
+  │   │   └── revenue.py
+  │   ├── cleaning.py
+  │   ├── constants.py
+  │   ├── filters.py
+  │   ├── loaders.py
+  │   └── profiler.py
+  ├── views/
+  │   ├── __init__.py
+  │   ├── advisor.py
+  │   ├── advisor_mom.py
+  │   ├── audit_intelligence.py
+  │   ├── cockpit.py
+  │   ├── components/
+  │   │   ├── chart_engine.py
+  │   │   └── kpi_engine.py
+  │   ├── dashboard_common.py
+  │   ├── discount.py
+  │   ├── executive.py
+  │   ├── expense.py
+  │   ├── internal_audit.py
+  │   ├── labour.py
+  │   ├── leakage.py
+  │   ├── locations.py
+  │   ├── margin.py
+  │   ├── overview.py
+  │   ├── parts_detail.py
+  │   ├── parts_executive.py
+  │   ├── pnl.py
+  │   ├── reports.py
+  │   ├── sales_mix.py
+  │   ├── shared.py
+  │   ├── system_health.py
+  │   ├── targets.py
+  │   └── trends.py
+  ├── tests/
+  │   ├── __init__.py
+  │   ├── golden_snapshots.json
+  │   ├── test_aggregations.py
+  │   ├── test_calculations.py
+  │   ├── test_filters.py
+  │   ├── test_golden_snapshot.py
+  │   └── test_pages.py
+  ├── static/
+  │   └── style.css
+  ├── templates/
+  ├── docs/
+  ├── logs/
+  ├── reports/
+  ├── scripts/
+  │   ├── migrate_chart_engine.py
+  │   ├── rewrite_imports.py
+  │   └── test_ai_report.py
+  ├── archive/
+  │   ├── deprecated/
+  │   ├── internal_audit_legacy_html/
+  │   └── tools/
+  └── .streamlit/
+      └── secrets.toml
+
+
+================================================================================
+2. ENGINEERING SUMMARY
+================================================================================
+
+  Repository Cleanup (Day 1):
+    - 48 root-level scripts identified → archived to archive/
+    - 15 root-level test files → archived
+    - 9 orphaned artifacts identified → archived
+    - 5 empty/dead modules identified → archived
+    - test_venv/ (full Python venv) confirmed in repo but untracked
+
+  Golden Snapshot (Day 2):
+    - tests/golden_snapshots.json generated with 71 root-level KPI keys
+    - Captures: overall KPIs, per-location KPIs, per-service-type KPIs
+    - KPIs: Revenue, Margin, Discount, Labour, Parts, FSC, OTC, VOR, etc.
+    - Regression threshold: delta > 0.01 triggers failure
+    - Coverage: 14 locations, multiple service types
+
+  KPI Engine (Day 2):
+    - views/components/kpi_engine.py — thin wrapper around KPIGrid
+    - Standardizes KPI rendering across all dashboards
+    - Single source of truth for KPI metric card layout
+    - Accepts: label, value, sub, cp, pp, pp_label, benchmark, target, invert_trend
+
+  Chart Engine (Day 2):
+    - views/components/chart_engine.py — Plotly styling engine
+    - apply_chart(): standardizes title, fonts, margins, hover, grid, legend
+    - render_card(): wraps chart in enterprise card with HTML container
+    - Supports: small/medium/large/full sizes, x_title, y_title, barmode
+    - Uses ui/design_tokens.py for all colors and typography
+
+  Shared Imports (Day 2):
+    - views/shared.py — wildcard re-export hub (41 lines)
+    - All views use: from views.shared import *
+    - Consolidates: calculations, aggregations, filters, constants, formatters, components
+    - Eliminates ~750 lines of duplicate import blocks across 14 views
+
+  Current Status:
+    - Phase 1 complete: cleanup done, shared infrastructure in place
+    - Known bug: views/leakage.py:119-123 and views/targets.py:119 call undefined kpi()
+    - Credentials security: .streamlit/secrets.toml and service_account.json in working dir
+    - No circular dependencies confirmed
+    - Zero broken imports confirmed
+
+
+================================================================================
+3. COMPLETE SOURCE CODE
+================================================================================
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: app.py (808 lines)
+────────────────────────────────────────────────────────────────────────────────
+"""
+WSMIS — Workshop Management Information System
+Multi-Client  ·  Multi-Location Maruti Dealership
+Apple Light-Theme Dashboard  ·  v1.0.0-rc1
+"""
+
+import time
+START_TIME = time.time()
+
+import streamlit as st
+
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+import gspread
+from google.oauth2.service_account import Credentials
+from datetime import datetime
+from io import BytesIO
+from sklearn.linear_model import LinearRegression
+import sys
+import os
+import importlib.util
+
+from ui.components.core import UniversalHeader, UniversalFooter
+
+from services.audit_service import load_data as load_audit_data
+from services.state_registry import register_all_namespaces
+from services.state_manager import StateManager
+
+# Initialize StateManager namespaces
+register_all_namespaces()
+
+@st.cache_data(ttl=3600)  # Extended TTL to 1 hour (was 300s/5min)
+def get_cached_audit_data():
+    return load_audit_data()
+
+# Removed get_cached_missed_labour entirely since load_data() already computes res["missed"]
+
+
+# CONSTANTS & CONFIG
+from utils.constants import (
+    ADV_COL, CLIENTS, EXCLUDE_SERVICE_TYPES, ARENA_LOCATIONS,
+    NEXA_LOCATIONS, PB_SERVICE_TYPES, MONTH_SORT_ORDER, FY_MONTHS, SERVICE_ACCOUNT
+)
+from config.settings import HIGH_DISC_ALERT, YOY_DECLINE_ALERT, VOR_ALERT_THRESHOLD
+
+PAGE_CAPABILITIES = {
+    "Overview": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Executive": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Cockpit": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Profit & Loss": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Expense Analysis": {"default_period": "1M", "comparison_mode": False, "show_period_filter": True, "show_comparison_filter": False, "show_service_type_filter": False, "additional_module_filters": []},
+    "Labour": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Parts": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Advisors": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": ["Advisor"]},
+    "Advisor MoM": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": ["Advisor"]},
+    "Discounts": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Leakage Center": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Margin": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Sales Mix": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Locations": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Trends": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Targets": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "Reports": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+    "System Health": {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True, "show_service_type_filter": True, "additional_module_filters": []},
+}
+
+
+# PAGE CONFIG & CSS
+st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Auto LLP MIS v1.0.0-rc1", page_icon="🚗")
+
+from pathlib import Path
+APPLE_CSS = f"<style>\n{Path('static/style.css').read_text(encoding='utf-8')}\n</style>"
+st.markdown(APPLE_CSS, unsafe_allow_html=True)
+
+from utils.constants import PLY, C, LOC_COLORS, MP_COLORS
+
+# FORMATTERS & UTILS
+from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+
+
+def classify_location(name, client_config=None):
+    if client_config:
+        if name in client_config["arena_locations"]: return "Arena"
+        if name in client_config["nexa_locations"]: return "Nexa"
+    else:
+        # Fallback uses first client in CLIENTS dict
+        first = list(CLIENTS.values())[0]
+        if name in first["arena_locations"]: return "Arena"
+        if name in first["nexa_locations"]: return "Nexa"
+    return "Other"
+
+from utils.loaders import load_targets, load_unbilled_sheets, load_raw_worksheet, load_raw_expense, TARGET_COLS
+from services.financial_service import FinancialService
+from utils.calculations.common import calc_ratio, calc_growth_pct
+from utils.calculations.fact_metrics import get_vor_charges
+from ui.helpers import render_neg_labour_alert
+from services.logger import logger
+from services.error_handler import safe_render
+
+from utils.aggregations import location_summary, advisor_summary, monthly_summary
+from utils.filters import apply_month_filter, apply_location_filter, apply_location_group_filter, apply_service_type_filter, apply_advisor_filter, split_cp_pp
+
+# DATA LOADING
+from services.logging_service import log_performance
+
+@st.cache_data(ttl=300)
+@log_performance(page_context="Data Loader")
+def load_data(client_config):
+    sheet_id = client_config["sheet_id"]
+    sheet_tab = client_config["sheet_tab"]
+    arena_locs = client_config["arena_locations"]
+    nexa_locs = client_config["nexa_locations"]
+    
+    df = load_raw_worksheet(sheet_id, sheet_tab)
+    
+    # Exclusions
+    df = df[~df['Service Type'].isin(EXCLUDE_SERVICE_TYPES)]
+    
+    # Deterministic DataFrame Cleaning
+    from utils.cleaning import clean_dataframe
+    df = clean_dataframe(df, ADV_COL, MONTH_SORT_ORDER, PB_SERVICE_TYPES)
+
+    df['Location Group'] = df['Location Name'].apply(lambda x: classify_location(x, client_config))
+    
+    # Load Expense data
+    exp_df = load_raw_expense(sheet_id)
+    
+    return df, exp_df
+
+# ALERT SYSTEM
+def compute_alerts(df_cp, df_pp):
+    alerts = []
+    
+    # Alert 1: Labour discount > 25% for any location this period
+    loc_disc = location_summary(df_cp, as_index=True).agg(
+        L=('Pre-GST Labour','sum'), D=('Labour Discount','sum'))
+    loc_disc['D%'] = calc_ratio(loc_disc['D'], loc_disc['L'], multiplier=100, fill_value=np.nan)
+    high_disc = loc_disc[loc_disc['D%'] > HIGH_DISC_ALERT].index.tolist()
+    if high_disc:
+        alerts.append(('red', f"⚠️ High Labour Discount: {', '.join(high_disc)} exceed {HIGH_DISC_ALERT}% threshold"))
+    
+    # Alert 2: Any location with YoY decline > 15%
+    loc_cp = location_summary(df_cp, as_index=True)['Net_Labour'].sum()
+    loc_pp = location_summary(df_pp, as_index=True)['Net_Labour'].sum()
+    for loc in loc_cp.index:
+        if loc in loc_pp.index and loc_pp[loc] > 50000:
+            yoy = calc_growth_pct(loc_cp[loc], loc_pp[loc], fill_value=np.nan) if loc_pp[loc] and not np.isnan(loc_pp[loc]) else np.nan
+            if not np.isnan(yoy) and yoy < -YOY_DECLINE_ALERT:
+                alerts.append(('red', f"📉 {loc} declined {abs(yoy):.1f}% YoY in Net Labour"))
+    
+    # Alert 3: VOR charges this period (elevated excess stock charges)
+    vor = get_vor_charges(df_cp)
+    if vor < -VOR_ALERT_THRESHOLD:
+        alerts.append(('yellow', f"🔧 Elevated VOR charges at {fmt_inr(abs(vor))} — excess stock review needed"))
+    
+    # Alert 4: New location (appears in CP but not in PP)
+    new_locs = set(df_cp['Location Name'].unique()) - set(df_pp['Location Name'].unique())
+    if new_locs:
+        alerts.append(('blue', f"🆕 New locations active this period: {', '.join(new_locs)}"))
+    
+    return alerts
+
+
+
+# MONTH PICKER & GLOBAL FILTERS
+def build_pairs(selected_months, all_months, month_sort, comparison_mode="YoY"):
+    # Build reverse lookup for performance
+    rev = {v: k for k, v in month_sort.items()}
+    offset = -12 if comparison_mode == "YoY" else -1
+    pairs = []
+    for cm in sorted(selected_months, key=lambda x: month_sort.get(x, 99)):
+        cm_sort = month_sort.get(cm, 99)
+        pm = rev.get(cm_sort + offset)
+        if pm:
+            pairs.append((cm, pm, cm_sort))
+    return pairs
+
+def render_month_picker(df, page):
+    capabilities = PAGE_CAPABILITIES.get(page, {"default_period": "3M", "comparison_mode": True, "show_period_filter": True, "show_comparison_filter": True})
+    all_months = sorted(df['Month Name'].unique(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))
+    default_cp = [all_months[-1]] if all_months else []
+
+    # Build preset options
+    preset_options = ["Custom", "1M", "3M", "6M"]
+    for fy_label, fy_month_list in FY_MONTHS.items():
+        if any(m in fy_month_list for m in all_months):
+            preset_options.append(fy_label)
+
+    # Apply page specific capabilities to session state only on FIRST visit (no global period selected yet)
+    # Period is now a global filter - persists across all dashboards once selected
+    if st.session_state.get(f"last_visited_page") != page and not st.session_state.get("user_has_selected_period", False):
+        st.session_state.month_preset = capabilities.get("default_period", "3M")
+        st.session_state.last_preset = capabilities.get("default_period", "3M")
+        st.session_state.comparison_mode_radio = "YoY" if capabilities.get("comparison_mode") else "None"
+        
+        preset = capabilities.get("default_period", "3M")
+        if preset == "1M":
+            st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
+        elif preset == "3M":
+            st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+        elif preset == "6M":
+            st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
+        else:
+            fy_list = FY_MONTHS.get(preset, [])
+            st.session_state.selected_months_custom = [m for m in all_months if m in fy_list]
+        st.session_state.last_visited_page = page
+
+    # Initialize state
+    if "month_preset" not in st.session_state:
+        st.session_state.month_preset = "3M"
+        st.session_state.last_preset = "3M"
+        st.session_state.selected_months_custom = default_cp
+
+    if "selected_months_custom" not in st.session_state:
+        preset = st.session_state.get("month_preset", "3M")
+        if preset == "1M":
+            st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
+        elif preset == "3M":
+            st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+        elif preset == "6M":
+            st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
+        elif preset != "Custom":
+            st.session_state.selected_months_custom = [m for m in all_months if m in FY_MONTHS.get(preset, [])]
+        else:
+            st.session_state.selected_months_custom = default_cp
+    else:
+        # On every rerun: filter invalid months, reset to latest if empty
+        st.session_state.selected_months_custom = [
+            m for m in st.session_state.selected_months_custom
+            if m in all_months
+        ]
+        if not st.session_state.selected_months_custom:
+            preset = st.session_state.get("month_preset", "3M")
+            if preset == "1M":
+                st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
+            elif preset == "3M":
+                st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+            elif preset == "6M":
+                st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
+            elif preset != "Custom":
+                st.session_state.selected_months_custom = [m for m in all_months if m in FY_MONTHS.get(preset, [])]
+            else:
+                st.session_state.selected_months_custom = default_cp
+
+    # Callback for when user manually changes the period preset
+    def on_preset_change():
+        preset = st.session_state.ui_month_preset
+        if preset != "Custom":
+            if preset == "1M":
+                st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
+            elif preset == "3M":
+                st.session_state.selected_months_custom = all_months[-3:] if len(all_months) >= 3 else all_months
+            elif preset == "6M":
+                st.session_state.selected_months_custom = all_months[-6:] if len(all_months) >= 6 else all_months
+            else:
+                fy_list = FY_MONTHS.get(preset, [])
+                st.session_state.selected_months_custom = [m for m in all_months if m in fy_list]
+        st.session_state.last_preset = preset
+        st.session_state.user_has_selected_period = True
+
+    # Callback for when user manually changes the multiselect
+    def on_custom_change():
+        st.session_state.month_preset = "Custom"
+        st.session_state.last_preset = "Custom"
+        st.session_state.user_has_selected_period = True
+
+    if not capabilities.get("show_period_filter") and not capabilities.get("show_comparison_filter"):
+        return st.session_state.selected_months_custom, build_pairs(st.session_state.selected_months_custom, all_months, MONTH_SORT_ORDER, "YoY" if st.session_state.get("comparison_mode_radio") == "YoY" else "MoM"), capabilities.get("comparison_mode", False)
+
+    # PAGE FILTERS (FilterToolbar UI)
+    st.markdown('<div class="filter-toolbar" style="background:#f9f9fb; padding:12px 16px; border-radius:8px; border:1px solid #e5e5ea; margin-bottom:16px;">', unsafe_allow_html=True)
+    
+    # We figure out how many columns we need
+    show_svc = capabilities.get("show_service_type_filter", False)
+    show_adv = "Advisor" in capabilities.get("additional_module_filters", [])
+    is_labour = (page == "Labour")
+    col_count = 5 # Period, Comparison, BU, Location, Reset
+    if show_svc: col_count += 1
+    if show_adv: col_count += 1
+    if is_labour: col_count += 2 # Business View + Service Type (Location already counted)
+    
+    cols = st.columns(col_count)
+    col_idx = 0
+    
+    with cols[col_idx]:
+        if "ui_month_preset" not in st.session_state:
+            st.session_state["ui_month_preset"] = st.session_state.get("month_preset", "3M")
+        preset = st.selectbox("Period", preset_options, key="ui_month_preset", on_change=on_preset_change)
+        # Synchronize UI state to persistent state
+        st.session_state.month_preset = preset
+    col_idx += 1
+    
+    with cols[col_idx]:
+        if "ui_comparison_mode_radio" not in st.session_state:
+            st.session_state["ui_comparison_mode_radio"] = st.session_state.get("comparison_mode_radio", "YoY")
+        if hasattr(st, "segmented_control"):
+            mode_label = st.segmented_control("Comparison", ["YoY", "MoM"], key="ui_comparison_mode_radio")
+        else:
+            mode_label = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="ui_comparison_mode_radio")
+        comparison_mode = (mode_label == "YoY")
+        # Synchronize UI state to persistent state
+        st.session_state.comparison_mode_radio = mode_label
+    col_idx += 1
+    
+    # Business Unit Filter
+    with cols[col_idx]:
+        if "ui_filter_mp_pb" not in st.session_state:
+            st.session_state["ui_filter_mp_pb"] = st.session_state.get("filter_mp_pb", "All")
+        if hasattr(st, "segmented_control"):
+            mp_pb = st.segmented_control("Business Unit", ["All", "MP", "PB"], key="ui_filter_mp_pb")
+        else:
+            mp_pb = st.radio("Business Unit", ["All", "MP", "PB"], horizontal=True, key="ui_filter_mp_pb")
+        # Synchronize UI state to persistent state
+        st.session_state.filter_mp_pb = mp_pb
+    col_idx += 1
+    
+    # Location Filter
+    with cols[col_idx]:
+        available_locs = sorted(df['Location Name'].dropna().unique().tolist())
+        if "ui_filter_location" not in st.session_state:
+            st.session_state["ui_filter_location"] = st.session_state.get("filter_location", [])
+        location = st.multiselect("Location", available_locs, key="ui_filter_location", placeholder="All")
+        # Synchronize UI state to persistent state
+        st.session_state.filter_location = location
+    col_idx += 1
+    
+    if show_svc:
+        with cols[col_idx]:
+            svc_type_opts = sorted(df['Service Type'].dropna().unique().tolist())
+            if "ui_filter_svc_type_single" not in st.session_state:
+                st.session_state["ui_filter_svc_type_single"] = st.session_state.get("filter_svc_type", [])
+            svc_type = st.multiselect("Service Type", svc_type_opts, key="ui_filter_svc_type_single", placeholder="All")
+            st.session_state.filter_svc_type = svc_type
+        col_idx += 1
+        
+    if show_adv:
+        with cols[col_idx]:
+            adv_opts = ["All"] + sorted(df[ADV_COL].dropna().unique().tolist())
+            if "ui_filter_adv_single" not in st.session_state:
+                current_adv = st.session_state.get("filter_advisor", ["All"])[0] if st.session_state.get("filter_advisor") else "All"
+                st.session_state["ui_filter_adv_single"] = current_adv
+            advisor = st.selectbox("Advisor", adv_opts, key="ui_filter_adv_single")
+            st.session_state.filter_advisor = [advisor] if advisor != "All" else []
+        col_idx += 1
+
+    if is_labour:
+        with cols[col_idx]:
+            cur_biz = StateManager.get("lab_business_view", "All")
+            st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Business View</div>', unsafe_allow_html=True)
+            if "lab_biz_ui" not in st.session_state:
+                st.session_state["lab_biz_ui"] = cur_biz
+            if hasattr(st, "segmented_control"):
+                new_b = st.segmented_control("Business View", ["All", "Workshop", "Bodyshop"], key="lab_biz_ui", label_visibility="collapsed")
+            else:
+                new_b = st.radio("Business View", ["All", "Workshop", "Bodyshop"], horizontal=True, key="lab_biz_ui", label_visibility="collapsed")
+            if new_b and new_b != cur_biz:
+                StateManager.set("lab_business_view", new_b)
+                st.rerun()
+        col_idx += 1
+        
+        with cols[col_idx]:
+            st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Service Type</div>', unsafe_allow_html=True)
+            svc_type_opts = sorted(df['Service Type'].dropna().unique().tolist())
+            svc_type = st.multiselect("Service Type", svc_type_opts, default=[], key="filter_svc_type_labour", placeholder="All")
+            st.session_state.filter_svc_type = svc_type
+        col_idx += 1
+
+    with cols[col_idx]:
+        st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
+        if st.button("🔄 Reset Page", key="clear_page"):
+            # Determine active namespace based on current page
+            active_namespace = None
+            if page == "Labour":
+                active_namespace = "lab_"
+            elif page == "Parts Executive":
+                active_namespace = "parts_"
+            elif page == "Cockpit":
+                active_namespace = "cockpit_"
+            
+            # Reset using StateManager (clears active namespace + global filters)
+            if active_namespace:
+                StateManager.reset_page(active_namespace)
+            else:
+                # Fallback: clear only global filters for pages without namespace
+                StateManager.reset_page("")
+            
+            st.rerun()
+
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    is_custom = st.session_state.get("month_preset", "3M") == "Custom"
+    
+    if is_custom:
+        if "ui_selected_months_custom" not in st.session_state:
+            st.session_state["ui_selected_months_custom"] = st.session_state.get("selected_months_custom", [])
+        selected_months = st.multiselect("Custom Months", all_months, key="ui_selected_months_custom", on_change=on_custom_change)
+        # Synchronize UI state to persistent state
+        st.session_state.selected_months_custom = selected_months
+    else:
+        selected_months = st.session_state.selected_months_custom
+            
+    pairs = build_pairs(selected_months, all_months, MONTH_SORT_ORDER, "YoY" if comparison_mode else "MoM")
+
+    if is_custom:
+        if pairs:
+            pair_tags = " ".join(f'<span style="background:#E8F0FE;color:#0071E3;padding:4px 10px;border-radius:12px;font-size:11px;font-weight:600;margin-right:4px;">{cm} ↔ {pm}</span>' for cm, pm, _ in pairs)
+            st.markdown(f'<div style="margin-bottom:12px;font-size:12px;color:#6E6E73;"><b>Matched Pairs ({mode_label}):</b><br>{pair_tags}</div>', unsafe_allow_html=True)
+        else:
+            if selected_months:
+                if len(selected_months) == 1 and not comparison_mode:
+                    st.warning("Select 2+ months for MoM comparison, or switch to YoY mode.")
+                else:
+                    st.warning(f"No prior-period data found in dataset for {mode_label} comparison.")
+
+    return selected_months, pairs, comparison_mode
+
+def render_page_header_filters(df, page):
+    # Now just apply the service/advisor filters set in render_month_picker
+    active_count = 0
+    d = df
+    svc_type = st.session_state.get("filter_svc_type", [])
+    advisor = st.session_state.get("filter_advisor", [])
+    if svc_type: 
+        d = apply_service_type_filter(d, 'Service Type', svc_type)
+        active_count += 1
+    if advisor: 
+        d = apply_advisor_filter(d, ADV_COL, advisor)
+        active_count += 1
+    return d, active_count
+
+def render_global_filters(df):
+    active_count = 0
+    # Global filters moved to horizontal filter bar in render_month_picker
+    # This function now only applies the filters set in the horizontal bar
+    d = df
+    location = st.session_state.get("filter_location", [])
+    mp_pb = st.session_state.get("filter_mp_pb", "All")
+    
+    if location: 
+        d = apply_location_filter(d, 'Location Name', location)
+        active_count += 1
+    if mp_pb and mp_pb != "All": 
+        # Safely pass as a list as expected by apply_location_group_filter
+        d = apply_location_group_filter(d, 'Location_Group', [mp_pb])
+        active_count += 1
+        
+    return d, active_count
+
+# TABS
+
+
+# COCKPIT MOVED TO pages.cockpit
+
+
+# LEAKAGE SHARED HELPERS
+# Leakage functions are now imported globally from services.financial_service
+
+
+# NEW TABS
+
+
+# TAB: TARGET VS ACTUAL
+
+
+# TAB: INTERNAL AUDIT REPORT
+
+
+def sidebar_navigation():
+    with st.sidebar:
+        st.markdown("### 🚗 Navigation")
+        st.markdown("---")
+    
+        # Helper for active state buttons
+        def nav_btn(label, target_page):
+            # Using 'secondary' for inactive, 'primary' for active
+            is_active = st.session_state.get("current_page") == target_page
+            btn_type = "primary" if is_active else "secondary"
+            if st.button(label, use_container_width=True, type=btn_type):
+                st.session_state["current_page"] = target_page
+                st.rerun()
+
+        # 📊 OVERVIEW
+        with st.expander("📊 OVERVIEW"):
+            nav_btn("Cockpit", "Cockpit")
+            nav_btn("Overview", "Overview")
+            nav_btn("Executive", "Executive")
+    
+        # 💰 REVENUE
+        with st.expander("💰 REVENUE"):
+            nav_btn("Labour", "Labour")
+            nav_btn("Parts Executive", "Parts Executive")
+            nav_btn("Parts Detail", "Parts Detail")
+            nav_btn("Margin", "Margin")
+            nav_btn("Sales Mix", "Sales Mix")
+            nav_btn("Discounts", "Discounts")
+            nav_btn("Leakage Center", "Leakage Center")
+
+        # 👥 PEOPLE
+        with st.expander("👥 PEOPLE"):
+            nav_btn("Advisors", "Advisors")
+            nav_btn("Advisor MoM", "Advisor MoM")
+
+        # 📈 PERFORMANCE
+        with st.expander("📈 PERFORMANCE"):
+            nav_btn("Locations", "Locations")
+            nav_btn("Trends", "Trends")
+            nav_btn("Targets", "Targets")
+
+        # 🏦 FINANCE
+        with st.expander("🏦 FINANCE"):
+            nav_btn("Expense Analysis", "Expense Analysis")
+            nav_btn("Profit & Loss", "Profit & Loss")
+
+        # 🛠 ADMIN
+        with st.expander("🛠 ADMIN"):
+            nav_btn("Reports", "Reports")
+            nav_btn("Internal Audit", "Internal Audit")
+            nav_btn("Audit Intelligence", "Audit Intelligence")
+
+        # ⚙️ OPERATIONS (Hidden)
+        if st.query_params.get("admin") == "true":
+            with st.expander("⚙️ OPERATIONS"):
+                nav_btn("System Health", "System Health")
+
+def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, alerts, comparison_mode, selected_months, targets_df, client_config, exp_df_filtered_cp=None):
+    page = st.session_state.get("current_page", "Cockpit")
+
+    if page == "Cockpit":
+        with st.spinner("Loading Cockpit..."):
+            from views.cockpit import render
+        render(df_filtered_full, pairs, alerts, comparison_mode, selected_months)
+    elif page == "Overview":
+        with st.spinner("Crunching numbers..."):
+            from views.overview import render
+        safe_render(render, df_filtered_full, pairs, alerts, comparison_mode, selected_months)
+    elif page == "Labour":
+        with st.spinner("Crunching numbers..."):
+            from views.labour import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
+    elif page == "Parts Executive":
+        with st.spinner("Crunching numbers..."):
+            from views.parts_executive import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
+    elif page == "Parts Detail":
+        with st.spinner("Crunching numbers..."):
+            from views.parts_detail import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
+    elif page == "Margin":
+        with st.spinner("Crunching numbers..."):
+            from views.margin import render
+        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
+    elif page == "Discounts":
+        with st.spinner("Crunching numbers..."):
+            from views.discount import render
+        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
+    elif page == "Leakage Center":
+        with st.spinner("Crunching numbers..."):
+            from views.leakage import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
+    elif page == "Sales Mix":
+        with st.spinner("Crunching numbers..."):
+            from views.sales_mix import render
+        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
+    elif page == "Advisors":
+        with st.spinner("Crunching numbers..."):
+            from views.advisor import render
+        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
+    elif page == "Advisor MoM":
+        with st.spinner("Crunching numbers..."):
+            from views.advisor_mom import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
+    elif page == "Locations":
+        with st.spinner("Crunching numbers..."):
+            from views.locations import render
+        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
+    elif page == "Trends":
+        with st.spinner("Crunching numbers..."):
+            from views.trends import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
+    elif page == "Targets":
+        with st.spinner("Crunching numbers..."):
+            from views.targets import render
+        safe_render(render, df_filtered_cp, targets_df, pairs)
+    elif page == "Reports":
+        with st.status("📄 Generating reports...", expanded=False) as _s:
+            from views.reports import render
+        safe_render(render, df_filtered_cp, pairs, comparison_mode, selected_months)
+        _s.update(label="Reports ready", state="complete", expanded=False)
+    elif page == "Executive":
+        with st.status("📊 Building executive summary...", expanded=False) as _s:
+            from views.executive import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
+        _s.update(label="Executive summary ready", state="complete", expanded=False)
+    elif page == "Expense Analysis":
+        with st.spinner("Loading Expense Analysis..."):
+            from views.expense import render
+        safe_render(render, exp_df_filtered_cp, selected_months)
+    elif page == "Profit & Loss":
+        with st.spinner("Loading Profit & Loss..."):
+            from views.pnl import render
+        safe_render(render, df_filtered_cp, exp_df_filtered_cp, selected_months)
+    elif page == "Audit Intelligence":
+        with st.spinner("Loading Audit Intelligence..."):
+            from views.audit_intelligence import render
+        safe_render(render, df_filtered_full, pairs, alerts, comparison_mode, selected_months)
+    elif page == "Internal Audit":
+        with st.status("🔍 Running audit analysis...", expanded=False) as _s:
+            st.caption("⏳ Exception scan · Leakage detection · Risk register")
+            from views.internal_audit import render
+        safe_render(render, df_filtered, client_config, cp=df_filtered_cp)
+        _s.update(label="Audit analysis complete", state="complete", expanded=False)
+    elif page == "System Health":
+        with st.spinner("Loading System Health..."):
+            from views.system_health import render
+        safe_render(render, df_filtered_full, exp_df_filtered_cp)
+    else:
+        st.error(f"Page '{page}' not found.")
+
+    # ── Universal Footer ──────────────────────────────────────────
+    UniversalFooter()
+
+def main():
+    # ── Environment Validation (once per session) ───────────────────
+    if "env_validated" not in st.session_state:
+        from config.environment import validate_environment
+        validate_environment()
+        st.session_state["env_validated"] = True
+
+    # ── Pilot Access Control ────────────────────────────────────────
+    if "authenticated" not in st.session_state:
+        st.session_state["authenticated"] = False
+
+    # Check for deployment password in Streamlit Secrets or Environment
+    deployment_password = None
+    try:
+        deployment_password = st.secrets.get("DEPLOYMENT_PASSWORD")
+    except Exception:
+        # No secrets file configured
+        pass
+    deployment_password = deployment_password or os.environ.get("DEPLOYMENT_PASSWORD")
+
+    if deployment_password and not st.session_state["authenticated"]:
+        st.markdown("""
+        <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#F5F5F7;">
+            <div style="background:#FFFFFF;padding:40px;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,0.1);text-align:center;max-width:400px;">
+                <div style="font-size:48px;margin-bottom:16px;">🔐</div>
+                <h2 style="margin:0 0 8px 0;color:#1D1D1F;">WSMIS Pilot</h2>
+                <p style="color:#8E8E93;margin-bottom:24px;">Enter deployment password to continue</p>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        password = st.text_input("Password", type="password", key="deploy_password", label_visibility="collapsed")
+        if st.button("Access", key="deploy_access", use_container_width=True):
+            if password == deployment_password:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Invalid password")
+        return
+
+    if "last_refresh" not in st.session_state:
+        st.session_state["last_refresh"] = datetime.now().strftime("%H:%M")
+    if "data_synced_at" not in st.session_state:
+        st.session_state["data_synced_at"] = None
+    if "selected_months" not in st.session_state:
+        st.session_state["selected_months"] = None
+    if "preset_applied" not in st.session_state:
+        st.session_state["preset_applied"] = False
+    if "last_preset" not in st.session_state:
+        st.session_state["last_preset"] = "Custom"
+    if "current_page" not in st.session_state:
+        st.session_state["current_page"] = "Cockpit"
+    if "startup_time" not in st.session_state:
+        st.session_state["startup_time"] = round(time.time() - START_TIME, 2)
+
+    client_names = list(CLIENTS.keys())
+
+    # ── Sidebar Navigation ────────────────────────────────────────
+    sidebar_navigation()
+
+    # ── Sidebar Workspace ─────────────────────────────────────────
+    with st.sidebar:
+        st.markdown("---")
+        st.markdown("### 🏢 Workspace")
+        sel_client = st.selectbox("Client", client_names, key="client_sel", label_visibility="collapsed")
+
+
+
+    # ── Load data ─────────────────────────────────────────────────
+    df = None
+    exp_df = None
+    targets_df = pd.DataFrame(columns=TARGET_COLS)
+    data_loaded_time = None
+    try:
+        with st.spinner("Loading data from Google Sheets..."):
+            df, exp_df = load_data(CLIENTS[sel_client])
+            targets_df = load_targets(CLIENTS[sel_client]["sheet_id"])
+            data_loaded_time = datetime.now()
+            if st.session_state.get("data_synced_at") is None:
+                st.session_state["data_synced_at"] = data_loaded_time
+    except Exception as e:
+        st.error(f"❌ Error loading sheet: {e}")
+        return
+
+
+
+    if df is None or df.empty:
+        st.warning("No data found.")
+        return
+
+    # ── Month picker & filters ─────────────────────────────────────
+    selected_months, pairs, comparison_mode = render_month_picker(df, st.session_state.get('current_page'))
+    df_filtered, active_filter_count = render_global_filters(df)
+    df_filtered, page_active_count = render_page_header_filters(df_filtered, st.session_state.get('current_page'))
+
+    # ── Universal Header ──────────────────────────────────────────
+    synced_at_str = (st.session_state.get("data_synced_at") or data_loaded_time).strftime('%d %b %Y, %I:%M %p') if (data_loaded_time or st.session_state.get("data_synced_at")) else "Unknown"
+    UniversalHeader(
+        client_name=sel_client,
+        report_title=st.session_state.get('current_page', 'Cockpit'),
+        selected_months=selected_months,
+        synced_at=synced_at_str
+    )
+
+    # ── Prepare data for tabs with comparison support ───────────────
+    # For tabs that need comparison (YoY/MoM), include both CP and PP months
+    cp_months = selected_months if selected_months else []
+    pp_months = [p[1] for p in pairs]
+    all_comparison_months = list(set(cp_months + pp_months))
+
+    # df_filtered_full: includes both CP and PP months for comparison tabs
+    df_filtered_full = apply_month_filter(df_filtered, "Month Name", all_comparison_months)
+
+    # df_filtered_cp: only CP months for tabs that don't need comparison
+    df_filtered_cp = apply_month_filter(df_filtered, "Month Name", selected_months) if selected_months else df_filtered
+
+    # ── Filter exp_df ──────────────────────────────────────────────
+    exp_df_filtered_cp = exp_df if exp_df is not None else pd.DataFrame()
+    if not exp_df_filtered_cp.empty:
+        # Apply global location filter
+        filter_location = st.session_state.get("filter_location")
+        if filter_location:
+            exp_df_filtered_cp = apply_location_filter(exp_df_filtered_cp, "Location", filter_location)
+        elif st.session_state.get("filter_loc_group"):
+            # If group is filtered but not specific locations, filter by group locs
+            group_locs = [l for l in CLIENTS[sel_client]["arena_locations"] + CLIENTS[sel_client]["nexa_locations"] 
+                          if classify_location(l, CLIENTS[sel_client]) in st.session_state.get("filter_loc_group")]
+            exp_df_filtered_cp = apply_location_filter(exp_df_filtered_cp, "Location", group_locs)
+            
+        # Apply month filter
+        if selected_months:
+            exp_df_filtered_cp = apply_month_filter(exp_df_filtered_cp, "Month Name", selected_months)
+
+    # ── Alerts (use comparison data) ───────────────────────────────
+    cp = apply_month_filter(df_filtered_full, "Month Name", cp_months)
+    pp = apply_month_filter(df_filtered_full, "Month Name", pp_months)
+    alerts = compute_alerts(cp, pp)
+
+    # Negative labour — shown on all pages except Labour (Labour has its own Section G audit)
+    if st.session_state.get("current_page") != "Labour":
+        render_neg_labour_alert(cp)
+
+    # Period summary pill
+    if selected_months and pp_months and st.session_state.get("current_page") != "Labour":
+        sorted_cp = sorted(selected_months, key=lambda x: MONTH_SORT_ORDER.get(x, 99))
+        sorted_pp = sorted(pp_months, key=lambda x: MONTH_SORT_ORDER.get(x, 99))
+        st.markdown(
+            f'<div style="background:#E8F0FE;border-radius:8px;padding:5px 14px;'
+            f'font-size:12px;font-weight:600;color:#185FA5;display:inline-block;margin-bottom:8px;">'
+            f'📅 {sorted_cp[0]} → {sorted_cp[-1]} '
+            f'vs {sorted_pp[0]} → {sorted_pp[-1]} '
+            f'&nbsp;|  {len(df_filtered_cp):,} rows '
+            f'&nbsp;|  {df_filtered_cp["Location Name"].nunique()} locations'
+            f'</div>',
+            unsafe_allow_html=True
+        )
+
+
+
+    # ── Page Router ───────────────────────────────────────────────
+    render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, alerts, comparison_mode, selected_months, targets_df, CLIENTS[sel_client], exp_df_filtered_cp)
+
+if __name__ == "__main__":
+    main()
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: config/settings.py (20 lines)
+────────────────────────────────────────────────────────────────────────────────
+import os
+
+# Application Settings
+APP_NAME = "WSMIS Analytics"
+VERSION = "1.0.0-RC"
+LEGACY_NAV = True
+
+# ── Discount Benchmarks ───────────────────────────────────────────────────────
+LABOUR_DISC_BENCH = 15      # % — max acceptable labour discount
+PARTS_DISC_BENCH  = 10      # % — max acceptable parts discount
+HIGH_DISC_ALERT   = 25      # % — critical labour discount threshold (exception)
+DISC_CONCERN_PCT  = 20      # % — discount level that triggers concern (not critical)
+
+# ── Performance Alert Thresholds ─────────────────────────────────────────────
+YOY_DECLINE_ALERT    = 15   # % magnitude — YoY decline to trigger red alert
+VOR_ALERT_THRESHOLD  = 200000  # ₹ — VOR charges above this trigger warning
+
+# ── Traffic-Light Thresholds (YoY growth %) ──────────────────────────────────
+TRAFFIC_GREEN_PCT = 10      # % growth for green light
+TRAFFIC_RED_PCT   = 10      # % decline magnitude for red light
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: views/shared.py (41 lines)
+────────────────────────────────────────────────────────────────────────────────
+import streamlit as st
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import json
+from io import BytesIO
+from datetime import datetime
+import time
+
+# Services
+from services.financial_service import FinancialService
+from services.audit_service import calc_penetration, get_month
+
+# Calculations
+from utils.calculations.fact_metrics import *
+from utils.calculations.revenue import *
+from utils.calculations.margin import *
+from utils.calculations.discount import *
+from utils.calculations.leakage import *
+from utils.calculations.common import *
+
+# Utils & Aggregations
+from utils.aggregations import *
+from utils.filters import *
+from utils.constants import *
+
+# UI & Formats
+from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+from ui.design_tokens import T
+
+# UI Components
+from ui.components import KPIGrid, MetricCard, ChartCard, TableCard
+from ui.components.core import UniversalHeader, UniversalFooter, EmptyState, AlertBanner, spacer, section_card, section_title, badge, divider
+from ui.tables import html_table, searchable_table
+# Helpers
+from views.components.chart_engine import ChartEngine
+from views.components.kpi_engine import KPIEngine
+from ui.helpers import clean_hover
+
+from ui.export_buttons import render_export_buttons
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: views/components/chart_engine.py (94 lines)
+────────────────────────────────────────────────────────────────────────────────
+import streamlit as st
+import plotly.graph_objects as go
+from typing import Optional
+
+class ChartEngine:
+    """
+    Shared View Engine for standardizing Plotly charts across all WSMIS dashboards.
+    """
+    
+    @staticmethod
+    def apply_chart(fig: go.Figure, title: str, height: int = 360, text_col=None, bar_text_pos: str = "outside", size: str = "medium", x_title: Optional[str] = None, y_title: Optional[str] = None, barmode: Optional[str] = None):
+        """
+        Apply Executive Light styling to a Plotly figure.
+        """
+        from ui.design_tokens import T
+        SIZES = {
+            "small":  {"title": 14, "tick": 11, "label": 11, "legend": 11, "margin": dict(l=48, r=20, t=40, b=40)},
+            "medium": {"title": 16, "tick": 12, "label": 12, "legend": 12, "margin": dict(l=52, r=24, t=52, b=44)},
+            "large":  {"title": 18, "tick": 13, "label": 13, "legend": 13, "margin": dict(l=60, r=32, t=60, b=52)},
+            "full":   {"title": 22, "tick": 14, "label": 14, "legend": 14, "margin": dict(l=72, r=40, t=72, b=60)},
+        }
+        s = SIZES.get(size, SIZES["medium"])
+        font_stack = T.FONT_FAMILY
+
+        layout_updates = dict(
+            height=height,
+            title=dict(
+                text=f"<b>{title}</b>",
+                font=dict(size=s["title"], color=T.COLOR_TEXT_PRIMARY, family=font_stack, weight=700),
+                x=0.01,
+                xanchor="left",
+                pad=dict(t=8, b=4),
+            ),
+            margin=s["margin"],
+            hoverlabel=dict(
+                bgcolor=T.COLOR_SURFACE,
+                font_size=13,
+                font_family=font_stack,
+                bordercolor=T.COLOR_BORDER,
+                namelength=-1,
+            ),
+            xaxis=dict(title=dict(text=x_title, font=dict(size=s["tick"] + 1, family=font_stack)) if x_title else None, 
+                tickfont=dict(size=s["tick"], family=font_stack),
+                title_font=dict(size=s["tick"] + 1, family=font_stack),
+                gridcolor=T.COLOR_SURFACE2,
+                linecolor=T.COLOR_BORDER,
+            ),
+            yaxis=dict(title=dict(text=y_title, font=dict(size=s["tick"] + 1, family=font_stack)) if y_title else None, 
+                tickfont=dict(size=s["tick"], family=font_stack),
+                title_font=dict(size=s["tick"] + 1, family=font_stack),
+                gridcolor=T.COLOR_SURFACE2,
+                linecolor=T.COLOR_BORDER,
+            ),
+            font=dict(family=font_stack, size=s["tick"], color=T.COLOR_TEXT_PRIMARY),
+            paper_bgcolor=T.COLOR_SURFACE,
+            plot_bgcolor=T.COLOR_SURFACE, barmode=barmode,
+            legend=dict(
+                bgcolor="rgba(255,255,255,0.92)",
+                bordercolor=T.COLOR_BORDER,
+                borderwidth=1,
+                font=dict(size=s["legend"], family=font_stack),
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+            ),
+        )
+        fig.update_layout(**layout_updates)
+        if text_col:
+            fig.update_traces(
+                textposition=bar_text_pos,
+                textfont=dict(size=s["label"], color=T.COLOR_TEXT_PRIMARY, family=font_stack),
+                cliponaxis=False
+            )
+        return fig
+
+    @staticmethod
+    def render_card(title: str, fig: go.Figure, description: Optional[str] = None, height: int = 400, x_title: Optional[str] = None, y_title: Optional[str] = None, barmode: Optional[str] = None):
+        """
+        Standardized Chart Card wrapper.
+        Ensures charts are displayed in a clean, consistent enterprise card.
+        """
+        from ui.design_tokens import T
+        # Enforce standard responsive layout configurations
+        ChartEngine.apply_chart(fig, title="", height=height, x_title=x_title, y_title=y_title, barmode=barmode)
+        
+        html = f'''<div class="chart-card" style="background:var(--color-surface); border-radius:{T.RADIUS_LG}px; padding:{T.SPACE_4}px; border:1px solid var(--color-border); box-shadow:var(--shadow-sm); margin-bottom:{T.SPACE_4}px;">
+        <div style="font-size:{T.TYPE_MD}px; font-weight:600; color:var(--color-text-primary); margin-bottom:{T.SPACE_1}px;">{title}</div>
+        {f"<div style='font-size:{T.TYPE_BASE}px; color:var(--color-text-secondary); margin-bottom:{T.SPACE_4}px;'>{description}</div>" if description else ""}
+    </div>'''
+        st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
+        
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: views/components/kpi_engine.py (19 lines)
+────────────────────────────────────────────────────────────────────────────────
+from typing import List, Dict, Any, Optional
+from ui.components.metrics import KPIGrid
+
+class KPIEngine:
+    """
+    Shared View Engine for standardizing KPI rendering across all WSMIS dashboards.
+    """
+    
+    @staticmethod
+    def render_grid(metrics: List[Dict[str, Any]], cols: Optional[int] = None):
+        """
+        Renders a responsive grid of MetricCards.
+        
+        Args:
+            metrics: List of dicts where each dict contains kwargs for MetricCard:
+                     (label, value, sub, cp, pp, pp_label, benchmark, target, invert_trend)
+            cols:    Column count override. Defaults to len(metrics).
+        """
+        KPIGrid(metrics, cols)
+
+
+────────────────────────────────────────────────────────────────────────────────
+FILE: tests/test_golden_snapshot.py (129 lines)
+────────────────────────────────────────────────────────────────────────────────
+import os
+import json
+import pytest
+import pandas as pd
+import pandas as pd
+from utils.constants import CLIENTS
+from utils.loaders import load_raw_worksheet
+from services.financial_service import FinancialService
+from utils.calculations import fact_metrics
+
+def get_snapshot_data():
+    client_config = list(CLIENTS.values())[0]
+    sheet_id = client_config["sheet_id"]
+    sheet_tab = client_config["sheet_tab"]
+    df = load_raw_worksheet(sheet_id, sheet_tab)
+    
+    # Coerce to numeric to avoid sum() errors on strings
+    for col in df.columns:
+        if col not in ["Location", "Service Type", "Bill Date", "Job Card No", "Advisor Name", "Model"]:
+            try:
+                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+            except Exception:
+                pass
+    return df
+
+
+SNAPSHOT_FILE = os.path.join(os.path.dirname(__file__), "golden_snapshots.json")
+
+def compute_all_kpis(df: pd.DataFrame) -> dict:
+    """Extracts all KPIs from the frozen calculation layer."""
+    if df.empty:
+        return {}
+        
+    kpis = {}
+    
+    # Extract from FinancialService
+    rev_metrics = FinancialService.get_revenue_metrics(df)
+    mar_metrics = FinancialService.get_margin_metrics(df)
+    disc_metrics = FinancialService.get_discount_metrics(df)
+    
+    kpis.update(rev_metrics)
+    kpis.update(mar_metrics)
+    kpis.update(disc_metrics)
+    
+    # Extract Fact Metrics
+    rev_comps = fact_metrics.get_revenue_components(df)
+    mar_comps = fact_metrics.get_margin_components(df)
+    
+    kpis.update(rev_comps)
+    kpis.update(mar_comps)
+    
+    # Additional static KPIs or fallback for missing ones (to ensure we capture what's available)
+    # We round everything to 2 decimal places as requested
+    
+    rounded_kpis = {}
+    for key, value in kpis.items():
+        if isinstance(value, (int, float)):
+            rounded_kpis[key] = round(float(value), 2)
+        elif pd.isna(value):
+            rounded_kpis[key] = 0.0
+            
+    return rounded_kpis
+
+def generate_snapshot():
+    """Generates the golden snapshot file."""
+    print("Loading data for golden snapshot...")
+    df = get_snapshot_data()
+    print(f"Data loaded. Shape: {df.shape}")
+    
+    kpis = compute_all_kpis(df)
+    
+    # Also compute by location to ensure branch-level granularity
+    if "Location" in df.columns:
+        locations = df["Location"].dropna().unique()
+        for loc in locations:
+            loc_df = df[df["Location"] == loc]
+            loc_kpis = compute_all_kpis(loc_df)
+            kpis[f"Location_{loc}"] = loc_kpis
+            
+    # Also compute by Service Type if available
+    if "Service Type" in df.columns:
+        svc_types = df["Service Type"].dropna().unique()
+        for svc in svc_types:
+            svc_df = df[df["Service Type"] == svc]
+            svc_kpis = compute_all_kpis(svc_df)
+            kpis[f"Service_{svc}"] = svc_kpis
+            
+    with open(SNAPSHOT_FILE, "w", encoding="utf-8") as f:
+        json.dump(kpis, f, indent=4)
+        
+    print(f"Golden snapshot saved to {SNAPSHOT_FILE}")
+    print(f"Captured {len(kpis.keys())} root-level KPI categories/locations.")
+
+@pytest.fixture(scope="session")
+def snapshot_data():
+    if not os.path.exists(SNAPSHOT_FILE):
+        pytest.skip(f"Snapshot file {SNAPSHOT_FILE} not found. Run 'python test_golden_snapshot.py' to generate it.")
+    with open(SNAPSHOT_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@pytest.fixture(scope="session")
+def current_data():
+    return get_snapshot_data()
+
+def test_golden_regression_overall(snapshot_data, current_data):
+    """Verifies overall KPIs against the golden snapshot."""
+    current_kpis = compute_all_kpis(current_data)
+    
+    missing_kpis = []
+    failed_kpis = []
+    
+    # Only compare top-level keys that are floats (overall KPIs)
+    for key, expected_val in snapshot_data.items():
+        if isinstance(expected_val, (int, float)):
+            if key not in current_kpis:
+                missing_kpis.append(key)
+                continue
+                
+            actual_val = current_kpis[key]
+            delta = abs(expected_val - actual_val)
+            
+            if delta > 0.01:
+                failed_kpis.append(f"{key}: Expected {expected_val}, got {actual_val} (Delta: {delta:.4f})")
+                
+    assert not missing_kpis, f"Missing KPIs in current calculation: {missing_kpis}"
+    assert not failed_kpis, f"Regression detected in KPIs:\n" + "\n".join(failed_kpis)
+
+if __name__ == "__main__":
+    generate_snapshot()
+
+
+================================================================================
+4. IMPORT GRAPH
+================================================================================
+
+  app.py
+  ├── ui.components.core → UniversalHeader, UniversalFooter
+  ├── services.audit_service → load_data
+  ├── services.state_registry → register_all_namespaces
+  ├── services.state_manager → StateManager
+  ├── utils.constants → ADV_COL, CLIENTS, EXCLUDE_SERVICE_TYPES, ...
+  ├── config.settings → HIGH_DISC_ALERT, YOY_DECLINE_ALERT, VOR_ALERT_THRESHOLD
+  ├── ui.formatters → fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+  ├── utils.loaders → load_targets, load_unbilled_sheets, load_raw_worksheet, ...
+  ├── services.financial_service → FinancialService
+  ├── utils.calculations.common → calc_ratio, calc_growth_pct
+  ├── utils.calculations.fact_metrics → get_vor_charges
+  ├── ui.helpers → render_neg_labour_alert
+  ├── services.logger → logger
+  ├── services.error_handler → safe_render
+  ├── utils.aggregations → location_summary, advisor_summary, monthly_summary
+  ├── utils.filters → apply_month_filter, apply_location_filter, ...
+  └── services.logging_service → log_performance
+
+  views/shared.py
+  ├── services.financial_service → FinancialService
+  ├── services.audit_service → calc_penetration, get_month
+  ├── utils.calculations.fact_metrics → *
+  ├── utils.calculations.revenue → *
+  ├── utils.calculations.margin → *
+  ├── utils.calculations.discount → *
+  ├── utils.calculations.leakage → *
+  ├── utils.calculations.common → *
+  ├── utils.aggregations → *
+  ├── utils.filters → *
+  ├── utils.constants → *
+  ├── ui.formatters → fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
+  ├── ui.design_tokens → T
+  ├── ui.components → KPIGrid, MetricCard, ChartCard, TableCard
+  ├── ui.components.core → UniversalHeader, UniversalFooter, EmptyState, ...
+  ├── ui.tables → html_table, searchable_table
+  ├── views.components.chart_engine → ChartEngine
+  ├── views.components.kpi_engine → KPIEngine
+  ├── ui.helpers → clean_hover
+  └── ui.export_buttons → render_export_buttons
+
+  views/components/chart_engine.py
+  └── ui.design_tokens → T (lazy import inside apply_chart)
+
+  views/components/kpi_engine.py
+  └── ui.components.metrics → KPIGrid
+
+
+================================================================================
+5. DEPENDENCY GRAPH
+================================================================================
+
+  LAYER 0 — Foundation (no internal dependencies):
+    config/settings.py
+    config/paths.py
+    utils/constants.py
+    utils/cleaning.py
+    ui/design_tokens.py
+    ui/formatters.py
+    services/logger.py
+
+  LAYER 1 — Core Utils:
+    utils/calculations/common.py
+    utils/calculations/revenue.py
+    utils/calculations/margin.py
+    utils/calculations/discount.py
+    utils/calculations/leakage.py
+    utils/calculations/fact_metrics.py
+    utils/filters.py
+    utils/aggregations.py
+    utils/loaders.py
+
+  LAYER 2 — Services:
+    services/error_handler.py        → logger
+    services/logging_service.py      → logger
+    services/financial_service.py    → calculations/*
+    services/audit_service.py        → loaders
+    services/aggregation_cache.py    → error_handler, filters
+    services/state_manager.py
+    services/state_registry.py
+    services/export_service.py
+    services/benchmark_provider.py
+    services/executive_alert_engine.py
+
+  LAYER 3 — AI Services:
+    services/ai/models.py
+    services/ai/context_builder.py
+    services/ai/prompt_builder.py
+    services/ai/gemini_provider.py
+    services/ai/report_generator.py  → context_builder, prompt_builder, gemini_provider
+    services/ai/templates.py
+    services/ai/__init__.py           → exports all ai submodules
+
+  LAYER 4 — UI Components:
+    ui/components/core.py
+    ui/components/metrics.py         → design_tokens, formatters
+    ui/components/charts.py          → design_tokens (DUPLICATE of chart_engine)
+    ui/components/tables.py
+    ui/components/filters.py
+    ui/tables.py
+    ui/helpers.py
+    ui/traffic.py
+    ui/executive_tooltip.py
+    ui/export_buttons.py
+
+  LAYER 5 — View Engines:
+    views/components/kpi_engine.py   → ui.components.metrics.KPIGrid
+    views/components/chart_engine.py → ui.design_tokens (lazy)
+    views/shared.py                  → LAYERS 1-4 (wildcard re-exports)
+    views/dashboard_common.py
+
+  LAYER 6 — Views (all consume views/shared.py via wildcard):
+    views/cockpit.py
+    views/overview.py
+    views/executive.py
+    views/labour.py
+    views/parts_executive.py
+    views/parts_detail.py
+    views/margin.py
+    views/discount.py
+    views/leakage.py
+    views/sales_mix.py
+    views/advisor.py
+    views/advisor_mom.py
+    views/locations.py
+    views/trends.py
+    views/targets.py
+    views/reports.py
+    views/expense.py
+    views/pnl.py
+    views/audit_intelligence.py
+    views/internal_audit.py
+    views/system_health.py
+
+  LAYER 7 — Entry Point:
+    app.py → LAYERS 0-6
+
+
+================================================================================
+6. GOLDEN SNAPSHOT SUMMARY
+================================================================================
+
+  File:         tests/golden_snapshots.json
+  Total Keys:   71 root-level KPI entries
+  Generated:    2026-06-22 (Day 2)
+
+  Top-Level KPIs (33 keys):
+  ─────────────────────────────────────────────────────────────────────
+  Total Revenue:                  ₹484,170,419.00
+  Labour Revenue:                 ₹217,772,972.00
+  Parts Revenue:                  ₹266,397,447.00
+  Net Labour:                     ₹217,772,972.00
+  Net Parts:                      ₹266,397,447.00
+  Revenue Per JC:                 ₹4,616.29
+  Total Margin:                   ₹261,743,298.00
+  Parts Margin:                   ₹12,285,719.00
+  Margin Per JC:                  ₹2,495.57
+  Total Discount:                 ₹24,738,269.00
+  Labour Discount:                ₹22,317,189.00
+  Parts Discount:                 ₹2,421,080.00
+  Labour Discount %:              10.25%
+  Parts Discount %:               0.91%
+  Overall Discount %:             5.11%
+  Discount Per JC:                ₹235.87
+  Pre-GST Labour:                 ₹217,772,972.00
+  Pre-GST Parts:                  ₹266,397,447.00
+  Net_Labour:                     ₹217,772,972.00
+  Net_Parts:                      ₹266,397,447.00
+  Parts_Margin:                   ₹12,285,719.00
+  Oil_Margin:                     ₹6,135,814.00
+  Battery_Margin:                 ₹74,095.00
+  Tyre_Margin:                    ₹101,217.00
+  Accessory_Margin:               ₹982,929.00
+  Other_Margin:                   ₹16,157.00
+  FSC Income:                     ₹1,369,575.00
+  OTC Income:                     ₹1,615,048.00
+  MSIL Labour Claim:              ₹438,519.50
+  Internal Consumption:           -₹10,421,989.00
+  Dealer FOC:                     -₹35,680.11
+  VOR Charges:                    -₹2,669,689.00
+
+  Per-Location KPIs (14 locations):
+    A.B.ROAD - SRV, ALIRAJPUR-3S, (and 12 others)
+
+  Regression Threshold:  delta > 0.01 triggers test failure
+
+
+================================================================================
+7. KNOWN TODOS
+================================================================================
+
+  [1] utils/loaders.py:163
+      "TODO (schema pending): map real approved-discount columns once added to MP_PB_Targets."
+
+  [2] views/leakage.py:119-123 (CRITICAL BUG)
+      Calls undefined function kpi() — will cause NameError at runtime.
+
+  [3] views/targets.py:119 (CRITICAL BUG)
+      Calls undefined function kpi() — will cause NameError at runtime.
+
+  [4] ui/components/charts.py vs views/components/chart_engine.py
+      DUPLICATE apply_chart implementations. charts.py is legacy (123 lines),
+      chart_engine.py is canonical (94 lines, superset with x_title/y_title/barmode).
+
+  [5] test_venv/ in repository
+      Full Python virtual environment committed to repo. Should be in .gitignore.
+
+  [6] .streamlit/secrets.toml in working directory
+      Contains live Google service account private key. Security concern.
+
+  [7] service_account.json in working directory
+      Google service account key file. Security concern.
+
+  [8] services/ai_service.py orphaned
+      Superseded by services/ai/ package. Dead code.
+
+  [9] core/ directory has no __init__.py
+      core/ is completely orphaned — never imported anywhere.
+
+  [10] dashboards/ package is empty
+       Never imported. Dead directory.
+
+  [11] exp_report.py, pnl_report.py, revenue_leakage_v31.py
+       Standalone HTML generators (2,340 + 1,537 + 951 = 4,828 lines)
+       Bypass the UI component system entirely.
+
+  [12] 100+ hardcoded colors across 11 files
+       Bypass ui/design_tokens.py — inconsistent visual system.
+
+
+================================================================================
+8. CURRENT FOLDER STRUCTURE
+================================================================================
+
+  WSMIS/
+  ├── app.py                              [808 lines] — Entry point, router, filters
+  ├── cleanup_headers.py                  — Legacy cleanup script
+  ├── exp_report.py                       [2,340 lines] — Standalone expense HTML
+  ├── forensic_audit.py                   — Audit script v1
+  ├── forensic_audit_v2.py                — Audit script v2
+  ├── forensic_audit_v3.py                — Audit script v3
+  ├── forensic_audit_v4.py                — Audit script v4
+  ├── pnl_report.py                       [1,537 lines] — Standalone P&L HTML
+  ├── revenue_leakage_v31.py              [951 lines] — Standalone leakage HTML
+  ├── update_app.py                       — Legacy app updater
+  │
+  ├── config/
+  │   ├── __init__.py
+  │   ├── environment.py                  — Environment validation
+  │   ├── paths.py                        — Path configuration
+  │   └── settings.py                     [20 lines] — App settings, thresholds
+  │
+  ├── services/
+  │   ├── __init__.py
+  │   ├── aggregation_cache.py            — Pandas hash-based caching
+  │   ├── ai/
+  │   │   ├── __init__.py                 — AI package exports
+  │   │   ├── context_builder.py          — Dashboard context → AI context
+  │   │   ├── gemini_provider.py          — Google Gemini API client
+  │   │   ├── models.py                   — AI data models
+  │   │   ├── prompt_builder.py           — Prompt construction
+  │   │   ├── report_generator.py         — Report generation pipeline
+  │   │   └── templates.py               — Prompt templates
+  │   ├── audit_service.py                — Audit data loading
+  │   ├── benchmark_provider.py           — Benchmark data
+  │   ├── error_handler.py                — Error handling, safe_render
+  │   ├── executive_alert_engine.py       — Alert computation
+  │   ├── export_service.py               — CSV/Excel/PDF export
+  │   ├── financial_service.py            — Revenue, margin, discount metrics
+  │   ├── logger.py                       — Logging infrastructure
+  │   ├── logging_service.py              — Performance logging
+  │   ├── state_manager.py                — Session state management
+  │   └── state_registry.py               — Namespace registration
+  │
+  ├── ui/
+  │   ├── __init__.py
+  │   ├── components/
+  │   │   ├── __init__.py                 — Exports KPIGrid, MetricCard, ChartCard, TableCard
+  │   │   ├── charts.py                  [123 lines] — LEGACY apply_chart (DUPLICATE)
+  │   │   ├── core.py                     — UniversalHeader, UniversalFooter, EmptyState, ...
+  │   │   ├── filters.py                  — Filter components
+  │   │   ├── metrics.py                  — KPIGrid, MetricCard
+  │   │   └── tables.py                   — Table components
+  │   ├── design_tokens.py                — Colors, spacing, typography (T.*)
+  │   ├── executive_tooltip.py            — Tooltip builder
+  │   ├── export_buttons.py               — Export button row
+  │   ├── formatters.py                   — fmt_inr, fmt_pct, fmt_num, ...
+  │   ├── helpers.py                      — clean_hover, render_neg_labour_alert
+  │   ├── tables.py                       — html_table, searchable_table
+  │   └── traffic.py                      — Traffic light indicators
+  │
+  ├── utils/
+  │   ├── __init__.py
+  │   ├── aggregations.py                 — location_summary, advisor_summary, ...
+  │   ├── calculations/
+  │   │   ├── __init__.py
+  │   │   ├── common.py                   — calc_ratio, calc_growth_pct, ...
+  │   │   ├── discount.py                 — Discount calculations
+  │   │   ├── fact_metrics.py             — Revenue/margin component extraction
+  │   │   ├── leakage.py                  — Leakage calculations
+  │   │   ├── margin.py                   — Margin calculations
+  │   │   └── revenue.py                  — Revenue calculations
+  │   ├── cleaning.py                     — DataFrame cleaning
+  │   ├── constants.py                    — ADV_COL, CLIENTS, MONTH_SORT_ORDER, ...
+  │   ├── filters.py                      — apply_month_filter, apply_location_filter, ...
+  │   ├── loaders.py                      — Google Sheets data loading
+  │   └── profiler.py                     — Performance profiling
+  │
+  ├── views/
+  │   ├── __init__.py
+  │   ├── advisor.py                      — Advisor dashboard
+  │   ├── advisor_mom.py                  — Advisor MoM dashboard
+  │   ├── audit_intelligence.py           — Audit Intelligence dashboard
+  │   ├── cockpit.py                      — Cockpit dashboard
+  │   ├── components/
+  │   │   ├── chart_engine.py             [94 lines] — Canonical ChartEngine
+  │   │   └── kpi_engine.py              [19 lines] — Canonical KPIEngine
+  │   ├── dashboard_common.py             — Shared dashboard helpers
+  │   ├── discount.py                     — Discount dashboard
+  │   ├── executive.py                    — Executive dashboard
+  │   ├── expense.py                      — Expense dashboard
+  │   ├── internal_audit.py               — Internal Audit dashboard
+  │   ├── labour.py                       — Labour dashboard
+  │   ├── leakage.py                      — Leakage Center dashboard
+  │   ├── locations.py                    — Locations dashboard
+  │   ├── margin.py                       — Margin dashboard
+  │   ├── overview.py                     — Overview dashboard
+  │   ├── parts_detail.py                 — Parts Detail dashboard
+  │   ├── parts_executive.py              — Parts Executive dashboard
+  │   ├── pnl.py                          — Profit & Loss dashboard
+  │   ├── reports.py                      — Reports dashboard
+  │   ├── sales_mix.py                    — Sales Mix dashboard
+  │   ├── shared.py                       [41 lines] — Wildcard re-export hub
+  │   ├── system_health.py                — System Health dashboard
+  │   ├── targets.py                      — Targets dashboard
+  │   └── trends.py                       — Trends dashboard
+  │
+  ├── tests/
+  │   ├── __init__.py
+  │   ├── golden_snapshots.json           [1,360 lines] — 71 KPI baseline
+  │   ├── test_aggregations.py            — Aggregation tests
+  │   ├── test_calculations.py            — Calculation tests
+  │   ├── test_filters.py                 — Filter tests
+  │   ├── test_golden_snapshot.py         [129 lines] — Golden snapshot regression
+  │   └── test_pages.py                   — Page render tests
+  │
+  ├── static/
+  │   └── style.css                       — Global CSS (Apple Light Theme)
+  │
+  ├── templates/                          — HTML templates (empty)
+  ├── docs/                               — Documentation
+  ├── logs/                               — Runtime logs
+  ├── reports/                            — Generated reports
+  │
+  ├── scripts/
+  │   ├── migrate_chart_engine.py         — Migration script
+  │   ├── rewrite_imports.py              — Import rewrite script
+  │   └── test_ai_report.py              — AI report test script
+  │
+  ├── archive/
+  │   ├── deprecated/                     — 9 deprecated scripts
+  │   ├── internal_audit_legacy_html/     — Legacy HTML engine
+  │   └── tools/                          — 20+ archived tool scripts
+  │
+  ├── .streamlit/
+  │   └── secrets.toml                    — [SECURITY: live credentials]
+  │
+  └── test_venv/                          — [SECURITY: full Python venv in repo]
+
+
+================================================================================
+END OF CODE REVIEW BUNDLE
+Generated: 2026-06-22 | Branch: feature/v2-architecture | Version: 1.0.0-rc1
+================================================================================

@@ -1,0 +1,1272 @@
+const {
+  Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell,
+  HeadingLevel, AlignmentType, BorderStyle, WidthType, ShadingType,
+  VerticalAlign, PageOrientation, LevelFormat, PageBreak,
+  PageNumber, NumberFormat
+} = require('docx');
+const fs = require('fs');
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+const W = 9360; // content width in DXA (6.5")
+
+const border = { style: BorderStyle.SINGLE, size: 1, color: "CCCCCC" };
+const borders = { top: border, bottom: border, left: border, right: border };
+const noBorder = { style: BorderStyle.NONE, size: 0, color: "FFFFFF" };
+const noBorders = { top: noBorder, bottom: noBorder, left: noBorder, right: noBorder };
+
+const cellMargin = { top: 80, bottom: 80, left: 120, right: 120 };
+
+function h1(text) {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_1,
+    spacing: { before: 360, after: 120 },
+    children: [new TextRun({ text, bold: true, size: 32, font: "Arial", color: "1F3864" })]
+  });
+}
+function h2(text) {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 280, after: 100 },
+    children: [new TextRun({ text, bold: true, size: 26, font: "Arial", color: "2E5596" })]
+  });
+}
+function h3(text) {
+  return new Paragraph({
+    spacing: { before: 200, after: 80 },
+    children: [new TextRun({ text, bold: true, size: 22, font: "Arial", color: "1F3864" })]
+  });
+}
+function body(text, opts = {}) {
+  return new Paragraph({
+    spacing: { before: 60, after: 60 },
+    children: [new TextRun({ text, size: 20, font: "Arial", ...opts })]
+  });
+}
+function note(text) {
+  return new Paragraph({
+    spacing: { before: 60, after: 60 },
+    children: [new TextRun({ text: `ℹ  ${text}`, size: 18, font: "Arial", color: "595959", italics: true })]
+  });
+}
+function rule() {
+  return new Paragraph({
+    spacing: { before: 120, after: 120 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 1 } },
+    children: []
+  });
+}
+function spacer(before = 160) {
+  return new Paragraph({ spacing: { before, after: 0 }, children: [] });
+}
+function pageBreak() {
+  return new Paragraph({ children: [new PageBreak()] });
+}
+
+function headerCell(text, fill = "1F3864", width = Math.floor(W / 4)) {
+  return new TableCell({
+    borders,
+    width: { size: width, type: WidthType.DXA },
+    shading: { fill, type: ShadingType.CLEAR },
+    margins: cellMargin,
+    verticalAlign: VerticalAlign.CENTER,
+    children: [new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text, bold: true, size: 18, font: "Arial", color: "FFFFFF" })]
+    })]
+  });
+}
+function dataCell(text, fill = "FFFFFF", width = Math.floor(W / 4), bold = false, color = "222222") {
+  return new TableCell({
+    borders,
+    width: { size: width, type: WidthType.DXA },
+    shading: { fill, type: ShadingType.CLEAR },
+    margins: cellMargin,
+    children: [new Paragraph({
+      children: [new TextRun({ text, size: 18, font: "Arial", bold, color })]
+    })]
+  });
+}
+function centredDataCell(text, fill = "FFFFFF", width = Math.floor(W / 4), bold = false, color = "222222") {
+  return new TableCell({
+    borders,
+    width: { size: width, type: WidthType.DXA },
+    shading: { fill, type: ShadingType.CLEAR },
+    margins: cellMargin,
+    verticalAlign: VerticalAlign.CENTER,
+    children: [new Paragraph({
+      alignment: AlignmentType.CENTER,
+      children: [new TextRun({ text, size: 18, font: "Arial", bold, color })]
+    })]
+  });
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 1 — Cover / context
+// ──────────────────────────────────────────────────────────────────────────────
+const coverSection = [
+  new Paragraph({
+    spacing: { before: 0, after: 80 },
+    children: [new TextRun({ text: "WSMIS  —  Phase 2", bold: true, size: 52, font: "Arial", color: "1F3864" })]
+  }),
+  new Paragraph({
+    spacing: { before: 0, after: 80 },
+    children: [new TextRun({ text: "Executive Information Architecture Blueprint", bold: false, size: 36, font: "Arial", color: "2E5596" })]
+  }),
+  new Paragraph({
+    spacing: { before: 60, after: 300 },
+    children: [new TextRun({ text: "Prepared for: Managing Director · CEO · Group General Manager · Business Heads", size: 20, font: "Arial", color: "595959" })]
+  }),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [Math.floor(W / 3), Math.floor(W / 3), W - 2 * Math.floor(W / 3)],
+    rows: [
+      new TableRow({ children: [
+        headerCell("Document", "2E5596", Math.floor(W / 3)),
+        headerCell("Status", "2E5596", Math.floor(W / 3)),
+        headerCell("Date", "2E5596", W - 2 * Math.floor(W / 3)),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Phase 2 IA Blueprint", "EEF3FB", Math.floor(W / 3)),
+        dataCell("FINAL — Ready for Engineering", "EEF3FB", Math.floor(W / 3)),
+        dataCell("22 June 2026", "EEF3FB", W - 2 * Math.floor(W / 3)),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Scope", "F7F9FD", Math.floor(W / 3)),
+        dataCell("UX & Information Architecture only", "F7F9FD", Math.floor(W / 3)),
+        dataCell("No backend / architectural changes", "F7F9FD", W - 2 * Math.floor(W / 3)),
+      ]}),
+    ]
+  }),
+  spacer(240),
+  note("Phase 1 engineering is signed off. This document specifies only the presentation layer — page structure, section order, KPI placement, drill-down philosophy, and meeting flow. No code architecture changes are required or recommended."),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 2 — Decision: Merge vs keep separate
+// ──────────────────────────────────────────────────────────────────────────────
+const mergeDecision = [
+  pageBreak(),
+  h1("1.  Merge Decision: Three Pages → One Command Center"),
+  body("Recommendation: Merge all three pages into a single Executive Command Center.", { bold: true }),
+  spacer(80),
+  body("Rationale:"),
+  spacer(40),
+
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [Math.floor(W * 0.35), Math.floor(W * 0.33), W - Math.floor(W * 0.35) - Math.floor(W * 0.33)],
+    rows: [
+      new TableRow({ children: [
+        headerCell("Problem Observed", "C0392B", Math.floor(W * 0.35)),
+        headerCell("Current State (3 pages)", "C0392B", Math.floor(W * 0.33)),
+        headerCell("Merged State (1 page)", "27AE60", W - Math.floor(W * 0.35) - Math.floor(W * 0.33)),
+      ]}),
+      new TableRow({ children: [
+        dataCell("KPI duplication", "FDF0EF", Math.floor(W * 0.35)),
+        dataCell("Total Revenue appears on all 3 pages; Total Margin on all 3; Total JCs on all 3", "FDF0EF", Math.floor(W * 0.33)),
+        dataCell("Each KPI appears exactly once, in the right hierarchy tier", "EAFAF1", W - Math.floor(W * 0.35) - Math.floor(W * 0.33)),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Alert duplication", "FDFAF9", Math.floor(W * 0.35)),
+        dataCell("Cockpit and Executive both surface alert summaries for same data", "FDFAF9", Math.floor(W * 0.33)),
+        dataCell("Single alert strip at top, consumed once", "F2FCF5", W - Math.floor(W * 0.35) - Math.floor(W * 0.33)),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Navigation cost", "FDF0EF", Math.floor(W * 0.35)),
+        dataCell("MD must navigate across 3 pages; context lost between jumps", "FDF0EF", Math.floor(W * 0.33)),
+        dataCell("Vertical scroll through one coherent narrative", "EAFAF1", W - Math.floor(W * 0.35) - Math.floor(W * 0.33)),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Meeting flow friction", "FDFAF9", Math.floor(W * 0.35)),
+        dataCell("Presenter must switch pages mid-discussion, losing audience thread", "FDFAF9", Math.floor(W * 0.33)),
+        dataCell("Top-to-bottom scroll maps directly to meeting agenda", "F2FCF5", W - Math.floor(W * 0.35) - Math.floor(W * 0.33)),
+      ]}),
+      new TableRow({ children: [
+        dataCell("AI insight fragmentation", "FDF0EF", Math.floor(W * 0.35)),
+        dataCell("Executive Brief sits on Executive page; Cockpit alerts separated; Overview has no AI layer", "FDF0EF", Math.floor(W * 0.33)),
+        dataCell("Single AI narrative block, positioned after health strip and before detail sections", "EAFAF1", W - Math.floor(W * 0.35) - Math.floor(W * 0.33)),
+      ]}),
+    ]
+  }),
+  spacer(120),
+  body("The three pages — Cockpit, Overview, Executive — were built incrementally. Each solved a different problem at a different point in time. Merged, they tell a single story: business health in the first 10 seconds, root causes in the next 50 seconds, and drill-down available on demand."),
+  spacer(80),
+  note("The 21 other dashboards (Labour, Discounts, Locations, Trends, etc.) remain as independent pages. Only the three executive-tier pages are merged."),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 3 — Command Center Structure
+// ──────────────────────────────────────────────────────────────────────────────
+
+const structureSection = [
+  pageBreak(),
+  h1("2.  Executive Command Center — Full Structure"),
+  body("The Command Center is a single, vertically scrolling page with six named sections. Each section has a defined purpose and maximum information density."),
+  spacer(80),
+
+  // Section map table
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [700, 1500, 3500, 1800, 1860],
+    rows: [
+      new TableRow({ children: [
+        headerCell("#", "1F3864", 700),
+        headerCell("Section Name", "1F3864", 1500),
+        headerCell("Purpose", "1F3864", 3500),
+        headerCell("Audience Action", "1F3864", 1800),
+        headerCell("Time Budget", "1F3864", 1860),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("1", "EEF3FB", 700, true, "1F3864"),
+        dataCell("Identity Strip", "EEF3FB", 1500),
+        dataCell("Business entity, period, sync time, confidentiality, version", "EEF3FB", 3500),
+        dataCell("Orient — confirm data is current", "EEF3FB", 1800),
+        centredDataCell("3 sec", "EEF3FB", 1860),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("2", "F7F9FD", 700, true, "1F3864"),
+        dataCell("Health Strip", "F7F9FD", 1500),
+        dataCell("5 tier-1 KPIs with YoY delta; traffic-light status", "F7F9FD", 3500),
+        dataCell("Pass / investigate decision", "F7F9FD", 1800),
+        centredDataCell("10 sec", "F7F9FD", 1860),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("3", "EEF3FB", 700, true, "1F3864"),
+        dataCell("Alert & Opportunity Rail", "EEF3FB", 1500),
+        dataCell("Critical alerts, warning alerts, opportunities — prioritised and actionable", "EEF3FB", 3500),
+        dataCell("Decide which alert warrants discussion", "EEF3FB", 1800),
+        centredDataCell("15 sec", "EEF3FB", 1860),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("4", "F7F9FD", 700, true, "1F3864"),
+        dataCell("AI Executive Brief", "F7F9FD", 1500),
+        dataCell("Period summary, location intelligence, advisor spotlight, discount health, forecast signal, recommended actions", "F7F9FD", 3500),
+        dataCell("Read narrative; approve or redirect actions", "F7F9FD", 1800),
+        centredDataCell("30 sec", "F7F9FD", 1860),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("5", "EEF3FB", 700, true, "1F3864"),
+        dataCell("Workshop Intelligence Panel", "EEF3FB", 1500),
+        dataCell("Revenue by location (bar), WS vs BS split (donut), service-type mix, top/bottom 5 advisors, top/bottom 5 locations", "EEF3FB", 3500),
+        dataCell("Identify outliers; direct drill-down", "EEF3FB", 1800),
+        centredDataCell("60–90 sec", "EEF3FB", 1860),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("6", "F7F9FD", 700, true, "1F3864"),
+        dataCell("Deep Drill Rail", "F7F9FD", 1500),
+        dataCell("Compact navigation cards linking to all 18 operational dashboards, grouped by domain", "F7F9FD", 3500),
+        dataCell("Navigate to root-cause pages as needed", "F7F9FD", 1800),
+        centredDataCell("On demand", "F7F9FD", 1860),
+      ]}),
+    ]
+  }),
+
+  spacer(200),
+  h2("2.1  Section 1 — Identity Strip"),
+  body("Content: Company name (Rukmani Motors), Dashboard title (Executive Command Center), Period label (e.g., Apr-2026), Sync timestamp, Version tag, Confidentiality badge, Auditor name."),
+  body("Placement: Fixed at top of page — always visible on a conference screen without scrolling."),
+  body("Sources: Currently spread across all three pages. Consolidated here exactly once."),
+  note("No change to the current Identity Strip design. This section is already correct in Cockpit — replicate it verbatim."),
+
+  spacer(160),
+  h2("2.2  Section 2 — Health Strip (Tier-1 KPIs)"),
+  body("Five KPIs only. These are the C-suite pulse metrics. Anything not answering 'Is the business growing, healthy, and efficient?' belongs in Section 5."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [300, 1800, 1800, 2000, 3460],
+    rows: [
+      new TableRow({ children: [
+        headerCell("#", "2E5596", 300),
+        headerCell("KPI", "2E5596", 1800),
+        headerCell("Source (current page)", "2E5596", 1800),
+        headerCell("Format", "2E5596", 2000),
+        headerCell("Why Tier-1", "2E5596", 3460),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("1", "EEF3FB", 300, true),
+        dataCell("Total Revenue", "EEF3FB", 1800),
+        dataCell("Cockpit + Executive + Overview", "EEF3FB", 1800),
+        dataCell("₹X.XX Cr  ▲ YY%", "EEF3FB", 2000),
+        dataCell("Primary business outcome", "EEF3FB", 3460),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("2", "F7F9FD", 300, true),
+        dataCell("Total Margin", "F7F9FD", 1800),
+        dataCell("Cockpit + Executive + Overview", "F7F9FD", 1800),
+        dataCell("₹X.XX Cr  ▲ YY%", "F7F9FD", 2000),
+        dataCell("Profitability health", "F7F9FD", 3460),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("3", "EEF3FB", 300, true),
+        dataCell("Total JCs", "EEF3FB", 1800),
+        dataCell("Cockpit + Executive + Overview", "EEF3FB", 1800),
+        dataCell("N,NNN  ▲ YY%", "EEF3FB", 2000),
+        dataCell("Volume / throughput signal", "EEF3FB", 3460),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("4", "F7F9FD", 300, true),
+        dataCell("Avg Labour / JC", "F7F9FD", 1800),
+        dataCell("Executive + Overview", "F7F9FD", 1800),
+        dataCell("₹X.X K  ▲ YY%", "F7F9FD", 2000),
+        dataCell("Revenue quality per vehicle; drives revenue without volume", "F7F9FD", 3460),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("5", "EEF3FB", 300, true),
+        dataCell("Avg Discount %", "EEF3FB", 1800),
+        dataCell("Cockpit only", "EEF3FB", 1800),
+        dataCell("X.X%  (bench: 15%)", "EEF3FB", 2000),
+        dataCell("Margin leakage risk; needs immediate management visibility", "EEF3FB", 3460),
+      ]}),
+    ]
+  }),
+  spacer(100),
+  note("YoY Growth % shown on Cockpit is redundant with the delta arrow on Total Revenue. Remove the standalone YoY Growth KPI card. The delta conveys the same information without an extra card."),
+
+  spacer(160),
+  h2("2.3  Section 3 — Alert & Opportunity Rail"),
+  body("Three columns: Critical Alerts (red) | Warning Alerts (amber) | Opportunities (blue). Each item shows: metric name, impact in rupees, reason in one sentence, action in one sentence, owner role."),
+  body("Expanded alert detail (the full 'Executive Alert Details' block from Cockpit) becomes a collapsible sub-panel beneath the rail, not a separate section. It expands on click."),
+  note("The alert detail cards currently rendered below the three-column summary on Cockpit are correct in content. They should become an expandable accordion rather than always-open. This prevents the meeting screen from being dominated by detail before the executive has decided which alert to discuss."),
+
+  spacer(160),
+  h2("2.4  Section 4 — AI Executive Brief"),
+  body("The AI Executive Brief from the Executive dashboard is the most valuable single block in the entire system. It belongs immediately after alerts — as the narrative that explains what the numbers mean and what to do."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2000, 3680, 3680],
+    rows: [
+      new TableRow({ children: [
+        headerCell("Sub-section", "2E5596", 2000),
+        headerCell("Content", "2E5596", 3680),
+        headerCell("Keep / Modify", "2E5596", 3680),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Period Overview", "EEF3FB", 2000),
+        dataCell("Net labour revenue, growth vs prior, total JCs, active locations", "EEF3FB", 3680),
+        dataCell("KEEP as-is", "EEF3FB", 3680),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Location Intelligence", "F7F9FD", 2000),
+        dataCell("Top 3 growth locations; bottom 3 attention locations", "F7F9FD", 3680),
+        dataCell("KEEP. Add: count of locations exceeding discount benchmark", "F7F9FD", 3680),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Advisor Spotlight", "EEF3FB", 2000),
+        dataCell("Star advisor; high-discount-risk advisors list", "EEF3FB", 3680),
+        dataCell("KEEP as-is", "EEF3FB", 3680),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Discount Health", "F7F9FD", 2000),
+        dataCell("Group labour discount vs benchmark; estimated leakage", "F7F9FD", 3680),
+        dataCell("KEEP. Promote leakage rupee figure to bold inline text", "F7F9FD", 3680),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Sales Mix", "EEF3FB", 2000),
+        dataCell("Oil penetration %, total oil/battery/tyre/accessories revenue", "EEF3FB", 3680),
+        dataCell("KEEP as-is", "EEF3FB", 3680),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Forecast Signal", "F7F9FD", 2000),
+        dataCell("Trend signal based on last N months", "F7F9FD", 3680),
+        dataCell("KEEP. When data is insufficient, show 'Forecast available after Month 3' rather than 'Insufficient Data'", "F7F9FD", 3680),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Recommended Actions", "EEF3FB", 2000),
+        dataCell("Numbered action list with role assignment", "EEF3FB", 3680),
+        dataCell("KEEP. Always show all actions (currently only Action 3 visible in screenshot — confirm this is a rendering bug not a data issue)", "EEF3FB", 3680),
+      ]}),
+    ]
+  }),
+
+  spacer(160),
+  h2("2.5  Section 5 — Workshop Intelligence Panel"),
+  body("This section contains the operational charts and rankings. It is the visual evidence layer — confirming or contradicting what the AI brief said in words."),
+  spacer(80),
+
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2200, 2200, 2200, 2760],
+    rows: [
+      new TableRow({ children: [
+        headerCell("Widget", "2E5596", 2200),
+        headerCell("Source Page", "2E5596", 2200),
+        headerCell("Position in Section 5", "2E5596", 2200),
+        headerCell("Notes", "2E5596", 2760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Revenue by Location (Top 10 bar)", "EEF3FB", 2200),
+        dataCell("Cockpit", "EEF3FB", 2200),
+        dataCell("Row 1, left (60% width)", "EEF3FB", 2200),
+        dataCell("Primary spatial context. Keep horizontal bar orientation — readable on conference screen", "EEF3FB", 2760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Workshop vs Bodyshop split (donut)", "F7F9FD", 2200),
+        dataCell("Cockpit + Overview", "F7F9FD", 2200),
+        dataCell("Row 1, right (40% width)", "F7F9FD", 2200),
+        dataCell("WS/BS contribution is a strategic split — senior leadership needs it at a glance", "F7F9FD", 2760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Service Type Mix (PMS / FS / SC / BR etc.)", "EEF3FB", 2200),
+        dataCell("Overview", "EEF3FB", 2200),
+        dataCell("Row 2, left (50% width)", "EEF3FB", 2200),
+        dataCell("Revenue quality signal — high PMS share is healthy recurring income", "EEF3FB", 2760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Monthly Net Labour Trend (line)", "F7F9FD", 2200),
+        dataCell("Overview", "F7F9FD", 2200),
+        dataCell("Row 2, right (50% width)", "F7F9FD", 2200),
+        dataCell("Critical momentum signal; shows whether growth is sustained or a one-month spike", "F7F9FD", 2760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Top 5 Advisors table", "EEF3FB", 2200),
+        dataCell("Cockpit", "EEF3FB", 2200),
+        dataCell("Row 3, left (50% width)", "EEF3FB", 2200),
+        dataCell("Star performers; C-suite recognition; also cross-references AI Advisor Spotlight", "EEF3FB", 2760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Bottom 5 Advisors table", "F7F9FD", 2200),
+        dataCell("Cockpit", "F7F9FD", 2200),
+        dataCell("Row 3, right (50% width)", "F7F9FD", 2200),
+        dataCell("Performance risk; pairs with Advisor Spotlight risk list in Section 4", "F7F9FD", 2760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Top 5 Locations table", "EEF3FB", 2200),
+        dataCell("Cockpit", "EEF3FB", 2200),
+        dataCell("Row 4, left (50% width)", "EEF3FB", 2200),
+        dataCell("Reinforces Revenue by Location bar chart with exact numbers", "EEF3FB", 2760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Bottom 5 Locations table", "F7F9FD", 2200),
+        dataCell("Cockpit", "F7F9FD", 2200),
+        dataCell("Row 4, right (50% width)", "F7F9FD", 2200),
+        dataCell("Loss/risk locations; triggers drill-down discussion", "F7F9FD", 2760),
+      ]}),
+    ]
+  }),
+  spacer(100),
+  note("The 'Performance Trends' chart from the Executive page (Revenue Trend Labour + Parts, two-line chart) is superseded by the Monthly Net Labour Trend in Row 2. Do not include both. Use the Monthly Net Labour Trend."),
+
+  spacer(160),
+  h2("2.6  Section 6 — Deep Drill Rail"),
+  body("A compact, card-based navigation panel. 18 dashboards organised into 5 domain groups. Each card shows the dashboard name and a one-line description. Cards are tappable / clickable to navigate."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [1600, 4000, 3760],
+    rows: [
+      new TableRow({ children: [
+        headerCell("Domain Group", "2E5596", 1600),
+        headerCell("Dashboards", "2E5596", 4000),
+        headerCell("When to navigate here", "2E5596", 3760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Commercial", "EEF3FB", 1600, true),
+        dataCell("Labour · Parts Executive · Parts Detail · Margin · Discounts · Leakage Centre · Sales Mix", "EEF3FB", 4000),
+        dataCell("Revenue root cause; discount deep-dive; parts mix analysis", "EEF3FB", 3760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("People", "F7F9FD", 1600, true),
+        dataCell("Advisors · Advisor MoM", "F7F9FD", 4000),
+        dataCell("Individual advisor performance; month-on-month productivity trends", "F7F9FD", 3760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Performance", "EEF3FB", 1600, true),
+        dataCell("Locations · Targets · Trends", "EEF3FB", 4000),
+        dataCell("Location benchmarking; target tracking; historical trends", "EEF3FB", 3760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Finance", "F7F9FD", 1600, true),
+        dataCell("Expense Analysis · Profit & Loss", "F7F9FD", 4000),
+        dataCell("Cost health; full P&L drill-down", "F7F9FD", 3760),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Audit & Ops", "EEF3FB", 1600, true),
+        dataCell("Internal Audit · Audit Intelligence · Reports", "EEF3FB", 4000),
+        dataCell("Revenue leakage forensics; missed opportunity analysis; document exports", "EEF3FB", 3760),
+      ]}),
+    ]
+  }),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 4 — Duplication Audit
+// ──────────────────────────────────────────────────────────────────────────────
+const duplicationSection = [
+  pageBreak(),
+  h1("3.  Complete KPI & Widget Duplication Audit"),
+  body("Every KPI and widget that appears on more than one of the three current pages, with its final owner in the merged Command Center."),
+  spacer(80),
+
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2200, 600, 600, 600, 2200, 3160],
+    rows: [
+      new TableRow({ children: [
+        headerCell("KPI / Widget", "1F3864", 2200),
+        headerCell("Cockpit", "1F3864", 600),
+        headerCell("Overview", "1F3864", 600),
+        headerCell("Exec", "1F3864", 600),
+        headerCell("Final Owner", "1F3864", 2200),
+        headerCell("Disposition", "1F3864", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Total Revenue", "EEF3FB", 2200),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        dataCell("Section 2 — Health Strip", "EEF3FB", 2200),
+        dataCell("MERGE → one card, one location", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Total Margin", "F7F9FD", 2200),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        dataCell("Section 2 — Health Strip", "F7F9FD", 2200),
+        dataCell("MERGE → one card, one location", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Total JCs", "EEF3FB", 2200),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        dataCell("Section 2 — Health Strip", "EEF3FB", 2200),
+        dataCell("MERGE → one card, one location", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Avg Labour / JC", "F7F9FD", 2200),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        dataCell("Section 2 — Health Strip", "F7F9FD", 2200),
+        dataCell("MERGE → one card. This is a Tier-1 KPI", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Avg Discount %", "EEF3FB", 2200),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        dataCell("Section 2 — Health Strip", "EEF3FB", 2200),
+        dataCell("PROMOTE to Tier-1 strip. Critical leakage signal", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("YoY Growth %", "F7F9FD", 2200),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        dataCell("REMOVED as standalone card", "FDF0EF", 2200),
+        dataCell("REMOVE — delta arrow on Revenue card conveys identical information", "FDF0EF", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Revenue Growth (New)", "EEF3FB", 2200),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        dataCell("REMOVED as standalone card", "FDF0EF", 2200),
+        dataCell("REMOVE — same as delta on Revenue card", "FDF0EF", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Margin Growth (New)", "F7F9FD", 2200),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        dataCell("REMOVED as standalone card", "FDF0EF", 2200),
+        dataCell("REMOVE — same as delta on Margin card", "FDF0EF", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Net Labour", "EEF3FB", 2200),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        dataCell("Section 4 — AI Brief (Period Overview)", "EEF3FB", 2200),
+        dataCell("DEMOTE — valuable but not Tier-1. Keep in AI Brief narrative and Section 5 charts only", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Net Parts", "F7F9FD", 2200),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        dataCell("Section 4 — AI Brief / Sales Mix", "F7F9FD", 2200),
+        dataCell("DEMOTE — valuable detail; belongs in AI brief and Commercial drill-down", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("WS JCs / BS JCs", "EEF3FB", 2200),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        dataCell("Section 5 — WS/BS donut label", "EEF3FB", 2200),
+        dataCell("DEMOTE — represented visually by donut chart; no need for separate KPI cards", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("WS Margin / BS Margin", "F7F9FD", 2200),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        dataCell("Section 6 → Labour dashboard", "F7F9FD", 2200),
+        dataCell("MOVE to drill-down level. Not a C-suite primary metric", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Alert summary (3-column: Critical / Warning / Opp)", "EEF3FB", 2200),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        dataCell("Section 3 — Alert & Opp Rail", "EEF3FB", 2200),
+        dataCell("MERGE — identical widget. One version only", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Alert detail cards (High Labour Disc, Severe Revenue Decline)", "F7F9FD", 2200),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        dataCell("Section 3 — expandable accordion", "F7F9FD", 2200),
+        dataCell("MOVE to collapsible panel under the rail. Not always-open", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Revenue by Location bar chart", "EEF3FB", 2200),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        dataCell("Section 5 — Row 1 left", "EEF3FB", 2200),
+        dataCell("KEEP in Section 5. Single source of truth", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("WS vs BS donut / table", "F7F9FD", 2200),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        dataCell("Section 5 — Row 1 right", "F7F9FD", 2200),
+        dataCell("MERGE — use Cockpit's donut; discard Overview's KPI card duplicates", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Top / Bottom 5 Advisors", "EEF3FB", 2200),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        dataCell("Section 5 — Row 3", "EEF3FB", 2200),
+        dataCell("KEEP. C-suite people intelligence", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Top / Bottom 5 Locations", "F7F9FD", 2200),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        dataCell("Section 5 — Row 4", "F7F9FD", 2200),
+        dataCell("KEEP. Complements Revenue by Location bar chart", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Revenue Trend (Labour + Parts) line chart", "EEF3FB", 2200),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        dataCell("REPLACED", "FDF0EF", 2200),
+        dataCell("REMOVE — superseded by Monthly Net Labour Trend from Overview (Row 2 right)", "FDF0EF", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Monthly Net Labour Trend line chart", "F7F9FD", 2200),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        dataCell("Section 5 — Row 2 right", "F7F9FD", 2200),
+        dataCell("PROMOTE to Section 5. Only trend chart in the Command Center", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Service Type Mix chart (PMS/FS/SC etc.)", "EEF3FB", 2200),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        dataCell("Section 5 — Row 2 left", "EEF3FB", 2200),
+        dataCell("PROMOTE from Overview to Section 5", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("AI Executive Brief (period, locations, advisor, discount, sales, forecast, actions)", "F7F9FD", 2200),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        dataCell("Section 4 — AI Executive Brief", "F7F9FD", 2200),
+        dataCell("PROMOTE — most valuable block in the system. Moved above charts", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Alert banners (inline: High Labour Disc, ALPR decline, DN decline, new locations)", "EEF3FB", 2200),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        dataCell("Section 3 — Alert Rail (merged into Critical / Warning badges)", "EEF3FB", 2200),
+        dataCell("MERGE — Overview's inline alert banners carry the same signal as Cockpit's alert rail. Consolidate", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Insight highlights (Best Location, Highest Discount, Strongest Growth)", "F7F9FD", 2200),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        dataCell("Section 4 — AI Brief (Location Intelligence + Advisor Spotlight)", "F7F9FD", 2200),
+        dataCell("MOVE into AI Brief narrative. These are already restated there", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Monthly summary table (JCs, Net Labour, Net Parts, Margin, Lab Disc%, Parts Disc%)", "EEF3FB", 2200),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        dataCell("Section 6 → Trends or Reports dashboard", "EEF3FB", 2200),
+        dataCell("DEMOTE — tabular month-by-month data belongs in Trends drill-down, not C-suite view", "EEF3FB", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Export button", "F7F9FD", 2200),
+        centredDataCell("—", "F7F9FD", 600),
+        centredDataCell("✓", "F7F9FD", 600),
+        centredDataCell("—", "F7F9FD", 600),
+        dataCell("Page footer (Command Center)", "F7F9FD", 2200),
+        dataCell("KEEP but move to page footer, not inline after the summary table", "F7F9FD", 3160),
+      ]}),
+      new TableRow({ children: [
+        dataCell("Location Performance pivot (pivot table — shows error in screenshot)", "EEF3FB", 2200),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("—", "EEF3FB", 600),
+        centredDataCell("✓", "EEF3FB", 600),
+        dataCell("Section 6 → Locations dashboard", "EEF3FB", 2200),
+        dataCell("MOVE to Locations drill-down. Currently broken (pivot error). Fix there, not on command center", "EEF3FB", 3160),
+      ]}),
+    ]
+  }),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 5 — Remove / Merge / Move / Promote / Demote
+// ──────────────────────────────────────────────────────────────────────────────
+const dispositionSection = [
+  pageBreak(),
+  h1("4.  Disposition Decisions: Remove · Merge · Move · Promote · Demote"),
+
+  h2("4.1  REMOVE (9 items)"),
+  body("These items should not exist anywhere in the Command Center."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2800, 6560],
+    rows: [
+      new TableRow({ children: [headerCell("Item", "C0392B", 2800), headerCell("Reason", "C0392B", 6560)] }),
+      new TableRow({ children: [dataCell("YoY Growth % card", "FDF0EF", 2800), dataCell("Redundant with delta arrow on Total Revenue card. Double-counts the same figure", "FDF0EF", 6560)] }),
+      new TableRow({ children: [dataCell("Revenue Growth (New) card", "F7F9FD", 2800), dataCell("Exact duplicate of YoY delta on Revenue", "F7F9FD", 6560)] }),
+      new TableRow({ children: [dataCell("Margin Growth (New) card", "FDF0EF", 2800), dataCell("Exact duplicate of YoY delta on Margin", "FDF0EF", 6560)] }),
+      new TableRow({ children: [dataCell("Net Labour KPI card (standalone)", "F7F9FD", 2800), dataCell("Tier-2 metric. Belongs in charts and AI Brief narrative only", "F7F9FD", 6560)] }),
+      new TableRow({ children: [dataCell("Net Parts KPI card (standalone)", "FDF0EF", 2800), dataCell("Tier-2 metric. Captured in AI Brief Sales Mix section", "FDF0EF", 6560)] }),
+      new TableRow({ children: [dataCell("WS JCs / BS JCs separate KPI cards", "F7F9FD", 2800), dataCell("Represented visually by the WS/BS donut chart with contribution labels", "F7F9FD", 6560)] }),
+      new TableRow({ children: [dataCell("Revenue Trend (Labour + Parts) line chart (Executive)", "FDF0EF", 2800), dataCell("Superseded by the Monthly Net Labour Trend which is richer and source-deduplicated", "FDF0EF", 6560)] }),
+      new TableRow({ children: [dataCell("Monthly tabular summary (Overview bottom)", "F7F9FD", 2800), dataCell("Granular month-row data is appropriate for Trends dashboard, not a C-suite view", "F7F9FD", 6560)] }),
+      new TableRow({ children: [dataCell("Location Performance pivot (Executive — broken)", "FDF0EF", 2800), dataCell("Broken widget should not be on a C-suite page. Fix and host on Locations dashboard", "FDF0EF", 6560)] }),
+    ]
+  }),
+
+  spacer(160),
+  h2("4.2  MERGE (5 items)"),
+  body("These items exist in multiple places with identical or near-identical content. Keep one canonical version."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2800, 2600, 3960],
+    rows: [
+      new TableRow({ children: [headerCell("Item", "2E5596", 2800), headerCell("Current instances", "2E5596", 2600), headerCell("Canonical location", "2E5596", 3960)] }),
+      new TableRow({ children: [dataCell("Total Revenue card", "EEF3FB", 2800), dataCell("Cockpit + Overview + Executive", "EEF3FB", 2600), dataCell("Section 2 — Health Strip", "EEF3FB", 3960)] }),
+      new TableRow({ children: [dataCell("Total Margin card", "F7F9FD", 2800), dataCell("Cockpit + Overview + Executive", "F7F9FD", 2600), dataCell("Section 2 — Health Strip", "F7F9FD", 3960)] }),
+      new TableRow({ children: [dataCell("Total JCs card", "EEF3FB", 2800), dataCell("Cockpit + Overview + Executive", "EEF3FB", 2600), dataCell("Section 2 — Health Strip", "EEF3FB", 3960)] }),
+      new TableRow({ children: [dataCell("Alert 3-column summary rail", "F7F9FD", 2800), dataCell("Cockpit + Executive", "F7F9FD", 2600), dataCell("Section 3 — Alert & Opportunity Rail", "F7F9FD", 3960)] }),
+      new TableRow({ children: [dataCell("WS vs BS split widget", "EEF3FB", 2800), dataCell("Cockpit (donut) + Overview (KPI cards)", "EEF3FB", 2600), dataCell("Section 5 — Row 1 right (use donut)", "EEF3FB", 3960)] }),
+    ]
+  }),
+
+  spacer(160),
+  h2("4.3  MOVE (4 items)"),
+  body("These items are in the wrong place, but are valuable at a different level of the hierarchy."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2400, 2200, 4760],
+    rows: [
+      new TableRow({ children: [headerCell("Item", "2E5596", 2400), headerCell("From", "2E5596", 2200), headerCell("To", "2E5596", 4760)] }),
+      new TableRow({ children: [dataCell("Alert detail cards (accordion)", "EEF3FB", 2400), dataCell("Cockpit — always visible", "EEF3FB", 2200), dataCell("Section 3 — collapsed by default, expandable on click", "EEF3FB", 4760)] }),
+      new TableRow({ children: [dataCell("WS Margin / BS Margin cards", "F7F9FD", 2400), dataCell("Overview KPI row", "F7F9FD", 2200), dataCell("Section 6 → Labour dashboard", "F7F9FD", 4760)] }),
+      new TableRow({ children: [dataCell("Monthly summary table", "EEF3FB", 2400), dataCell("Overview bottom section", "EEF3FB", 2200), dataCell("Trends dashboard (drill-down)", "EEF3FB", 4760)] }),
+      new TableRow({ children: [dataCell("Insight highlights (Best Location, Highest Discount, Strongest Growth)", "F7F9FD", 2400), dataCell("Overview inline panels", "F7F9FD", 2200), dataCell("Section 4 — AI Brief (already stated there in richer form)", "F7F9FD", 4760)] }),
+    ]
+  }),
+
+  spacer(160),
+  h2("4.4  PROMOTE (3 items)"),
+  body("These items exist in lower-visibility locations but deserve top-tier placement."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2400, 2200, 4760],
+    rows: [
+      new TableRow({ children: [headerCell("Item", "27AE60", 2400), headerCell("Current level", "27AE60", 2200), headerCell("Promoted to", "27AE60", 4760)] }),
+      new TableRow({ children: [dataCell("Avg Discount %", "EAFAF1", 2400), dataCell("Secondary KPI on Cockpit only", "EAFAF1", 2200), dataCell("Section 2 — Health Strip (Tier-1 card). Margin leakage requires C-suite visibility", "EAFAF1", 4760)] }),
+      new TableRow({ children: [dataCell("AI Executive Brief", "F2FCF5", 2400), dataCell("Section on Executive page only", "F2FCF5", 2200), dataCell("Section 4 — positioned above all charts. Narrative must lead visuals", "F2FCF5", 4760)] }),
+      new TableRow({ children: [dataCell("Service Type Mix chart", "EAFAF1", 2400), dataCell("Overview page (low visibility)", "EAFAF1", 2200), dataCell("Section 5 — Row 2 left. PMS/recurring mix is a strategic health signal", "EAFAF1", 4760)] }),
+    ]
+  }),
+
+  spacer(160),
+  h2("4.5  DEMOTE (5 items)"),
+  body("These items are on the C-suite page but belong one level deeper — in operational dashboards."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2400, 2200, 4760],
+    rows: [
+      new TableRow({ children: [headerCell("Item", "E67E22", 2400), headerCell("Currently on", "E67E22", 2200), headerCell("Should live on", "E67E22", 4760)] }),
+      new TableRow({ children: [dataCell("Net Labour KPI card", "FEF9EC", 2400), dataCell("Overview + Executive", "FEF9EC", 2200), dataCell("AI Brief narrative + Labour dashboard", "FEF9EC", 4760)] }),
+      new TableRow({ children: [dataCell("Net Parts KPI card", "FDF6E3", 2400), dataCell("Overview + Executive", "FDF6E3", 2200), dataCell("AI Brief Sales Mix + Parts Executive dashboard", "FDF6E3", 4760)] }),
+      new TableRow({ children: [dataCell("WS JCs / BS JCs cards", "FEF9EC", 2400), dataCell("Overview", "FEF9EC", 2200), dataCell("Section 5 donut chart labels (no separate card)", "FEF9EC", 4760)] }),
+      new TableRow({ children: [dataCell("WS Margin / BS Margin cards", "FDF6E3", 2400), dataCell("Overview", "FDF6E3", 2200), dataCell("Labour dashboard — operational segment detail", "FDF6E3", 4760)] }),
+      new TableRow({ children: [dataCell("Avg Labour/JC (from Executive)", "FEF9EC", 2400), dataCell("Executive as secondary card", "FEF9EC", 2200), dataCell("PROMOTED — moved to Tier-1 Health Strip (overrides demotion)", "FEF9EC", 4760)] }),
+    ]
+  }),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 6 — Meeting Flow
+// ──────────────────────────────────────────────────────────────────────────────
+const meetingSection = [
+  pageBreak(),
+  h1("5.  Ideal CEO Monthly Review Meeting Flow"),
+  body("The Command Center's vertical scroll maps directly to the meeting agenda. The presenter never changes pages. Each section corresponds to one discussion beat."),
+  spacer(80),
+  note("Total time for a standard monthly review: 45–60 minutes. The Command Center covers Acts 1–3 (≈15 minutes). Acts 4–6 are drill-down discussions using the Section 6 navigation cards."),
+
+  spacer(120),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [500, 1400, 1200, 3200, 3060],
+    rows: [
+      new TableRow({ children: [
+        headerCell("Act", "1F3864", 500),
+        headerCell("Time", "1F3864", 1400),
+        headerCell("Section", "1F3864", 1200),
+        headerCell("Discussion Focus", "1F3864", 3200),
+        headerCell("Decision Gate", "1F3864", 3060),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("1", "EEF3FB", 500, true, "1F3864"),
+        dataCell("0:00 – 0:30", "EEF3FB", 1400),
+        dataCell("Identity Strip", "EEF3FB", 1200),
+        dataCell("Confirm: correct period, data is fresh (sync time), all 21 locations active. No discussion needed if everything is green.", "EEF3FB", 3200),
+        dataCell("Is the data current and complete?", "EEF3FB", 3060),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("2", "F7F9FD", 500, true, "1F3864"),
+        dataCell("0:30 – 1:30", "F7F9FD", 1400),
+        dataCell("Health Strip", "F7F9FD", 1200),
+        dataCell("Read the 5 KPI cards aloud: Revenue, Margin, JCs, Avg Labour/JC, Discount %. MD makes first pass — is the business up, flat, or down vs benchmark?", "F7F9FD", 3200),
+        dataCell("Is the business healthy? Pass / Investigate.", "F7F9FD", 3060),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("3", "EEF3FB", 500, true, "1F3864"),
+        dataCell("1:30 – 4:00", "EEF3FB", 1400),
+        dataCell("Alert & Opportunity Rail", "EEF3FB", 1200),
+        dataCell("Walk each Critical alert: impact, owner, action. Walk each Opportunity: potential, action. Expand alert detail accordion only for items requiring immediate board-level decision.", "EEF3FB", 3200),
+        dataCell("Who owns each alert? What is the committed close date?", "EEF3FB", 3060),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("4", "F7F9FD", 500, true, "1F3864"),
+        dataCell("4:00 – 8:00", "F7F9FD", 1400),
+        dataCell("AI Executive Brief", "F7F9FD", 1200),
+        dataCell("AI reads the narrative: Period overview confirms Health Strip. Location Intelligence identifies which locations to praise / investigate. Advisor Spotlight triggers HR / incentive discussion. Recommended Actions are confirmed or overridden by MD.", "F7F9FD", 3200),
+        dataCell("Are Recommended Actions accepted? Which need escalation?", "F7F9FD", 3060),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("5", "EEF3FB", 500, true, "1F3864"),
+        dataCell("8:00 – 15:00", "EEF3FB", 1400),
+        dataCell("Workshop Intelligence Panel", "EEF3FB", 1200),
+        dataCell("Revenue by Location bar: which locations are pulling the group? WS/BS donut: is bodyshop growing? Service mix: is PMS penetration healthy? Trend line: is momentum sustained? Top/Bottom 5 tables: name-level accountability.", "EEF3FB", 3200),
+        dataCell("Which locations / advisors need intervention this month?", "EEF3FB", 3060),
+      ]}),
+      new TableRow({ children: [
+        centredDataCell("6", "F7F9FD", 500, true, "1F3864"),
+        dataCell("15:00 – 45:00", "F7F9FD", 1400),
+        dataCell("Deep Drill Rail → domain dashboards", "F7F9FD", 1200),
+        dataCell("Navigate by discussion need. Standard flow: Revenue (Labour → Parts) → Workshop (Discounts → Leakage) → People (Advisors → Advisor MoM) → Finance (Expense → P&L) → Audit (Internal Audit → Audit Intelligence). Skip any domain that is green.", "F7F9FD", 3200),
+        dataCell("For each domain: is there a root cause finding? Who is accountable?", "F7F9FD", 3060),
+      ]}),
+    ]
+  }),
+
+  spacer(160),
+  h2("5.1  Executive Health → Revenue → Workshop → People → Finance → Audit"),
+  body("The following drill-down sequence is the recommended meeting narrative for a standard month with at least one critical alert. Domains shown in grey can be skipped if the AI Brief shows no flags for that domain."),
+  spacer(80),
+
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [900, 1800, 2000, 2400, 2260],
+    rows: [
+      new TableRow({ children: [
+        headerCell("Beat", "2E5596", 900),
+        headerCell("Domain", "2E5596", 1800),
+        headerCell("Dashboards Used", "2E5596", 2000),
+        headerCell("Key Questions", "2E5596", 2400),
+        headerCell("Skip Condition", "2E5596", 2260),
+      ]}),
+      new TableRow({ children: [
+        dataCell("A", "EEF3FB", 900, true),
+        dataCell("Executive Health", "EEF3FB", 1800),
+        dataCell("Command Center §1–4", "EEF3FB", 2000),
+        dataCell("Is revenue growing? Is margin holding? Is discount under control?", "EEF3FB", 2400),
+        dataCell("Never skip", "FDF0EF", 2260),
+      ]}),
+      new TableRow({ children: [
+        dataCell("B", "F7F9FD", 900, true),
+        dataCell("Revenue", "F7F9FD", 1800),
+        dataCell("Labour, Parts Executive, Sales Mix", "F7F9FD", 2000),
+        dataCell("Where is labour growth coming from? Parts mix healthy? Oil penetration on track?", "F7F9FD", 2400),
+        dataCell("Revenue ▲ and AI brief shows no anomaly", "F2FCF5", 2260),
+      ]}),
+      new TableRow({ children: [
+        dataCell("C", "EEF3FB", 900, true),
+        dataCell("Workshop", "EEF3FB", 1800),
+        dataCell("Discounts, Leakage Centre, Locations", "EEF3FB", 2000),
+        dataCell("Which advisors are discounting above benchmark? How much leakage is recoverable? Which location is worst?", "EEF3FB", 2400),
+        dataCell("Discount % < 10% and no Critical alert on discount", "F2FCF5", 2260),
+      ]}),
+      new TableRow({ children: [
+        dataCell("D", "F7F9FD", 900, true),
+        dataCell("People", "F7F9FD", 1800),
+        dataCell("Advisors, Advisor MoM", "F7F9FD", 2000),
+        dataCell("Who are the top 3 performers? Are the bottom performers trending worse? Is the high-discount advisor on a PIP?", "F7F9FD", 2400),
+        dataCell("No name in bottom 5 appears in high-discount risk list", "F2FCF5", 2260),
+      ]}),
+      new TableRow({ children: [
+        dataCell("E", "EEF3FB", 900, true),
+        dataCell("Finance", "EEF3FB", 1800),
+        dataCell("Expense Analysis, P&L", "EEF3FB", 2000),
+        dataCell("Is cost growth outpacing revenue growth? Is EBITDA margin within target?", "EEF3FB", 2400),
+        dataCell("Total Margin ▲ and no Expense alert", "F2FCF5", 2260),
+      ]}),
+      new TableRow({ children: [
+        dataCell("F", "F7F9FD", 900, true),
+        dataCell("Audit", "F7F9FD", 1800),
+        dataCell("Internal Audit, Audit Intelligence", "F7F9FD", 2000),
+        dataCell("Are there missed labour opportunities? Systematic discount abuse? Any audit findings from last month closed?", "F7F9FD", 2400),
+        dataCell("No open audit findings from prior month", "F2FCF5", 2260),
+      ]}),
+    ]
+  }),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 7 — Implementation Notes
+// ──────────────────────────────────────────────────────────────────────────────
+const implementationSection = [
+  pageBreak(),
+  h1("6.  Implementation Notes for Engineering"),
+  body("This section translates the IA blueprint into actionable Phase 2 engineering tasks. No architectural changes are required — all changes are within the existing views/executive/ domain."),
+  spacer(80),
+
+  h2("6.1  Files Affected"),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [3000, 1600, 4760],
+    rows: [
+      new TableRow({ children: [headerCell("File", "2E5596", 3000), headerCell("Change Type", "2E5596", 1600), headerCell("Description", "2E5596", 4760)] }),
+      new TableRow({ children: [dataCell("views/executive/cockpit.py (320 lines)", "EEF3FB", 3000), dataCell("REFACTOR", "EEF3FB", 1600), dataCell("Becomes the new Command Center shell. Absorbs executive.py and overview.py content. Retains Identity Strip and Alert Rail.", "EEF3FB", 4760)] }),
+      new TableRow({ children: [dataCell("views/executive/executive.py (295 lines)", "F7F9FD", 3000), dataCell("DISSOLVE", "F7F9FD", 1600), dataCell("AI Executive Brief block migrated to cockpit.py Section 4. KPI cards audited against duplication matrix and removed/merged. File becomes a stub or is deleted.", "F7F9FD", 4760)] }),
+      new TableRow({ children: [dataCell("views/executive/overview.py (205 lines)", "EEF3FB", 3000), dataCell("DISSOLVE", "EEF3FB", 1600), dataCell("Monthly Net Labour Trend, WS/BS donut, Service Mix chart migrated to cockpit.py Section 5. Remaining KPI cards (Net Labour, Net Parts, WS/BS split cards) removed. File becomes a stub or deleted.", "EEF3FB", 4760)] }),
+      new TableRow({ children: [dataCell("app.py routing (846 lines)", "F7F9FD", 3000), dataCell("ROUTE UPDATE", "F7F9FD", 1600), dataCell("'Overview' and 'Executive' routes redirect to 'Cockpit'. Or retain as aliases pointing to the same view module. No structural routing change needed.", "F7F9FD", 4760)] }),
+    ]
+  }),
+
+  spacer(160),
+  h2("6.2  Bugs to Fix in Phase 2 (not architecture — view-layer only)"),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [3000, 6360],
+    rows: [
+      new TableRow({ children: [headerCell("Bug", "C0392B", 3000), headerCell("Fix", "C0392B", 6360)] }),
+      new TableRow({ children: [dataCell("Location Performance pivot error on Executive page ('Must provide func or tuples')", "FDF0EF", 3000), dataCell("Fix aggregation call in views/executive/executive.py before migrating widget to Locations dashboard. Do not migrate a broken widget.", "FDF0EF", 6360)] }),
+      new TableRow({ children: [dataCell("Recommended Actions only shows Action 3 (visible in screenshot)", "F7F9FD", 3000), dataCell("Check AI Brief rendering loop in services/ai/report_generator.py or views/executive/executive.py. Confirm all actions are rendered, not just the last one.", "F7F9FD", 6360)] }),
+      new TableRow({ children: [dataCell("'Insufficient Data' on Forecast Signal", "FDF0EF", 3000), dataCell("Replace with user-friendly message: 'Forecast available after 3 months of data'. Consider suppressing the sub-section entirely until data is available.", "FDF0EF", 6360)] }),
+      new TableRow({ children: [dataCell("Alert detail cards always expanded", "F7F9FD", 3000), dataCell("Wrap in st.expander() or equivalent. Default state: collapsed. Title should show alert name + impact amount.", "F7F9FD", 6360)] }),
+    ]
+  }),
+
+  spacer(160),
+  h2("6.3  KPI Hierarchy Reference Card"),
+  body("Use this card during implementation to quickly verify a KPI's tier and location."),
+  spacer(80),
+
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [700, 2660, 2000, 4000],
+    rows: [
+      new TableRow({ children: [headerCell("Tier", "1F3864", 700), headerCell("KPI", "1F3864", 2660), headerCell("Location in Command Center", "1F3864", 2000), headerCell("Format", "1F3864", 4000)] }),
+      new TableRow({ children: [centredDataCell("1", "EEF3FB", 700, true, "1F3864"), dataCell("Total Revenue", "EEF3FB", 2660), dataCell("Section 2 — Health Strip", "EEF3FB", 2000), dataCell("₹X.XX Cr | ▲ X.X% YoY | delta colour coded", "EEF3FB", 4000)] }),
+      new TableRow({ children: [centredDataCell("1", "F7F9FD", 700, true, "1F3864"), dataCell("Total Margin", "F7F9FD", 2660), dataCell("Section 2 — Health Strip", "F7F9FD", 2000), dataCell("₹X.XX Cr | ▲ X.X% YoY | delta colour coded", "F7F9FD", 4000)] }),
+      new TableRow({ children: [centredDataCell("1", "EEF3FB", 700, true, "1F3864"), dataCell("Total JCs", "EEF3FB", 2660), dataCell("Section 2 — Health Strip", "EEF3FB", 2000), dataCell("X,XXX | ▲ X.X% YoY", "EEF3FB", 4000)] }),
+      new TableRow({ children: [centredDataCell("1", "F7F9FD", 700, true, "1F3864"), dataCell("Avg Labour / JC", "F7F9FD", 2660), dataCell("Section 2 — Health Strip", "F7F9FD", 2000), dataCell("₹X.X K | ▲ X.X% | benchmark indicator", "F7F9FD", 4000)] }),
+      new TableRow({ children: [centredDataCell("1", "EEF3FB", 700, true, "1F3864"), dataCell("Avg Discount %", "EEF3FB", 2660), dataCell("Section 2 — Health Strip", "EEF3FB", 2000), dataCell("X.X% | bench: 15% | traffic light vs benchmark", "EEF3FB", 4000)] }),
+      new TableRow({ children: [centredDataCell("2", "F7F9FD", 700, true, "595959"), dataCell("Net Labour Revenue", "F7F9FD", 2660), dataCell("Section 4 AI Brief + charts", "F7F9FD", 2000), dataCell("₹X.XX Cr | mentioned in Period Overview narrative", "F7F9FD", 4000)] }),
+      new TableRow({ children: [centredDataCell("2", "EEF3FB", 700, true, "595959"), dataCell("Net Parts Revenue", "EEF3FB", 2660), dataCell("Section 4 AI Brief + charts", "EEF3FB", 2000), dataCell("₹X.XX Cr | mentioned in Sales Mix narrative", "EEF3FB", 4000)] }),
+      new TableRow({ children: [centredDataCell("2", "F7F9FD", 700, true, "595959"), dataCell("WS / BS split %", "F7F9FD", 2660), dataCell("Section 5 donut chart labels", "F7F9FD", 2000), dataCell("Donut + % labels. No separate KPI card", "F7F9FD", 4000)] }),
+      new TableRow({ children: [centredDataCell("3", "EEF3FB", 700, true, "888888"), dataCell("WS Margin / BS Margin", "EEF3FB", 2660), dataCell("Labour dashboard (drill-down)", "EEF3FB", 2000), dataCell("Operational detail — not on Command Center", "EEF3FB", 4000)] }),
+      new TableRow({ children: [centredDataCell("3", "F7F9FD", 700, true, "888888"), dataCell("Avg Labour/JC by segment", "F7F9FD", 2660), dataCell("Labour dashboard (drill-down)", "F7F9FD", 2000), dataCell("Segment-level only in drill-down", "F7F9FD", 4000)] }),
+    ]
+  }),
+
+  spacer(200),
+  h2("6.4  Navigation & Routing Design"),
+  body("The Command Center is the default landing page. The navigation sidebar should show:"),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2000, 3680, 3680],
+    rows: [
+      new TableRow({ children: [headerCell("Nav Group", "2E5596", 2000), headerCell("Items", "2E5596", 3680), headerCell("Notes", "2E5596", 3680)] }),
+      new TableRow({ children: [dataCell("⭐ Executive", "EEF3FB", 2000, true), dataCell("Command Center (was: Cockpit / Overview / Executive)", "EEF3FB", 3680), dataCell("Single entry point. Old Cockpit / Overview / Executive routes should redirect here", "EEF3FB", 3680)] }),
+      new TableRow({ children: [dataCell("💰 Commercial", "F7F9FD", 2000, true), dataCell("Labour · Parts Executive · Parts Detail · Margin · Discounts · Leakage Centre · Sales Mix", "F7F9FD", 3680), dataCell("No change from Phase 1", "F7F9FD", 3680)] }),
+      new TableRow({ children: [dataCell("👤 People", "EEF3FB", 2000, true), dataCell("Advisors · Advisor MoM", "EEF3FB", 3680), dataCell("No change from Phase 1", "EEF3FB", 3680)] }),
+      new TableRow({ children: [dataCell("📍 Performance", "F7F9FD", 2000, true), dataCell("Locations · Targets · Trends", "F7F9FD", 3680), dataCell("No change from Phase 1", "F7F9FD", 3680)] }),
+      new TableRow({ children: [dataCell("💼 Finance", "EEF3FB", 2000, true), dataCell("Expense Analysis · Profit & Loss", "EEF3FB", 3680), dataCell("No change from Phase 1", "EEF3FB", 3680)] }),
+      new TableRow({ children: [dataCell("🔍 Audit & Ops", "F7F9FD", 2000, true), dataCell("Internal Audit · Audit Intelligence · Reports", "F7F9FD", 3680), dataCell("No change from Phase 1", "F7F9FD", 3680)] }),
+    ]
+  }),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 8 — Wireframe Specification
+// ──────────────────────────────────────────────────────────────────────────────
+const wireframeSection = [
+  pageBreak(),
+  h1("7.  Command Center — Annotated Wireframe Specification"),
+  body("This specification uses a text-based grid notation. Numbers in [brackets] indicate the proportional column width on a 12-column grid."),
+  spacer(120),
+
+  h2("ZONE A — Always Visible (above the fold on a 1080p conference screen)"),
+  spacer(60),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [W],
+    rows: [
+      new TableRow({ children: [new TableCell({ borders, width: { size: W, type: WidthType.DXA }, shading: { fill: "1F3864", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "ZONE A  |  Row 1: Identity Strip  [12]  — Company · Dashboard Title · Period · Sync · Version · Confidential badge · Auditor", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] })] }),
+      new TableRow({ children: [new TableCell({ borders, width: { size: W, type: WidthType.DXA }, shading: { fill: "2E5596", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "ZONE A  |  Row 2: Health Strip  [12]  — 5 KPI cards equally spaced: Total Revenue | Total Margin | Total JCs | Avg Labour/JC | Avg Discount %", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] })] }),
+    ]
+  }),
+
+  spacer(120),
+  h2("ZONE B — First Scroll (critical for C-suite, always reviewed)"),
+  spacer(60),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [W],
+    rows: [
+      new TableRow({ children: [new TableCell({ borders, width: { size: W, type: WidthType.DXA }, shading: { fill: "C0392B", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "ZONE B  |  Row 3: Alert & Opportunity Rail  [12]  — Critical [4] | Warning [4] | Opportunities [4]  (expandable accordion below each column for detail cards)", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] })] }),
+      new TableRow({ children: [new TableCell({ borders, width: { size: W, type: WidthType.DXA }, shading: { fill: "1A5276", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "ZONE B  |  Row 4: AI Executive Brief  [12]  — Period Overview | Location Intelligence | Advisor Spotlight | Discount Health | Sales Mix | Forecast Signal | Recommended Actions", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] })] }),
+    ]
+  }),
+
+  spacer(120),
+  h2("ZONE C — Workshop Intelligence Panel (evidence layer)"),
+  spacer(60),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [Math.floor(W * 0.6), W - Math.floor(W * 0.6)],
+    rows: [
+      new TableRow({ children: [
+        new TableCell({ borders, width: { size: Math.floor(W * 0.6), type: WidthType.DXA }, shading: { fill: "1E8449", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "Row 5a [7]  Revenue by Location — Horizontal bar chart, Top 10", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+        new TableCell({ borders, width: { size: W - Math.floor(W * 0.6), type: WidthType.DXA }, shading: { fill: "1A7A44", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "Row 5b [5]  WS vs BS Donut  +  Contribution table", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+      ]}),
+      new TableRow({ children: [
+        new TableCell({ borders, width: { size: Math.floor(W * 0.6), type: WidthType.DXA }, shading: { fill: "117A44", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "Row 6a [7]  Service Type Mix — PMS / FS / SC / BR / RR", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+        new TableCell({ borders, width: { size: W - Math.floor(W * 0.6), type: WidthType.DXA }, shading: { fill: "0E6636", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "Row 6b [5]  Monthly Net Labour Trend line", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+      ]}),
+      new TableRow({ children: [
+        new TableCell({ borders, width: { size: Math.floor(W * 0.5), type: WidthType.DXA }, shading: { fill: "117A44", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "Row 7a [6]  Top 5 Advisors table", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+        new TableCell({ borders, width: { size: W - Math.floor(W * 0.5), type: WidthType.DXA }, shading: { fill: "0E6636", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "Row 7b [6]  Bottom 5 Advisors table", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+      ]}),
+      new TableRow({ children: [
+        new TableCell({ borders, width: { size: Math.floor(W * 0.5), type: WidthType.DXA }, shading: { fill: "0D5C34", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "Row 8a [6]  Top 5 Locations table", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+        new TableCell({ borders, width: { size: W - Math.floor(W * 0.5), type: WidthType.DXA }, shading: { fill: "0B4F2D", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "Row 8b [6]  Bottom 5 Locations table", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] }),
+      ]}),
+    ]
+  }),
+
+  spacer(120),
+  h2("ZONE D — Deep Drill Rail (navigation layer)"),
+  spacer(60),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [W],
+    rows: [
+      new TableRow({ children: [new TableCell({ borders, width: { size: W, type: WidthType.DXA }, shading: { fill: "4A235A", type: ShadingType.CLEAR }, margins: cellMargin, children: [new Paragraph({ children: [new TextRun({ text: "ZONE D  |  Row 9: Deep Drill Navigation  [12]  — 5 domain groups displayed as clickable cards: Commercial [3] | People [2] | Performance [2] | Finance [2] | Audit & Ops [3]", bold: true, size: 18, font: "Arial", color: "FFFFFF" })] })] })] }),
+    ]
+  }),
+
+  spacer(200),
+  h2("7.1  Information Priority Principle"),
+  body("The page reads top-to-bottom as: WHAT happened → WHY it happened → WHO is responsible → WHERE to investigate."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [800, 2000, 2760, 3800],
+    rows: [
+      new TableRow({ children: [
+        headerCell("Zone", "2E5596", 800),
+        headerCell("Section", "2E5596", 2000),
+        headerCell("Answers", "2E5596", 2760),
+        headerCell("Executive Action", "2E5596", 3800),
+      ]}),
+      new TableRow({ children: [centredDataCell("A", "EEF3FB", 800, true, "1F3864"), dataCell("Identity + Health Strip", "EEF3FB", 2000), dataCell("WHAT is the business state?", "EEF3FB", 2760), dataCell("Pass or investigate — a 10-second binary decision", "EEF3FB", 3800)] }),
+      new TableRow({ children: [centredDataCell("B", "F7F9FD", 800, true, "1F3864"), dataCell("Alert Rail + AI Brief", "F7F9FD", 2000), dataCell("WHY are numbers up/down?", "F7F9FD", 2760), dataCell("Accept AI narrative, assign action owners, confirm or override recommendations", "F7F9FD", 3800)] }),
+      new TableRow({ children: [centredDataCell("C", "EEF3FB", 800, true, "1F3864"), dataCell("Workshop Intelligence", "EEF3FB", 2000), dataCell("WHO and WHERE specifically?", "EEF3FB", 2760), dataCell("Name specific advisors, locations for praise or intervention", "EEF3FB", 3800)] }),
+      new TableRow({ children: [centredDataCell("D", "F7F9FD", 800, true, "1F3864"), dataCell("Deep Drill Rail", "F7F9FD", 2000), dataCell("HOW deep does this go?", "F7F9FD", 2760), dataCell("Navigate to root-cause dashboard only when Zone B/C identifies a problem", "F7F9FD", 3800)] }),
+    ]
+  }),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  SECTION 9 — Appendix: Alert Design Specification
+// ──────────────────────────────────────────────────────────────────────────────
+const alertSpec = [
+  pageBreak(),
+  h1("Appendix A — Alert Design Specification"),
+  body("Each alert type has a defined visual contract and data contract. Engineering must implement all fields."),
+  spacer(80),
+
+  h2("A.1  Critical Alert Card Fields"),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2000, 2000, 5360],
+    rows: [
+      new TableRow({ children: [headerCell("Field", "C0392B", 2000), headerCell("Example", "C0392B", 2000), headerCell("Source", "C0392B", 5360)] }),
+      new TableRow({ children: [dataCell("Alert Name", "FDF0EF", 2000), dataCell("High Labour Discount", "FDF0EF", 2000), dataCell("services/executive_alert_engine.py", "FDF0EF", 5360)] }),
+      new TableRow({ children: [dataCell("Impact (₹)", "F7F9FD", 2000), dataCell("₹68.2 K", "F7F9FD", 2000), dataCell("Calculated by alert engine", "F7F9FD", 5360)] }),
+      new TableRow({ children: [dataCell("Current Value", "FDF0EF", 2000), dataCell("57.79%", "FDF0EF", 2000), dataCell("Aggregation layer", "FDF0EF", 5360)] }),
+      new TableRow({ children: [dataCell("Benchmark", "F7F9FD", 2000), dataCell("25%", "F7F9FD", 2000), dataCell("services/benchmark_provider.py", "F7F9FD", 5360)] }),
+      new TableRow({ children: [dataCell("Variance", "FDF0EF", 2000), dataCell("+32.79%", "FDF0EF", 2000), dataCell("Computed: current - benchmark", "FDF0EF", 5360)] }),
+      new TableRow({ children: [dataCell("Owner Role", "F7F9FD", 2000), dataCell("Workshop Manager", "F7F9FD", 2000), dataCell("config/users.yaml role mapping", "F7F9FD", 5360)] }),
+      new TableRow({ children: [dataCell("Reason (1 sentence)", "FDF0EF", 2000), dataCell("4 locations exceeded benchmark", "FDF0EF", 2000), dataCell("AI context builder or rule-based template", "FDF0EF", 5360)] }),
+      new TableRow({ children: [dataCell("Action (1 sentence)", "F7F9FD", 2000), dataCell("Review advisor approvals and discount matrices", "F7F9FD", 2000), dataCell("Alert engine action templates", "F7F9FD", 5360)] }),
+    ]
+  }),
+
+  spacer(160),
+  h2("A.2  Opportunity Card Fields"),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [2000, 2000, 5360],
+    rows: [
+      new TableRow({ children: [headerCell("Field", "2471A3", 2000), headerCell("Example", "2471A3", 2000), headerCell("Notes", "2471A3", 5360)] }),
+      new TableRow({ children: [dataCell("Opportunity Name", "EBF5FB", 2000), dataCell("Discount Optimisation", "EBF5FB", 2000), dataCell("Derived from same engine as critical alerts", "EBF5FB", 5360)] }),
+      new TableRow({ children: [dataCell("Potential (₹)", "F7FBFF", 2000), dataCell("₹2.4 L", "F7FBFF", 2000), dataCell("If discount is brought to benchmark, what is the revenue recovered?", "F7FBFF", 5360)] }),
+      new TableRow({ children: [dataCell("Action", "EBF5FB", 2000), dataCell("Implement strict approval workflow for discounts above benchmark", "EBF5FB", 2000), dataCell("Must be actionable by a named role, not generic", "EBF5FB", 5360)] }),
+    ]
+  }),
+
+  spacer(200),
+  h1("Appendix B — Drill-Down Philosophy"),
+  body("The Command Center follows a strict hierarchy rule: information lives at the highest level where it changes a decision, not the highest level where it can fit."),
+  spacer(80),
+  new Table({
+    width: { size: W, type: WidthType.DXA },
+    columnWidths: [3000, 3000, 3360],
+    rows: [
+      new TableRow({ children: [headerCell("Question", "1F3864", 3000), headerCell("Answered at", "1F3864", 3000), headerCell("Not at", "1F3864", 3360)] }),
+      new TableRow({ children: [dataCell("Is the business growing?", "EEF3FB", 3000), dataCell("Health Strip (Section 2)", "EEF3FB", 3000), dataCell("—", "EEF3FB", 3360)] }),
+      new TableRow({ children: [dataCell("Is discount under control?", "F7F9FD", 3000), dataCell("Health Strip (Section 2)", "F7F9FD", 3000), dataCell("—", "F7F9FD", 3360)] }),
+      new TableRow({ children: [dataCell("Which alert needs my attention?", "EEF3FB", 3000), dataCell("Alert Rail (Section 3)", "EEF3FB", 3000), dataCell("—", "EEF3FB", 3360)] }),
+      new TableRow({ children: [dataCell("What is the narrative behind the numbers?", "F7F9FD", 3000), dataCell("AI Brief (Section 4)", "F7F9FD", 3000), dataCell("—", "F7F9FD", 3360)] }),
+      new TableRow({ children: [dataCell("Which locations and advisors are driving results?", "EEF3FB", 3000), dataCell("Workshop Panel (Section 5)", "EEF3FB", 3000), dataCell("Not Health Strip", "EEF3FB", 3360)] }),
+      new TableRow({ children: [dataCell("Why is a specific advisor discounting high?", "F7F9FD", 3000), dataCell("Discounts dashboard", "F7F9FD", 3000), dataCell("Not Command Center", "F7F9FD", 3360)] }),
+      new TableRow({ children: [dataCell("What is the P&L for a specific location?", "EEF3FB", 3000), dataCell("P&L dashboard", "EEF3FB", 3000), dataCell("Not Command Center", "EEF3FB", 3360)] }),
+      new TableRow({ children: [dataCell("What is the month-by-month trend table?", "F7F9FD", 3000), dataCell("Trends dashboard", "F7F9FD", 3000), dataCell("Not Command Center", "F7F9FD", 3360)] }),
+    ]
+  }),
+  spacer(120),
+  note("The rule is: if removing an item from the Command Center does not cost the MD information they need to make a decision in the first 60 seconds, it should not be there."),
+];
+
+// ──────────────────────────────────────────────────────────────────────────────
+//  ASSEMBLE & WRITE
+// ──────────────────────────────────────────────────────────────────────────────
+
+const doc = new Document({
+  styles: {
+    default: {
+      document: { run: { font: "Arial", size: 20, color: "222222" } }
+    },
+    paragraphStyles: [
+      {
+        id: "Heading1", name: "Heading 1", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 32, bold: true, font: "Arial", color: "1F3864" },
+        paragraph: { spacing: { before: 360, after: 160 }, outlineLevel: 0,
+          border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: "2E5596", space: 4 } } }
+      },
+      {
+        id: "Heading2", name: "Heading 2", basedOn: "Normal", next: "Normal", quickFormat: true,
+        run: { size: 26, bold: true, font: "Arial", color: "2E5596" },
+        paragraph: { spacing: { before: 280, after: 100 }, outlineLevel: 1 }
+      },
+    ]
+  },
+  numbering: {
+    config: [
+      {
+        reference: "bullets",
+        levels: [{ level: 0, format: LevelFormat.BULLET, text: "\u2022", alignment: AlignmentType.LEFT,
+          style: { paragraph: { indent: { left: 720, hanging: 360 } } } }]
+      }
+    ]
+  },
+  sections: [{
+    properties: {
+      page: {
+        size: { width: 12240, height: 15840 },
+        margin: { top: 1080, right: 1080, bottom: 1080, left: 1080 }
+      }
+    },
+    headers: {
+      default: {
+        options: {
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 4 } },
+              children: [
+                new TextRun({ text: "WSMIS Phase 2 · Executive IA Blueprint  |  CONFIDENTIAL  |  Page ", size: 16, font: "Arial", color: "888888" }),
+                new TextRun({ children: [new PageNumber()], size: 16, font: "Arial", color: "888888" }),
+              ]
+            })
+          ]
+        }
+      }
+    },
+    footers: {
+      default: {
+        options: {
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              border: { top: { style: BorderStyle.SINGLE, size: 4, color: "DDDDDD", space: 4 } },
+              children: [new TextRun({ text: "Rukmani Motors · Saurabh A Jain & Co. (Chartered Accountants) · Strictly Confidential — For Internal Use Only", size: 16, font: "Arial", color: "888888" })]
+            })
+          ]
+        }
+      }
+    },
+    children: [
+      ...coverSection,
+      ...mergeDecision,
+      ...structureSection,
+      ...duplicationSection,
+      ...dispositionSection,
+      ...meetingSection,
+      ...implementationSection,
+      ...wireframeSection,
+      ...alertSpec,
+    ]
+  }]
+});
+
+Packer.toBuffer(doc).then(buffer => {
+  fs.writeFileSync("/mnt/user-data/outputs/WSMIS_Phase2_IA_Blueprint.docx", buffer);
+  console.log("Done");
+});

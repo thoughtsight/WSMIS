@@ -32,14 +32,15 @@ class RouteRegistry:
     def _wrap_cockpit():
         ctx: AppContext = st.session_state.app_context
         from views.cockpit import render
-        render(ctx.df_filtered_full, ctx.pairs, ctx.alerts, ctx.comparison_mode, ctx.selected_months)
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.alerts, ctx.comparison_mode, ctx.selected_months, ctx=ctx)
 
     @staticmethod
     def _wrap_overview():
         ctx: AppContext = st.session_state.app_context
         from views.overview import render
         from app import safe_render
-        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.alerts, ctx.comparison_mode, ctx.selected_months)
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.alerts, ctx.comparison_mode, ctx.selected_months, ctx=ctx)
 
     @staticmethod
     def _wrap_executive():
@@ -47,7 +48,9 @@ class RouteRegistry:
             ctx: AppContext = st.session_state.app_context
             from views.executive import render
             from app import safe_render
-            safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+            # NOTE: ctx.alerts MUST be the third positional arg to match render() signature.
+            # Previously missing ctx.alerts caused comparison_mode and selected_months to shift.
+            safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.alerts, ctx.comparison_mode, ctx.selected_months, ctx=ctx)
             _s.update(label="Executive summary ready", state="complete", expanded=False)
 
     @staticmethod

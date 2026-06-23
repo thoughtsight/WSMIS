@@ -1,0 +1,283 @@
+# WSMIS User Configuration
+# Role-Based Access Control (RBAC) Foundation
+# Version: 1.0.0
+
+# User Definitions
+users:
+  # Admin User - Full Access
+  admin:
+    name: "Administrator"
+    email: "admin@wsmis.com"
+    role: "admin"
+    locations: ["all"]
+    active: true
+  
+  # Regional Manager - Multi-Location Access
+  regional_manager:
+    name: "Regional Manager"
+    email: "regional@wsmis.com"
+    role: "regional_manager"
+    locations: ["Indore", "Bhopal", "Jabalpur"]
+    active: true
+  
+  # Location Manager - Single Location Access
+  location_manager:
+    name: "Location Manager"
+    email: "manager@wsmis.com"
+    role: "location_manager"
+    locations: ["Indore"]
+    active: true
+  
+  # Service Advisor - Limited Access
+  service_advisor:
+    name: "Service Advisor"
+    email: "advisor@wsmis.com"
+    role: "service_advisor"
+    locations: ["Indore"]
+    active: true
+  
+  # Viewer - Read-Only Access
+  viewer:
+    name: "Viewer"
+    email: "viewer@wsmis.com"
+    role: "viewer"
+    locations: ["Indore"]
+    active: true
+
+# Role Definitions
+roles:
+  admin:
+    # Full access to all dashboards
+    dashboards: ["all"]
+    # Can access admin routes
+    admin_access: true
+    # Can export data
+    export_access: true
+    # Can view all locations
+    location_access: "all"
+  
+  regional_manager:
+    # Access to operational dashboards
+    dashboards: ["Cockpit", "Overview", "Advisors", "Advisor MoM", "Locations", "Trends", "Targets"]
+    # No admin access
+    admin_access: false
+    # Can export data
+    export_access: true
+    # Limited to assigned locations
+    location_access: "assigned"
+  
+  location_manager:
+    # Access to location-specific dashboards
+    dashboards: ["Cockpit", "Overview", "Advisors", "Advisor MoM", "Locations", "Trends", "Targets"]
+    # No admin access
+    admin_access: false
+    # Can export data
+    export_access: true
+    # Limited to assigned location
+    location_access: "assigned"
+  
+  service_advisor:
+    # Access to advisor-specific dashboards
+    dashboards: ["Advisors", "Advisor MoM"]
+    # No admin access
+    admin_access: false
+    # Limited export access
+    export_access: false
+    # Limited to assigned location
+    location_access: "assigned"
+  
+  viewer:
+    # Read-only access to overview dashboards
+    dashboards: ["Cockpit", "Overview"]
+    # No admin access
+    admin_access: false
+    # No export access
+    export_access: false
+    # Limited to assigned location
+    location_access: "assigned"
+
+# Dashboard Permission Matrix
+dashboard_permissions:
+  Cockpit:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "read"
+  
+  Overview:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "read"
+  
+  Advisors:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "read"
+    viewer: "none"
+  
+  "Advisor MoM":
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "read"
+    viewer: "none"
+  
+  Locations:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  Trends:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  Targets:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  Margin:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  Discounts:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  "Leakage Center":
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  "Sales Mix":
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  "Internal Audit":
+    admin: "full"
+    regional_manager: "read"
+    location_manager: "none"
+    service_advisor: "none"
+    viewer: "none"
+  
+  Executive:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "read"
+    service_advisor: "none"
+    viewer: "none"
+  
+  "Expense Analysis":
+    admin: "full"
+    regional_manager: "read"
+    location_manager: "none"
+    service_advisor: "none"
+    viewer: "none"
+  
+  "Profit & Loss":
+    admin: "full"
+    regional_manager: "read"
+    location_manager: "none"
+    service_advisor: "none"
+    viewer: "none"
+  
+  Reports:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  parts_executive:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+  
+  parts_detail:
+    admin: "full"
+    regional_manager: "full"
+    location_manager: "full"
+    service_advisor: "none"
+    viewer: "none"
+
+# Location Permission Matrix
+location_permissions:
+  all:
+    admin: true
+    regional_manager: false
+    location_manager: false
+    service_advisor: false
+    viewer: false
+  
+  assigned:
+    admin: true
+    regional_manager: true
+    location_manager: true
+    service_advisor: true
+    viewer: true
+
+# Session Configuration
+session:
+  timeout_minutes: 30
+  warning_minutes: 5
+  auto_logout: true
+
+# Route Configuration
+routes:
+  # Public routes (no authentication required)
+  public:
+    - "/"
+    - "/login"
+    - "/logout"
+  
+  # Admin routes (admin role required)
+  admin:
+    - "/admin"
+    - "/admin/users"
+    - "/admin/roles"
+    - "/admin/audit"
+  
+  # Protected routes (authentication required)
+  protected:
+    - "/Cockpit"
+    - "/Overview"
+    - "/Advisors"
+    - "/Advisor MoM"
+    - "/Locations"
+    - "/Trends"
+    - "/Targets"
+    - "/Margin"
+    - "/Discounts"
+    - "/Leakage Center"
+    - "/Sales Mix"
+    - "/Internal Audit"
+    - "/Executive"
+    - "/Expense Analysis"
+    - "/Profit & Loss"
+    - "/Reports"
+    - "/parts_executive"
+    - "/parts_detail"

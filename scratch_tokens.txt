@@ -1,0 +1,79 @@
+    # ─────────────────────────────────────────────────────────────────────────
+    # TYPOGRAPHY SCALE  (Major Third: 1.25×, base 11px)
+    # ─────────────────────────────────────────────────────────────────────────
+    TYPE_XS   = 11   # Metadata · Timestamps · Badges · Axis ticks
+    TYPE_SM   = 12   # Table cells · Axis labels · Secondary labels
+    TYPE_BASE = 14   # Body text · Insight cards · Tooltips
+    TYPE_MD   = 16   # Section headings · Card subtitles
+    TYPE_LG   = 20   # Page sub-headings
+    TYPE_XL   = 32   # KPI values  (platform standard)
+    TYPE_2XL  = 40   # KPI hero on large screen / presentation
+
+    FONT_FAMILY = "Inter, -apple-system, BlinkMacSystemFont, sans-serif"
+
+    WEIGHT_REGULAR = 400
+    WEIGHT_MEDIUM  = 500
+    WEIGHT_SEMIBOLD= 600
+    WEIGHT_BOLD    = 700
+    WEIGHT_EXTRABOLD=800
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # SPACING SCALE  (4px base unit — every value is a multiple of 4)
+    # ─────────────────────────────────────────────────────────────────────────
+    SPACE_1  = 4
+    SPACE_2  = 8
+    SPACE_3  = 12
+    SPACE_4  = 16
+    SPACE_5  = 20
+    SPACE_6  = 24
+    SPACE_8  = 32
+    SPACE_10 = 40
+    SPACE_12 = 48
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # BORDER RADIUS
+    # ─────────────────────────────────────────────────────────────────────────
+    RADIUS_SM = 6    # Badges · Pills · Small chips
+    RADIUS_MD = 8    # Cards · Inputs · Buttons  (main standard)
+    RADIUS_LG = 10   # Section cards · Report header
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # COLOUR PALETTE — Application
+    # ─────────────────────────────────────────────────────────────────────────
+
+    # Backgrounds
+    COLOR_APP_BG    = "#F2F2F7"   # App shell — soft neutral grey (NOT white)
+    COLOR_SURFACE   = "#FFFFFF"   # Cards · Panels · Inputs
+    COLOR_SURFACE2  = "#F8F8FA"   # Table alternates · Subtler surfaces
+
+    # Borders & Dividers
+    COLOR_BORDER     = "#E5E5EA"  # Card borders · Input borders
+    COLOR_BORDER_SUB = "#F0F0F5"  # Table row dividers (lighter)
+    COLOR_DIVIDER    = "#D4AF37"  # Gold — report header accent ONLY
+
+    # Text
+    COLOR_TEXT_PRIMARY   = "#1D1D1F"  # Headings · Values · Body
+    COLOR_TEXT_SECONDARY = "#6E6E73"  # Labels · Muted content
+    COLOR_TEXT_TERTIARY  = "#8E8E93"  # Placeholders · Metadata
+
+    # ─────────────────────────────────────────────────────────────────────────
+    # COLOUR PALETTE — Semantic (on light backgrounds — WCAG AA compliant)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    COLOR_PRIMARY   = "#0071E3"   # Accent · Links · Active state
+    COLOR_NEW       = "#0071E3"   # New location / first period badge
+
+    # On-surface semantic text (dark enough for WCAG AA on white)
+    COLOR_SUCCESS   = "#1A7F37"   # Green text on light  — 4.6:1 ✅
+    COLOR_DANGER    = "#CF222E"   # Red text on light    — 5.5:1 ✅
+    COLOR_WARNING   = "#B45309"   # Amber text on light  — 4.7:1 ✅
+
+    # Icon / graphic semantic (these FAIL as text on white — use fill only)
+    COLOR_SUCCESS_FILL = "#34C759"  # Green fill for dark backgrounds / icons
+    COLOR_DANGER_FILL  = "#FF3B30"  # Red fill for dark backgrounds / icons
+
+    # Badge backgrounds (light tinted fills)
+    COLOR_SUCCESS_BG = "#E8F9EE"  # Light green badge background
+    COLOR_DANGER_BG  = "#FFEBE9"  # Light red badge background
+    COLOR_WARNING_BG = "#FFF3E0"  # Light amber badge background
+    COLOR_INFO_BG    = "#E8F0FE"  # Light blue badge background

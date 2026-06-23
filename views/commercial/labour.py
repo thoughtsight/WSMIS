@@ -235,7 +235,7 @@ def _render_executive_panel(datasets, mode_str):
         st.markdown(
             f'<div style="background:#FFF3E0;border-left:4px solid #FF9500;border-radius:8px;padding:12px;margin-bottom:var(--space-3);">'
             f'<div style="font-weight:600;font-size:14px;margin-bottom:4px;">\u26a0 Key Insights</div>'
-            f'<div style="font-size:13px;color:#6E6E73;">{banner_text}</div>'
+            f'<div style="font-size:13px;color:var(--color-text-secondary);">{banner_text}</div>'
             f'</div>',
             unsafe_allow_html=True
         )
@@ -355,7 +355,7 @@ def _render_charts(datasets, active_pairs, mode_str):
     
     # Add subtle "Click chart to filter" hint
     st.markdown(
-        '<div style="font-size:11px;color:#6E6E73;text-align:center;margin-top:4px;">'
+        '<div style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-top:4px;">'
         '\u1f50d Click chart bars to filter by month</div>',
         unsafe_allow_html=True
     )

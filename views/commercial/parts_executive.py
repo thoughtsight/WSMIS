@@ -699,7 +699,7 @@ def _render_charts(d, active_pairs, mode_str, targets_df=None):
                 st.rerun()
         
         st.markdown(
-            '<div style="font-size:11px;color:#6E6E73;text-align:center;margin-top:4px;">'
+            '<div style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-top:4px;">'
             '\u1f50d Click chart bars to filter by month</div>',
             unsafe_allow_html=True
         )

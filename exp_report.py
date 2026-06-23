@@ -75,8 +75,8 @@ EXP_CSS = """
   --red:#DC2626;--red-lt:#FEF2F2;--red-mid:#FECACA;
   --amber:#D97706;--amber-lt:#FFFBEB;--amber-mid:#FDE68A;
   --green:#16A34A;--green-lt:#F0FDF4;--green-mid:#BBF7D0;
-  --neutral:#6B7280;--border:#E5E7EB;--surface:#F8FAFC;
-  --card:#fff;--text:#111827;--text-sub:#4B5563;--text-xs:#6B7280;
+  --neutral:var(--color-text-secondary);--border:#E5E7EB;--surface:#F8FAFC;
+  --card:#fff;--text:#111827;--text-sub:#4B5563;--text-xs:var(--color-text-secondary);
 }
 
 /* ── Layout ── */
@@ -673,7 +673,7 @@ function expBuildTrend(svgId,actuals,labels){
     var tx=document.createElementNS('http://www.w3.org/2000/svg','text');
     tx.setAttribute('x',pts[i].x);tx.setAttribute('y',H-4);
     tx.setAttribute('text-anchor','middle');tx.setAttribute('font-size','9');
-    tx.setAttribute('fill','#9CA3AF');tx.textContent=lbl;
+    tx.setAttribute('fill','var(--color-text-secondary)');tx.textContent=lbl;
     svg.appendChild(tx);
   });
 }
@@ -1264,7 +1264,7 @@ def build_monthly_trend(df, locations, months):
         f'<div class="exp-chart-area">'
         f'<svg id="exp-trend-svg" class="exp-chart-svg"></svg>'
         f'</div>'
-        f'<div style="padding:8px 4px 0;font-size:10px;color:#6B7280">MoM: {mom_pills}</div>'
+        f'<div style="padding:8px 4px 0;font-size:10px;color:var(--color-text-secondary)">MoM: {mom_pills}</div>'
         f'</div>'
         f'<script>window._expTrendActuals={actuals_js};window._expTrendLabels={labels_js};</script>'
     )
@@ -1338,8 +1338,8 @@ def build_location_analysis(df, locations, loc_map, months):
             f'<td style="font-weight:600">{fmt_inr(rd["amt"])}</td>'
             f'<td><span style="color:{mom_col};font-weight:600">{mom_str}</span></td>'
             f'<td>{fmt_inr(rd["ytd"])}</td>'
-            f'<td style="font-size:11px;color:#6B7280">{rd["top_name"]}'
-            f'<span style="font-size:9px;color:#6B7280;margin-left:4px">{rd["top_share"]*100:.0f}%</span></td>'
+            f'<td style="font-size:11px;color:var(--color-text-secondary)">{rd["top_name"]}'
+            f'<span style="font-size:9px;color:var(--color-text-secondary);margin-left:4px">{rd["top_share"]*100:.0f}%</span></td>'
             f'<td style="text-align:center">'
             f'{"<span style=\'color:#991B1B;font-weight:600\'>" + str(alert_cnt) + " ⚠</span>" if alert_cnt else "<span style=\'color:#3B6D11\'>✓</span>"}'
             f'</td></tr>'
@@ -1502,7 +1502,7 @@ def build_exec_insights(df, locations, months):
         })
 
     # I2: Top cost centre
-    loc_totals = {loc: all_sub[all_sub['Location']==loc][all_sub['Month Name']==last_m]['Expenses Rs.'].sum()
+    loc_totals = {loc: all_sub[(all_sub['Location']==loc) & (all_sub['Month Name']==last_m)]['Expenses Rs.'].sum()
                   for loc in locations}
     top_loc = max(loc_totals, key=loc_totals.get) if loc_totals else None
     if top_loc:
@@ -1583,7 +1583,7 @@ def build_exec_insights(df, locations, months):
 
     # I7: Zero-data locations
     zero_locs = [loc for loc in locations
-                 if all_sub[all_sub['Location']==loc][all_sub['Month Name']==last_m]['Expenses Rs.'].sum() == 0]
+                 if all_sub[(all_sub['Location']==loc) & (all_sub['Month Name']==last_m)]['Expenses Rs.'].sum() == 0]
     if zero_locs:
         insights.append({
             'rank': 7, 'icon': '🔶',
@@ -1870,13 +1870,13 @@ def build_mom_table(df, loc, months):
     """
     sub = df[df['Location'] == loc]
     if sub.empty:
-        return '<div style="padding:20px;color:#6B7280;text-align:center">No expense data for this location</div>'
+        return '<div style="padding:20px;color:var(--color-text-secondary);text-align:center">No expense data for this location</div>'
 
     th_html = '<th style="min-width:180px;text-align:left">Expense</th>'
     for i, m in enumerate(months):
         th_html += f'<th class="amt">{m}</th>'
         if i > 0:
-            th_html += f'<th class="amt" style="color:#6B7280;min-width:70px">MoM%</th>'
+            th_html += f'<th class="amt" style="color:var(--color-text-secondary);min-width:70px">MoM%</th>'
     th_html += '<th class="amt">YTD Total</th><th style="min-width:90px;text-align:center">Trend</th>'
 
     body_html = ''
@@ -1936,7 +1936,7 @@ def build_mom_table(df, loc, months):
             cells = ''
             for i, m in enumerate(months):
                 amt = exp_amts[m]
-                cell_style = ' style="color:#6B7280"' if amt == 0 else ''
+                cell_style = ' style="color:var(--color-text-secondary)"' if amt == 0 else ''
                 cells += f'<td class="amt"{cell_style}>{fmt_inr_full(amt) if amt != 0 else "—"}</td>'
                 if i > 0:
                     cells += mom_cell(exp_moms[m])
@@ -2033,7 +2033,7 @@ def build_alert_section(df, loc):
 def build_exp_dashboard(df, locations, loc_map, months):
     """Cross-location summary dashboard table."""
     if not months:
-        return '<div style="padding:20px;color:#6B7280">No data</div>'
+        return '<div style="padding:20px;color:var(--color-text-secondary)">No data</div>'
 
     last_m = months[-1]
     prev_m = months[-2] if len(months) > 1 else None
@@ -2101,7 +2101,7 @@ def build_exp_dashboard(df, locations, loc_map, months):
                       f'</div></td>'
                       f'<td class="amt"><span style="color:{"#A32D2D" if mom_cls=="lo" else ("#BA7517" if mom_cls=="mid" else "#3B6D11")}">{mom_str}</span></td>'
                       f'<td class="amt">{fmt_inr(rd["ytd"])}</td>'
-                      f'<td style="font-size:11px;color:#6B7280">{rd["top_name"]}</td>'
+                      f'<td style="font-size:11px;color:var(--color-text-secondary)">{rd["top_name"]}</td>'
                       f'</tr>')
 
     grand_last = sum(r['total_last'] for r in rows_data)
@@ -2165,7 +2165,7 @@ def build_loc_section(df, loc, loc_map):
         f'<div class="exp-panel on" id="ep_{lid}_mom">'
         f'<div class="exp-sec"><div class="exp-sec-hdr">'
         f'<span>Month-over-Month Expense Analysis</span>'
-        f'<span style="font-size:10px;color:#6B7280">Click group to expand · MoM% colour-coded</span>'
+        f'<span style="font-size:10px;color:var(--color-text-secondary)">Click group to expand · MoM% colour-coded</span>'
         f'</div>{mom_html}</div></div>'
         f'<div class="exp-panel" id="ep_{lid}_alerts">{alerts_html}</div>'
     )
@@ -2268,7 +2268,7 @@ def build_exp_report(df_raw, locations=None, loc_map=None, report_period=None):
         + f'<div class="exp-section-label">Full Location Summary</div>'
         + f'<div class="exp-sec"><div class="exp-sec-hdr">'
         + f'<span>All Locations — Expense Summary · {period}</span>'
-        + f'<span style="font-size:10px;color:#6B7280">Click any row to drill in</span></div>'
+        + f'<span style="font-size:10px;color:var(--color-text-secondary)">Click any row to drill in</span></div>'
         + build_exp_dashboard(df, locations, loc_map, months)
         + f'</div></div>'
     )
@@ -2297,7 +2297,7 @@ body{{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;font-size:
 {body}
   <div style="padding:14px;margin-top:8px;border-top:1px solid #E8ECF0;
               display:flex;justify-content:space-between;align-items:flex-start;
-              flex-wrap:wrap;gap:8px;font-size:10px;color:#6B7280;line-height:1.6">
+              flex-wrap:wrap;gap:8px;font-size:10px;color:var(--color-text-secondary);line-height:1.6">
     <div>
       <strong style="color:#374151;font-size:11px">CA Saurabh Jain &amp; Co.</strong> · Chartered Accountants · Internal Auditor, Rukmani Motors<br>
       RUKMANI Motors — Expense Analysis Report · {period} · Generated {gen_dt}<br>

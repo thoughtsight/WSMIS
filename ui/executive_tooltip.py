@@ -44,9 +44,9 @@ def get_revenue_tooltip(
     """
     return (
         "<b>%{customdata[0]}</b><br><br>"
-        "<span style='color:#6E6E73'>CP</span> <b>%{customdata[1]}</b><br>"
-        "<span style='color:#6E6E73'>PP</span> <b>%{customdata[2]}</b><br>"
-        "<span style='color:#6E6E73'>Δ Difference</span> <b>%{customdata[3]}</b><br>"
+        "<span style='color:var(--color-text-secondary)'>CP</span> <b>%{customdata[1]}</b><br>"
+        "<span style='color:var(--color-text-secondary)'>PP</span> <b>%{customdata[2]}</b><br>"
+        "<span style='color:var(--color-text-secondary)'>Δ Difference</span> <b>%{customdata[3]}</b><br>"
         "<span style='color:%{customdata[5]}'><b>%{customdata[4]}</b></span><extra></extra>"
     )
 

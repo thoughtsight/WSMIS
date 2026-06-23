@@ -395,7 +395,7 @@ def export_pdf(df: pd.DataFrame, meta: ExportMeta) -> bytes:
     # ── Color palette ────────────────────────────────────────
     C_BLUE    = rl_colors.HexColor("#0071E3")
     C_DARK    = rl_colors.HexColor("#1D1D1F")
-    C_SUBTLE  = rl_colors.HexColor("#6E6E73")
+    C_SUBTLE  = rl_colors.HexColor("#5E5E63")
     C_ALT     = rl_colors.HexColor("#F5F5F7")
     C_BORDER  = rl_colors.HexColor("#E5E5EA")
 

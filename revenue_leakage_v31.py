@@ -67,7 +67,7 @@ def _pct_bar(pct, good=70, warn=50):
 def _risk_badge(loss, avg):
     """Return a HIGH / MED / LOW / NONE badge relative to avg loss per location."""
     if loss <= 0:
-        return '<span style="background:#F3F4F6;color:#6B7280;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">NONE</span>'
+        return '<span style="background:#F3F4F6;color:var(--color-text-secondary);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">NONE</span>'
     if loss > avg * 2:
         return '<span style="background:#FEE2E2;color:#DC2626;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">HIGH</span>'
     if loss > avg:
@@ -97,7 +97,7 @@ def build_revenue_leakage_dashboard_v2(
     if miss_df is None or miss_df.empty:
         return (
             "<div style='padding:40px;font-family:Inter,sans-serif;"
-            "color:#6B7280;text-align:center;'>"
+            "color:var(--color-text-secondary);text-align:center;'>"
             "No revenue leakage data for selected filters.</div>"
         )
 
@@ -370,18 +370,18 @@ def build_revenue_leakage_dashboard_v2(
         <div>
           <div class="expand-label">Service Breakdown</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;">
-            {svc_detail if svc_detail else '<span style="color:#6b7280">No breakdown available</span>'}
+            {svc_detail if svc_detail else '<span style="color:var(--color-text-secondary)">No breakdown available</span>'}
           </div>
         </div>
         <div>
           <div class="expand-label">Recovery Estimate</div>
           <div style="font-size:15px;font-weight:700;color:#16A34A;margin-top:4px;">{_fmt_inr(recov)}</div>
-          <div style="font-size:11px;color:#6B7280;">At {recovery_rate*100:.0f}% recovery rate</div>
+          <div style="font-size:11px;color:var(--color-text-secondary);">At {recovery_rate*100:.0f}% recovery rate</div>
         </div>
         <div>
           <div class="expand-label">Affected Job Cards</div>
           <div style="font-size:15px;font-weight:700;color:#0891B2;margin-top:4px;">{int(r['count'])}</div>
-          <div style="font-size:11px;color:#6B7280;">Avg {_fmt_inr(avg_loss)}/JC</div>
+          <div style="font-size:11px;color:var(--color-text-secondary);">Avg {_fmt_inr(avg_loss)}/JC</div>
         </div>
         <div>
           <div class="expand-label">Operational Investigation</div>
@@ -465,7 +465,7 @@ def build_revenue_leakage_dashboard_v2(
   <div class="heat-sub">{sub_metrics}</div>
 </div>"""
     if not heatmap_html:
-        heatmap_html = '<div style="color:#6b7280;padding:16px;">No PMS penetration data available.</div>'
+        heatmap_html = '<div style="color:var(--color-text-secondary);padding:16px;">No PMS penetration data available.</div>'
 
     # ── Alert banner ──────────────────────────────────────────────────────────
     alert_msg = (

@@ -17,7 +17,7 @@ from utils.loaders import load_targets
 from services.benchmark_provider import DefaultBenchmarkProvider
 from services.executive_alert_engine import ExecutiveAlertEngine
 from services.ai.provider import get_ai_client, get_default_model
-from views.dashboard_common import inject_responsive_css
+from views.dashboard_common import inject_responsive_css, navigate_to_page
 
 def generate_executive_narrative(cp, pp, cp_months, pp_months):
     """Generate rule-based executive narrative sections."""
@@ -367,7 +367,6 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None):
     section_title("Deep Drill Navigation")
     st.markdown('<div class="zone-intro">Select a functional area below to leave the Executive Command Center and drill into operational specifics.</div>', unsafe_allow_html=True)
     
-    # Map from display label → session_state["current_page"] value
     NAV_ITEMS = [
         ("Labour",         "Labour"),
         ("Parts Detail",   "Parts Detail"),
@@ -389,5 +388,4 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None):
         for col, (label, page_key) in zip(cols, row_items):
             with col:
                 if st.button(label, key=f"nav_drill_{page_key}", use_container_width=True):
-                    st.session_state["current_page"] = page_key
-                    st.rerun()
+                    navigate_to_page(page_key)

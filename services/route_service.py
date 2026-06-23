@@ -1,294 +1,260 @@
 """
 WSMIS Route Service
-Route Registry, Validation, and Protection
-Version: 1.0.0
+Route Registry, Validation, and Navigation
+Version: 2.0.0
 """
 
 import streamlit as st
-from typing import Dict, List, Optional, Callable, Any
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
-from enum import Enum
+import pandas as pd
 
 
-class RouteType(Enum):
-    """Route type enumeration."""
-    PUBLIC = "public"
-    PROTECTED = "protected"
-    ADMIN = "admin"
-
-
-@dataclass
-class Route:
-    """Route definition."""
-    path: str
-    type: RouteType
-    title: str
-    handler: Optional[Callable] = None
-    allowed_roles: Optional[List[str]] = None
-    allowed_dashboards: Optional[List[str]] = None
-    query_params: Optional[Dict[str, Any]] = None
+@dataclass(frozen=True)
+class AppContext:
+    """Immutable application context containing ephemeral state for the active page."""
+    df_filtered_full: pd.DataFrame
+    df_filtered_cp: pd.DataFrame
+    df_filtered: pd.DataFrame
+    pairs: list
+    alerts: list
+    comparison_mode: bool
+    selected_months: list
+    targets_df: pd.DataFrame
+    client_config: dict
+    exp_df_filtered_cp: pd.DataFrame
 
 
 class RouteRegistry:
-    """Central registry for all application routes."""
+    """Central registry for all application routes supporting st.navigation."""
     
+    @staticmethod
+    def _wrap_cockpit():
+        ctx: AppContext = st.session_state.app_context
+        from views.cockpit import render
+        render(ctx.df_filtered_full, ctx.pairs, ctx.alerts, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_overview():
+        ctx: AppContext = st.session_state.app_context
+        from views.overview import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.alerts, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_executive():
+        with st.status("📊 Building executive summary...", expanded=False) as _s:
+            ctx: AppContext = st.session_state.app_context
+            from views.executive import render
+            from app import safe_render
+            safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+            _s.update(label="Executive summary ready", state="complete", expanded=False)
+
+    @staticmethod
+    def _wrap_margin():
+        ctx: AppContext = st.session_state.app_context
+        from views.margin import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_cp, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_discounts():
+        ctx: AppContext = st.session_state.app_context
+        from views.discount import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_cp, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_sales_mix():
+        ctx: AppContext = st.session_state.app_context
+        from views.sales_mix import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_cp, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_labour():
+        ctx: AppContext = st.session_state.app_context
+        from views.labour import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_parts_executive():
+        ctx: AppContext = st.session_state.app_context
+        from views.parts_executive import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.targets_df, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_parts_detail():
+        ctx: AppContext = st.session_state.app_context
+        from views.parts_detail import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_leakage_center():
+        ctx: AppContext = st.session_state.app_context
+        from views.leakage import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_advisors():
+        ctx: AppContext = st.session_state.app_context
+        from views.advisor import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_cp, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_advisor_mom():
+        ctx: AppContext = st.session_state.app_context
+        from views.advisor_mom import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_locations():
+        ctx: AppContext = st.session_state.app_context
+        from views.locations import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_cp, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_trends():
+        ctx: AppContext = st.session_state.app_context
+        from views.trends import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_targets():
+        ctx: AppContext = st.session_state.app_context
+        from views.targets import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_cp, ctx.targets_df, ctx.pairs)
+
+    @staticmethod
+    def _wrap_reports():
+        with st.status("📄 Generating reports...", expanded=False) as _s:
+            ctx: AppContext = st.session_state.app_context
+            from views.reports import render
+            from app import safe_render
+            safe_render(render, ctx.df_filtered_cp, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+            _s.update(label="Reports ready", state="complete", expanded=False)
+
+    @staticmethod
+    def _wrap_expense_analysis():
+        ctx: AppContext = st.session_state.app_context
+        from views.expense import render
+        from app import safe_render
+        safe_render(render, ctx.exp_df_filtered_cp, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_profit_and_loss():
+        ctx: AppContext = st.session_state.app_context
+        from views.pnl import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_cp, ctx.exp_df_filtered_cp, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_internal_audit():
+        with st.status("🔍 Running audit analysis...", expanded=False) as _s:
+            st.caption("⏳ Exception scan · Leakage detection · Risk register")
+            ctx: AppContext = st.session_state.app_context
+            from views.internal_audit import render
+            from app import safe_render
+            safe_render(render, ctx.df_filtered, ctx.client_config, cp=ctx.df_filtered_cp)
+            _s.update(label="Audit analysis complete", state="complete", expanded=False)
+
+    @staticmethod
+    def _wrap_audit_intelligence():
+        ctx: AppContext = st.session_state.app_context
+        from views.audit_intelligence import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.pairs, ctx.alerts, ctx.comparison_mode, ctx.selected_months)
+
+    @staticmethod
+    def _wrap_system_health():
+        ctx: AppContext = st.session_state.app_context
+        from views.system_health import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered_full, ctx.exp_df_filtered_cp)
+
     def __init__(self):
-        self._routes: Dict[str, Route] = {}
-        self._initialize_default_routes()
-    
-    def _initialize_default_routes(self):
-        """Initialize default route definitions."""
-        # Public routes
-        self.register_route(Route(
-            path="/",
-            type=RouteType.PUBLIC,
-            title="Home"
-        ))
+        # We store the base st.Page definitions here.
+        # URL paths must match the old legacy slugs where possible to preserve bookmarks.
+        self.pages = {
+            "Executive": [
+                st.Page(self._wrap_cockpit, title="Cockpit", url_path="cockpit", icon="📊"),
+            ],
+            "Commercial": [
+                st.Page(self._wrap_margin, title="Margin", url_path="margin", icon="💰"),
+                st.Page(self._wrap_discounts, title="Discounts", url_path="discounts", icon="🏷️"),
+            ],
+            "Operations": [
+                st.Page(self._wrap_labour, title="Labour", url_path="labour", icon="🔧"),
+                st.Page(self._wrap_parts_executive, title="Parts Executive", url_path="parts-executive", icon="⚙️"),
+                st.Page(self._wrap_parts_detail, title="Parts Detail", url_path="parts-detail", icon="📦"),
+                st.Page(self._wrap_sales_mix, title="Sales Mix", url_path="sales-mix", icon="�"),
+                st.Page(self._wrap_advisors, title="Advisors", url_path="advisors", icon="👔"),
+                st.Page(self._wrap_advisor_mom, title="Advisor MoM", url_path="advisor-mom", icon="📅"),
+                st.Page(self._wrap_locations, title="Locations", url_path="locations", icon="📍"),
+            ],
+            "Performance": [
+                st.Page(self._wrap_trends, title="Trends", url_path="trends", icon="📈"),
+                st.Page(self._wrap_targets, title="Targets", url_path="targets", icon="🎯"),
+                st.Page(self._wrap_reports, title="Reports", url_path="reports", icon="📄"),
+            ],
+            "Finance": [
+                st.Page(self._wrap_expense_analysis, title="Expense Analysis", url_path="expense-analysis", icon="💸"),
+                st.Page(self._wrap_profit_and_loss, title="Profit & Loss", url_path="profit-and-loss", icon="⚖️"),
+            ],
+            "Audit": [
+                st.Page(self._wrap_internal_audit, title="Internal Audit", url_path="internal-audit", icon="🔍"),
+                st.Page(self._wrap_audit_intelligence, title="Audit Intelligence", url_path="audit-intelligence", icon="🧠"),
+                st.Page(self._wrap_leakage_center, title="Leakage Center", url_path="leakage-centre", icon="💧"),
+            ],
+            "Administration": [
+                st.Page(self._wrap_system_health, title="System Health", url_path="system-health", icon="🖥️"),
+            ]
+        }
         
-        self.register_route(Route(
-            path="/login",
-            type=RouteType.PUBLIC,
-            title="Login"
-        ))
-        
-        self.register_route(Route(
-            path="/logout",
-            type=RouteType.PUBLIC,
-            title="Logout"
-        ))
-        
-        # Admin routes
-        self.register_route(Route(
-            path="/admin",
-            type=RouteType.ADMIN,
-            title="Admin",
-            allowed_roles=["admin"]
-        ))
-        
-        self.register_route(Route(
-            path="/admin/users",
-            type=RouteType.ADMIN,
-            title="User Management",
-            allowed_roles=["admin"]
-        ))
-        
-        self.register_route(Route(
-            path="/admin/roles",
-            type=RouteType.ADMIN,
-            title="Role Management",
-            allowed_roles=["admin"]
-        ))
-        
-        self.register_route(Route(
-            path="/admin/audit",
-            type=RouteType.ADMIN,
-            title="Audit Log",
-            allowed_roles=["admin"]
-        ))
-        
-        # Protected routes (dashboards)
-        # Paths MUST match the page-name keys used by resolve_page() / render_page_router()
-        dashboard_routes = [
-            ("/Cockpit", "Cockpit"),
-            ("/Overview", "Overview"),
-            ("/Executive", "Executive"),
-            ("/Labour", "Labour"),
-            ("/Parts Executive", "Parts Executive"),
-            ("/Parts Detail", "Parts Detail"),
-            ("/Margin", "Margin"),
-            ("/Sales Mix", "Sales Mix"),
-            ("/Discounts", "Discounts"),
-            ("/Leakage Center", "Leakage Center"),
-            ("/Advisors", "Advisors"),
-            ("/Advisor MoM", "Advisor MoM"),
-            ("/Locations", "Locations"),
-            ("/Trends", "Trends"),
-            ("/Targets", "Targets"),
-            ("/Expense Analysis", "Expense Analysis"),
-            ("/Profit & Loss", "Profit & Loss"),
-            ("/Reports", "Reports"),
-            ("/Internal Audit", "Internal Audit"),
-            ("/Audit Intelligence", "Audit Intelligence"),
-            ("/System Health", "System Health"),
-        ]
-        
-        for path, title in dashboard_routes:
-            self.register_route(Route(
-                path=path,
-                type=RouteType.PROTECTED,
-                title=title
-            ))
-    
-    def register_route(self, route: Route):
-        """Register a route in the registry."""
-        self._routes[route.path] = route
-    
-    def get_route(self, path: str) -> Optional[Route]:
-        """Get route by path."""
-        return self._routes.get(path)
-    
-    def get_all_routes(self) -> Dict[str, Route]:
-        """Get all registered routes."""
-        return self._routes.copy()
-    
-    def get_routes_by_type(self, route_type: RouteType) -> List[Route]:
-        """Get all routes of a specific type."""
-        return [route for route in self._routes.values() if route.type == route_type]
-    
-    def route_exists(self, path: str) -> bool:
-        """Check if a route exists in the registry."""
-        return path in self._routes
-    
-    def is_valid_route(self, path: str) -> bool:
-        """Check if a route is valid (exists in registry)."""
-        return self.route_exists(path)
-    
-    def get_route_type(self, path: str) -> Optional[RouteType]:
-        """Get the type of a route."""
-        route = self.get_route(path)
-        return route.type if route else None
+        # Flat lookup dictionary for easy resolution by title
+        self.pages_by_title = {}
+        for category, page_list in self.pages.items():
+            for page in page_list:
+                self.pages_by_title[page.title] = page
 
+    def get_blueprint_pages(self, user_role: str = "admin") -> Dict[str, List[st.Page]]:
+        """
+        Returns the dictionary of pages categorized by the blueprint.
+        Future RBAC logic can be implemented here by filtering the lists.
+        """
+        return self.pages
 
-class RouteValidator:
-    """Validates route access and parameters."""
-    
-    def __init__(self, registry: RouteRegistry):
-        self.registry = registry
-    
-    def validate_route(self, path: str) -> tuple[bool, Optional[str]]:
-        """
-        Validate a route.
-        Returns (is_valid, error_message)
-        """
-        if not path:
-            return False, "Route path cannot be empty"
-        
-        if not self.registry.is_valid_route(path):
-            return False, f"Route '{path}' not found"
-        
-        return True, None
-    
-    def validate_query_params(self, path: str, params: Dict[str, Any]) -> tuple[bool, Optional[str]]:
-        """
-        Validate query parameters for a route.
-        Returns (is_valid, error_message)
-        """
-        route = self.registry.get_route(path)
-        if not route:
-            return False, f"Route '{path}' not found"
-        
-        # If route has defined query params, validate them
-        if route.query_params:
-            for param_name, param_config in route.query_params.items():
-                if param_name in params:
-                    value = params[param_name]
-                    # Add validation logic based on param_config
-                    # For now, just check if required params are present
-                    if param_config.get("required", False) and not value:
-                        return False, f"Required parameter '{param_name}' is missing"
-        
-        return True, None
-    
-    def validate_deep_link(self, path: str, params: Dict[str, Any]) -> tuple[bool, Optional[str]]:
-        """
-        Validate a deep link (route + parameters).
-        Returns (is_valid, error_message)
-        """
-        # Validate route
-        is_valid, error = self.validate_route(path)
-        if not is_valid:
-            return False, error
-        
-        # Validate parameters
-        is_valid, error = self.validate_query_params(path, params)
-        if not is_valid:
-            return False, error
-        
-        return True, None
-    
-    def check_route_access(self, path: str, role: str) -> tuple[bool, Optional[str]]:
-        """
-        Check if a role has access to a route.
-        Returns (has_access, error_message)
-        """
-        route = self.registry.get_route(path)
-        if not route:
-            return False, f"Route '{path}' not found"
-        
-        # Public routes are accessible to all
-        if route.type == RouteType.PUBLIC:
-            return True, None
-        
-        # Admin routes require admin role
-        if route.type == RouteType.ADMIN:
-            if route.allowed_roles and role not in route.allowed_roles:
-                return False, "Admin access required"
-            return True, None
-        
-        # Protected routes require authentication
-        if route.type == RouteType.PROTECTED:
-            if not role:
-                return False, "Authentication required"
-            return True, None
-        
-        return True, None
+    def get_page_by_title(self, title: str) -> Optional[st.Page]:
+        """Returns the st.Page object for a given exact title string."""
+        return self.pages_by_title.get(title)
 
 
 class RouteService:
-    """Main service for route management and validation."""
+    """Main service for route management and navigation."""
     
     def __init__(self):
         self.registry = RouteRegistry()
-        self.validator = RouteValidator(self.registry)
     
     def get_registry(self) -> RouteRegistry:
         """Get the route registry."""
         return self.registry
     
-    def get_validator(self) -> RouteValidator:
-        """Get the route validator."""
-        return self.validator
-    
-    def navigate_to(self, path: str, params: Optional[Dict[str, Any]] = None):
-        """
-        Navigate to a route with optional parameters.
-        Updates session state and validates the route.
-        """
-        params = params or {}
-        
-        # Validate route
-        is_valid, error = self.validator.validate_deep_link(path, params)
-        if not is_valid:
-            st.error(f"Invalid route: {error}")
-            return False
-        
-        # Update session state
-        st.session_state["current_route"] = path
-        st.session_state["route_params"] = params
-        
-        return True
-    
-    def get_current_route(self) -> Optional[str]:
-        """Get the current route from session state."""
-        return st.session_state.get("current_route")
-    
-    def get_route_params(self) -> Dict[str, Any]:
-        """Get the current route parameters from session state."""
-        return st.session_state.get("route_params", {})
-    
     def sync_url_to_session(self):
-        """Synchronize URL query parameters to session state."""
-        query_params = st.query_params
-        
-        if query_params:
-            params_dict = dict(query_params)
-            st.session_state["route_params"] = params_dict
+        """Legacy stub to prevent breakages during migration."""
+        pass
     
     def sync_session_to_url(self):
-        """Synchronize session state to URL query parameters."""
-        params = self.get_route_params()
-        if params:
-            st.query_params.update(params)
+        """Legacy stub to prevent breakages during migration."""
+        pass
 
 
 # Global route service instance

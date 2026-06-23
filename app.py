@@ -602,7 +602,7 @@ def main():
     synced_at_str = (st.session_state.get("data_synced_at") or data_loaded_time).strftime('%d %b %Y, %I:%M %p') if (data_loaded_time or st.session_state.get("data_synced_at")) else "Unknown"
     UniversalHeader(
         client_name=sel_client,
-        report_title="Executive Command Center" if active_page.title in ["Cockpit", "Overview", "Executive"] else active_page.title,
+        report_title="Executive Command Center" if active_page.title == "Cockpit" else active_page.title,
         selected_months=selected_months,
         synced_at=synced_at_str
     )

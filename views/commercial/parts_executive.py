@@ -230,10 +230,6 @@ def _compute_metrics(cp, pp, df):
     }
 
 
-def _render_cross_filter_bar():
-    render_cross_filter_bar("parts_cross_month")
-
-
 def _render_narrative_banner(d):
     alerts = []
     severity = "info"
@@ -946,10 +942,10 @@ def render(df, targets_df, pairs, comparison_mode=True, selected_months=None):
 
     d = _compute_metrics(cp, pp, df)
 
-    _render_cross_filter_bar()
+    render_cross_filter_bar("parts_cross_month")
+    _render_executive_panel(d, mode_str)
     _render_narrative_banner(d)
     _render_ai_narrative(d, mode_str)
-    _render_executive_panel(d, mode_str)
     _render_waterfall(d, mode_str)
     _render_category_heatmap(d, mode_str)
     _render_charts(d, active_pairs, mode_str, targets_df)

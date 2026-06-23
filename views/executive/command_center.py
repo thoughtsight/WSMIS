@@ -167,7 +167,7 @@ def generate_executive_narrative(cp, pp, cp_months, pp_months, kpi, benchmarks):
         adv_lab  = advisor_summary(cp, adv_col=ADV_COL, as_index=True)["Net_Labour"].sum()
         adv_disc = advisor_summary(cp, adv_col=ADV_COL, as_index=True).apply(
             lambda x: calc_ratio(get_labour_discount(x), get_labour_sales(x), multiplier=100, fill_value=0)
-            if get_labour_sales(x) > 0 else 0, axis=1
+            if get_labour_sales(x) > 0 else 0
         )
         star = adv_lab.idxmax() if not adv_lab.empty else "N/A"
         risk = adv_disc[adv_disc > 25].index.tolist() if not adv_disc.empty else []

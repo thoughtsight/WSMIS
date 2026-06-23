@@ -164,15 +164,21 @@ def generate_executive_narrative(cp, pp, cp_months, pp_months, kpi, benchmarks):
 
     # Advisors
     if not cp.empty:
-        adv_lab  = advisor_summary(cp, adv_col=ADV_COL, as_index=True)["Net_Labour"].sum()
-        adv_disc = advisor_summary(cp, adv_col=ADV_COL, as_index=True).apply(
-            lambda x: calc_ratio(get_labour_discount(x), get_labour_sales(x), multiplier=100, fill_value=0)
-            if get_labour_sales(x) > 0 else 0
-        )
-        star = adv_lab.idxmax() if not adv_lab.empty else "N/A"
-        risk = adv_disc[adv_disc > 25].index.tolist() if not adv_disc.empty else []
+        # Vectorized aggregation instead of buggy .apply(lambda)
+        cols_to_sum = [c for c in ["Net_Labour", "Pre-GST Labour", "Labour Discount"] if c in cp.columns]
+        adv_agg = advisor_summary(cp, adv_col=ADV_COL, as_index=True)[cols_to_sum].sum()
+        
+        star = adv_agg["Net_Labour"].idxmax() if ("Net_Labour" in adv_agg.columns and not adv_agg.empty) else "N/A"
+        
+        if "Labour Discount" in adv_agg.columns and "Pre-GST Labour" in adv_agg.columns:
+            adv_disc = (adv_agg["Labour Discount"] / adv_agg["Pre-GST Labour"] * 100).fillna(0)
+            risk = adv_disc[adv_disc > 25].index.tolist() if not adv_disc.empty else []
+        else:
+            adv_disc = pd.Series(dtype=float)
+            risk = []
+            
         sections["advisors"] = (
-            f"Star advisor this period: {star} with {fmt_inr(adv_lab.get(star, 0))} net labour. "
+            f"Star advisor this period: {star} with {fmt_inr(adv_agg.get('Net_Labour', {}).get(star, 0))} net labour. "
             + (f"High discount risk advisors (>25%): {', '.join(risk[:5])}." if risk
                else "No advisors exceeded the 25% discount threshold.")
         )

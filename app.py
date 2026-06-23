@@ -557,7 +557,7 @@ def main():
     # The returned 'active_page' provides the .title which we use to check capabilities.
     from services.route_service import AppContext
     route_service = get_route_service()
-    pages = route_service.get_blueprint_pages()
+    pages = route_service.get_registry().get_blueprint_pages()
     active_page = st.navigation(pages)
 
     client_names = list(CLIENTS.keys())

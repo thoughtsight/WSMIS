@@ -25,12 +25,6 @@ def apply_advisor_filter(df: pd.DataFrame, adv_col: str, advisors: Optional[List
         return df[df[adv_col].isin(advisors)]
     return df
 
-def apply_mp_pb_filter(df: pd.DataFrame, mp_pb_col: str, mp_pb_val: Optional[str]) -> pd.DataFrame:
-    """Filters a DataFrame by WS/BS flag."""
-    if mp_pb_val and mp_pb_val != "All" and mp_pb_col in df.columns:
-        return df[df[mp_pb_col] == mp_pb_val]
-    return df
-
 def apply_month_filter(df: pd.DataFrame, month_col: str, months: Optional[List[str]]) -> pd.DataFrame:
     """Filters a DataFrame by a list of months. If months is [], returns empty DataFrame."""
     if months is not None and month_col in df.columns:
@@ -49,3 +43,31 @@ def filter_valid_advisors(df: pd.DataFrame, adv_col: str = "Advisor Name") -> pd
     if actual_col in df.columns:
         return df[df[actual_col] != "Unassigned"]
     return df
+
+def apply_global_filters(df: pd.DataFrame, 
+                           locations: Optional[List[str]] = None, 
+                           location_group: Optional[str] = None, 
+                           service_type_group: Optional[str] = None,
+                           svc_types: Optional[List[str]] = None, 
+                           advisors: Optional[List[str]] = None) -> pd.DataFrame:
+    """Applies multiple filters efficiently using a single boolean mask to avoid repeated DataFrame copies."""
+    mask = pd.Series(True, index=df.index)
+    
+    if locations and 'Location Name' in df.columns:
+        mask &= df['Location Name'].isin(locations)
+        
+    if location_group and location_group != "All" and 'Location_Group' in df.columns:
+        mask &= df['Location_Group'] == location_group
+        
+    if service_type_group and service_type_group != "All" and 'Service_Type_Group' in df.columns:
+        mask &= df['Service_Type_Group'] == service_type_group
+        
+    if svc_types and 'Service Type' in df.columns:
+        mask &= df['Service Type'].isin(svc_types)
+        
+    if advisors:
+        actual_col = "Advisor Name" if "Advisor Name" in df.columns else "Advisor"
+        if actual_col in df.columns:
+            mask &= df[actual_col].isin(advisors)
+            
+    return df[mask]

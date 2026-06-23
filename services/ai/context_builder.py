@@ -36,7 +36,7 @@ from utils.calculations.margin import (
     calculate_margin_growth,
 )
 from utils.calculations.discount import (
-    calculate_total_discount, calculate_labour_discount, calculate_parts_discount,
+    calculate_total_discount, get_labour_discount, get_parts_discount,
     calculate_labour_discount_pct, calculate_overall_discount_pct,
 )
 from utils.calculations.fact_metrics import get_net_labour, get_net_parts, get_jobcard_count
@@ -88,8 +88,8 @@ def _period_kpis(df: pd.DataFrame) -> PeriodKPIs:
         total_margin=_f(calculate_total_margin(df)),
         parts_margin=_f(calculate_parts_margin(df)),
         total_discount=_f(calculate_total_discount(df)),
-        labour_discount=_f(calculate_labour_discount(df)),
-        parts_discount=_f(calculate_parts_discount(df)),
+        labour_discount=_f(get_labour_discount(df)),
+        parts_discount=_f(get_parts_discount(df)),
         labour_discount_pct=_f(calculate_labour_discount_pct(df)),
         overall_discount_pct=_f(calculate_overall_discount_pct(df)),
         job_cards=_f(get_jobcard_count(df)),

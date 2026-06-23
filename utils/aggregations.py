@@ -67,3 +67,7 @@ def rank_entities(df: pd.DataFrame, group_col: Union[str, List[str]], metric_col
     """Rank entities based on a summed metric."""
     res = df.groupby(group_col, as_index=False, dropna=dropna)[metric_col].sum()
     return res.sort_values(metric_col, ascending=ascending)
+
+def category_summary(df: pd.DataFrame, cat_cols: List[str], as_index: bool = False, dropna: bool = False, **kwargs) -> Union[pd.DataFrame, pd.Series]:
+    """Cached category-level aggregation for parts categories."""
+    return aggregation_cache.get_category_summary(df, cat_cols, as_index=as_index, dropna=dropna, **kwargs)

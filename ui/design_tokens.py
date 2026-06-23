@@ -54,16 +54,17 @@ class T:
     # ─────────────────────────────────────────────────────────────────────────
     # BORDER RADIUS
     # ─────────────────────────────────────────────────────────────────────────
-    RADIUS_SM = 6    # Badges · Pills · Small chips
-    RADIUS_MD = 8    # Cards · Inputs · Buttons  (main standard)
-    RADIUS_LG = 10   # Section cards · Report header
+    RADIUS_SM   = 6    # Badges · Pills · Small chips
+    RADIUS_MD   = 8    # Cards · Inputs · Buttons  (main standard)
+    RADIUS_LG   = 10   # Section cards · Report header
+    RADIUS_FULL = 9999
 
     # ─────────────────────────────────────────────────────────────────────────
-    # COLOUR PALETTE — Application
+    # COLOUR PALETTE — Structural (Apple Light Theme)
     # ─────────────────────────────────────────────────────────────────────────
 
     # Backgrounds
-    COLOR_APP_BG    = "#F2F2F7"   # App shell — soft neutral grey (NOT white)
+    COLOR_APP_BG    = "#EFEFEF"   # App shell — soft neutral grey (NOT white)
     COLOR_SURFACE   = "#FFFFFF"   # Cards · Panels · Inputs
     COLOR_SURFACE2  = "#F8F8FA"   # Table alternates · Subtler surfaces
 
@@ -75,7 +76,7 @@ class T:
     # Text
     COLOR_TEXT_PRIMARY   = "#1D1D1F"  # Headings · Values · Body
     COLOR_TEXT_SECONDARY = "#6E6E73"  # Labels · Muted content
-    COLOR_TEXT_TERTIARY  = "#8E8E93"  # Placeholders · Metadata
+    COLOR_TEXT_TERTIARY  = "#737378"  # Placeholders · Metadata
 
     # ─────────────────────────────────────────────────────────────────────────
     # COLOUR PALETTE — Semantic (on light backgrounds — WCAG AA compliant)
@@ -90,11 +91,13 @@ class T:
     COLOR_WARNING   = "#B45309"   # Amber text on light  — 4.7:1 ✅
 
     # Icon / graphic semantic (these FAIL as text on white — use fill only)
-    COLOR_SUCCESS_FILL = "#34C759"  # Green fill for dark backgrounds / icons
-    COLOR_DANGER_FILL  = "#FF3B30"  # Red fill for dark backgrounds / icons
+    COLOR_ICON_SUCCESS = "#34C759"  # ⚠️ ICON/FILL USE ONLY — fails WCAG for text
+    COLOR_ICON_DANGER  = "#FF3B30"  # ⚠️ ICON/FILL USE ONLY — fails WCAG for text
+    COLOR_SUCCESS_FILL = "#34C759"  # ⚠️ DEPRECATED - Use COLOR_ICON_SUCCESS
+    COLOR_DANGER_FILL  = "#FF3B30"  # ⚠️ DEPRECATED - Use COLOR_ICON_DANGER
 
     # Badge backgrounds (light tinted fills)
-    COLOR_SUCCESS_BG = "#E8F9EE"  # Light green badge background
+    COLOR_SUCCESS_BG = "#E3F7EB"  # Light green badge background (darkened from #E8F9EE for AA)
     COLOR_DANGER_BG  = "#FFEBE9"  # Light red badge background
     COLOR_WARNING_BG = "#FFF3E0"  # Light amber badge background
     COLOR_INFO_BG    = "#E8F0FE"  # Light blue badge background

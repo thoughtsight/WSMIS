@@ -6,7 +6,6 @@ from utils.filters import (
     apply_location_group_filter,
     apply_service_type_filter,
     apply_advisor_filter,
-    apply_mp_pb_filter,
     split_cp_pp
 )
 
@@ -18,7 +17,7 @@ def dummy_df():
         "Location Group": ["Arena", "Nexa", "Arena", "Other"],
         "Service Type": ["Running Repair", "Bodyshop", "Free Service", "Running Repair"],
         "Advisor": ["Adv 1", "Adv 2", "Adv 1", "Adv 3"],
-        "MP_PB": ["MP", "PB", "MP", "MP"],
+        "Service_Type_Group": ["WS", "BS", "WS", "WS"],
         "Value": [10, 20, 30, 40]
     })
 
@@ -50,15 +49,7 @@ def test_apply_advisor_filter(dummy_df):
     assert len(res) == 3
     assert res["Value"].sum() == 80
 
-def test_apply_mp_pb_filter(dummy_df):
-    res_ws = apply_mp_pb_filter(dummy_df, "MP_PB", "MP")
-    assert len(res_ws) == 3
-    
-    res_bs = apply_mp_pb_filter(dummy_df, "MP_PB", "PB")
-    assert len(res_bs) == 1
-    
-    res_all = apply_mp_pb_filter(dummy_df, "MP_PB", "All")
-    assert len(res_all) == 4
+
 
 def test_split_cp_pp(dummy_df):
     cp, pp = split_cp_pp(dummy_df, "Month Name", ["Mar"], ["Feb"])

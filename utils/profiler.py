@@ -46,7 +46,10 @@ profiler = Profiler()
 
 import atexit
 import json
+import os
+
 @atexit.register
 def save_profile():
-    with open("profile_results.json", "w") as f:
-        json.dump({"timings": profiler.timings, "aggregations": profiler.aggregations}, f, indent=2)
+    if os.environ.get("DEBUG") == "1":
+        with open("profile_results.json", "w", encoding='utf-8') as f:
+            json.dump({"timings": profiler.timings, "aggregations": profiler.aggregations}, f, indent=2)

@@ -26,6 +26,8 @@ share/python-wheels/
 *.egg
 
 # Virtual environments
+test_venv/
+.venv/
 venv/
 env/
 ENV/

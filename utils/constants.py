@@ -3,6 +3,18 @@
 # Shared Configuration Values
 ADV_COL = "Advisior Name"   # column name as it appears in the Google Sheet (typo preserved)
 
+# Category colour mapping for Parts module charts
+# Uses design tokens for consistency across the application
+from ui.design_tokens import T
+CATEGORY_COLORS = {
+    "Standard Parts": T.COLOR_PRIMARY,
+    "Oil": T.COLOR_SUCCESS,
+    "Accessories": T.COLOR_WARNING,
+    "Tyres": T.COLOR_DANGER,
+    "Battery": "#7C3AED",  # Purple - not in standard tokens
+    "Other": "#8E8E93",   # Gray - not in standard tokens
+}
+
 CLIENTS = {
     "Rukmani Motors": {
         "sheet_id": "1RUodK2UyYlG86DyGV3-0iyR7bdvkPLgeJJ0VlReHG_A",
@@ -21,6 +33,7 @@ ARENA_LOCATIONS = {"ALPR","Bhavra","DN","Dhar","Dharam","GBS","Jobat","MG",
                    "GANDHWANI-3S(RO)","PORT BLAIR"}
 NEXA_LOCATIONS = {"Palda","FT","NSD","SOW(N)"}
 PB_SERVICE_TYPES = {"BR"}
+PB_LOCATIONS = {"PBA", "SOW(PB)"}
 
 # Month order and Financial Year mappings
 MONTH_SORT_ORDER = {
@@ -101,4 +114,4 @@ C = {
 CHART_CP = "#0071E3"   # Current Period bars
 CHART_PP = "#C0C0C8"   # Previous Period bars — lighter neutral
 LOC_COLORS = {"Arena": "#0071E3", "Nexa": "#1A7F37", "Other": "#8E8E93"}
-MP_COLORS  = {"MP": "#0071E3", "PB": "#FF9500"}
+MP_COLORS = {"MP": "#0071E3", "PB": "#FF9500", "WS": "#0071E3", "BS": "#FF9500"}

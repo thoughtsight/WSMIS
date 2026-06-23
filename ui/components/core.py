@@ -7,7 +7,7 @@ def UniversalHeader(client_name: str, report_title: str, selected_months: list, 
     
     # Official display names mapping
     DISPLAY_TITLES = {
-        "Cockpit": "Cockpit",
+        "Cockpit": "Executive Command Center",
         "Overview": "Workshop Overview",
         "Executive": "Executive Dashboard",
         "Labour": "Labour Revenue",
@@ -77,17 +77,25 @@ def UniversalFooter():
     </div>
     ''', unsafe_allow_html=True)
 
-def EmptyState(message: str = "No data available for the selected filters.", icon: str = "📭"):
+def EmptyState(message: str = "No data available for this period", 
+               sub: str = "Adjust the period or location filter to view results"):
     """
-    Standardized Empty State visualization.
+    Renders a premium empty state with icon, message, and sub-message.
     """
-    from ui.design_tokens import T
-    html = f'''<div class="empty-state" style="text-align:center; padding:{T.SPACE_12}px {T.SPACE_6}px; background:var(--color-surface); border-radius:{T.RADIUS_LG}px; border:1px dashed var(--color-border); margin:{T.SPACE_4}px 0;">
-    <div style="font-size:32px; margin-bottom:{T.SPACE_3}px;">{icon}</div>
-    <div style="color:var(--color-text-primary); font-weight:500; font-size:{T.TYPE_MD}px; margin-bottom:{T.SPACE_1}px;">No Data Found</div>
-    <div style="color:var(--color-text-secondary); font-size:{T.TYPE_BASE}px;">{message}</div>
-</div>'''
-    st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
+    html = f"""
+    <div class="empty-state">
+      <svg class="empty-state-icon" width="40" height="40" viewBox="0 0 24 24" 
+           fill="none" stroke="currentColor" stroke-width="1.5" 
+           stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <line x1="9" y1="9" x2="15" y2="15"/>
+        <line x1="15" y1="9" x2="9" y2="15"/>
+      </svg>
+      <p class="empty-state-title">{message}</p>
+      <p class="empty-state-sub">{sub}</p>
+    </div>
+    """
+    st.markdown(html, unsafe_allow_html=True)
 
 def AlertBanner(message: str, type: str = "warning"):
     """
@@ -123,3 +131,40 @@ def AlertBanner(message: str, type: str = "warning"):
     <span style="color:var(--color-text-primary); font-size:{T.TYPE_BASE}px; font-weight:500;">{message}</span>
 </div>'''
     st.markdown(html.replace('\n', ''), unsafe_allow_html=True)
+
+def spacer(height: int = 16):
+    """Renders a vertical spacer."""
+    st.markdown(f'<div style="height:{height}px;"></div>', unsafe_allow_html=True)
+
+def section_card(content: str):
+    """Renders content inside a standardized surface card."""
+    from ui.design_tokens import T
+    html = f'<div class="section-card" style="background:var(--color-surface); border-radius:{T.RADIUS_LG}px; padding:{T.SPACE_4}px; border:1px solid var(--color-border); box-shadow:var(--shadow-sm); margin-bottom:{T.SPACE_4}px;">{content}</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+def section_title(title: str):
+    """Renders a standard section title."""
+    from ui.design_tokens import T
+    html = f'<div class="section-title" style="font-size:{T.TYPE_MD}px; font-weight:600; color:var(--color-text-primary); margin-bottom:{T.SPACE_3}px;">{title}</div>'
+    st.markdown(html, unsafe_allow_html=True)
+
+def badge(text: str, variant: str = "info"):
+    """
+    Renders a status badge inline.
+    Variants: info, success, warning, danger, new
+    """
+    from ui.design_tokens import T
+    colors = {
+        "info": {"bg": T.COLOR_INFO_BG, "color": T.COLOR_PRIMARY},
+        "success": {"bg": T.COLOR_SUCCESS_BG, "color": T.COLOR_SUCCESS},
+        "warning": {"bg": T.COLOR_WARNING_BG, "color": T.COLOR_WARNING},
+        "danger": {"bg": T.COLOR_DANGER_BG, "color": T.COLOR_DANGER},
+        "new": {"bg": T.COLOR_INFO_BG, "color": T.COLOR_NEW},
+    }
+    style = colors.get(variant, colors["info"])
+    return f'<span style="background:{style["bg"]}; color:{style["color"]}; padding:2px 8px; border-radius:{T.RADIUS_SM}px; font-size:{T.TYPE_XS}px; font-weight:600;">{text}</span>'
+
+def divider():
+    """Renders a standard divider."""
+    from ui.design_tokens import T
+    st.markdown(f'<hr style="border:0; border-top:1px solid var(--color-border); margin:{T.SPACE_4}px 0;" />', unsafe_allow_html=True)

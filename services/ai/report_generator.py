@@ -61,11 +61,8 @@ def _call_gemini(prompt: str, model: str, api_key: Optional[str]) -> str:
 
 
 def _call_anthropic(prompt: str, model: str, api_key: Optional[str]) -> str:
-    import anthropic  # lazy import
-    key = api_key or os.getenv("ANTHROPIC_API_KEY")
-    if not key:
-        raise RuntimeError("ANTHROPIC_API_KEY not set for Anthropic provider.")
-    client = anthropic.Anthropic(api_key=key)
+    from services.ai.provider import get_ai_client
+    client = get_ai_client()
     msg = client.messages.create(
         model=model,
         max_tokens=4000,

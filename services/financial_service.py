@@ -38,8 +38,8 @@ class FinancialService:
         """Unified discount metrics."""
         return {
             "Total Discount": discount.calculate_total_discount(df),
-            "Labour Discount": discount.calculate_labour_discount(df),
-            "Parts Discount": discount.calculate_parts_discount(df),
+            "Labour Discount": discount.get_labour_discount(df),
+            "Parts Discount": discount.get_parts_discount(df),
             "Labour Discount %": discount.calculate_labour_discount_pct(df),
             "Parts Discount %": discount.calculate_parts_discount_pct(df),
             "Overall Discount %": discount.calculate_overall_discount_pct(df),

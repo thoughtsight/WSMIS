@@ -24,17 +24,18 @@ import importlib.util
 
 from ui.components.core import UniversalHeader, UniversalFooter
 
-# Explicit import to load correct internal_audit_app.py from WSMIS directory
-spec = importlib.util.spec_from_file_location(
-    "internal_audit_app",
-    os.path.join(os.path.dirname(__file__), "internal_audit_app.py")
-)
-internal_audit_app = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(internal_audit_app)
+from services.audit_service import load_data as load_audit_data
+from services.state_registry import register_all_namespaces
+from services.state_manager import StateManager
+from services.auth_service import get_auth_service
+from services.route_service import get_route_service
+
+# Initialize StateManager namespaces
+register_all_namespaces()
 
 @st.cache_data(ttl=3600)  # Extended TTL to 1 hour (was 300s/5min)
 def get_cached_audit_data():
-    return internal_audit_app.load_data()
+    return load_audit_data()
 
 # Removed get_cached_missed_labour entirely since load_data() already computes res["missed"]
 
@@ -72,7 +73,7 @@ PAGE_CAPABILITIES = {
 st.set_page_config(layout="wide", initial_sidebar_state="expanded", page_title="Auto LLP MIS v1.0.0-rc1", page_icon="🚗")
 
 from pathlib import Path
-APPLE_CSS = f"<style>\n{Path('static/style.css').read_text(encoding='utf-8')}\n</style>"
+APPLE_CSS = f"<style>\n{(Path(__file__).resolve().parent / 'static' / 'style.css').read_text(encoding='utf-8')}\n</style>"
 st.markdown(APPLE_CSS, unsafe_allow_html=True)
 
 from utils.constants import PLY, C, LOC_COLORS, MP_COLORS
@@ -107,7 +108,7 @@ from services.logger import logger
 from services.error_handler import safe_render
 
 from utils.aggregations import location_summary, advisor_summary, monthly_summary
-from utils.filters import apply_month_filter, apply_location_filter, apply_location_group_filter, apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
+from utils.filters import apply_month_filter, apply_location_filter, apply_location_group_filter, apply_service_type_filter, apply_advisor_filter, split_cp_pp
 
 # DATA LOADING
 from services.logging_service import log_performance
@@ -149,8 +150,8 @@ def compute_alerts(df_cp, df_pp):
         alerts.append(('red', f"⚠️ High Labour Discount: {', '.join(high_disc)} exceed {HIGH_DISC_ALERT}% threshold"))
     
     # Alert 2: Any location with YoY decline > 15%
-    loc_cp = location_summary(df_cp, as_index=True)['Net_Labour'].sum()
-    loc_pp = location_summary(df_pp, as_index=True)['Net_Labour'].sum()
+    loc_cp = location_summary(df_cp, as_index=True).agg(Net_Labour=('Net_Labour', 'sum'))['Net_Labour']
+    loc_pp = location_summary(df_pp, as_index=True).agg(Net_Labour=('Net_Labour', 'sum'))['Net_Labour']
     for loc in loc_cp.index:
         if loc in loc_pp.index and loc_pp[loc] > 50000:
             yoy = calc_growth_pct(loc_cp[loc], loc_pp[loc], fill_value=np.nan) if loc_pp[loc] and not np.isnan(loc_pp[loc]) else np.nan
@@ -195,8 +196,9 @@ def render_month_picker(df, page):
         if any(m in fy_month_list for m in all_months):
             preset_options.append(fy_label)
 
-    # Apply page specific capabilities to session state if visiting for the first time
-    if st.session_state.get(f"last_visited_page") != page:
+    # Apply page specific capabilities to session state only on FIRST visit (no global period selected yet)
+    # Period is now a global filter - persists across all dashboards once selected
+    if st.session_state.get(f"last_visited_page") != page and not st.session_state.get("user_has_selected_period", False):
         st.session_state.month_preset = capabilities.get("default_period", "3M")
         st.session_state.last_preset = capabilities.get("default_period", "3M")
         st.session_state.comparison_mode_radio = "YoY" if capabilities.get("comparison_mode") else "None"
@@ -250,9 +252,9 @@ def render_month_picker(df, page):
             else:
                 st.session_state.selected_months_custom = default_cp
 
-    # Callback for when user clicks a radio button
+    # Callback for when user manually changes the period preset
     def on_preset_change():
-        preset = st.session_state.month_preset
+        preset = st.session_state.ui_month_preset
         if preset != "Custom":
             if preset == "1M":
                 st.session_state.selected_months_custom = [all_months[-1]] if all_months else []
@@ -264,11 +266,13 @@ def render_month_picker(df, page):
                 fy_list = FY_MONTHS.get(preset, [])
                 st.session_state.selected_months_custom = [m for m in all_months if m in fy_list]
         st.session_state.last_preset = preset
+        st.session_state.user_has_selected_period = True
 
     # Callback for when user manually changes the multiselect
     def on_custom_change():
         st.session_state.month_preset = "Custom"
         st.session_state.last_preset = "Custom"
+        st.session_state.user_has_selected_period = True
 
     if not capabilities.get("show_period_filter") and not capabilities.get("show_comparison_filter"):
         return st.session_state.selected_months_custom, build_pairs(st.session_state.selected_months_custom, all_months, MONTH_SORT_ORDER, "YoY" if st.session_state.get("comparison_mode_radio") == "YoY" else "MoM"), capabilities.get("comparison_mode", False)
@@ -280,7 +284,7 @@ def render_month_picker(df, page):
     show_svc = capabilities.get("show_service_type_filter", False)
     show_adv = "Advisor" in capabilities.get("additional_module_filters", [])
     is_labour = (page == "Labour")
-    col_count = 5 # Period, Comparison, MP/PB, Location, Reset
+    col_count = 5 # Period, Comparison, BU, Location, Reset
     if show_svc: col_count += 1
     if show_adv: col_count += 1
     if is_labour: col_count += 2 # Business View + Service Type (Location already counted)
@@ -289,56 +293,78 @@ def render_month_picker(df, page):
     col_idx = 0
     
     with cols[col_idx]:
-        preset = st.selectbox("Period", preset_options, index=preset_options.index(st.session_state.month_preset) if st.session_state.month_preset in preset_options else 1, key="month_preset", on_change=on_preset_change)
+        if "ui_month_preset" not in st.session_state:
+            st.session_state["ui_month_preset"] = st.session_state.get("month_preset", "3M")
+        preset = st.selectbox("Period", preset_options, key="ui_month_preset", on_change=on_preset_change)
+        # Synchronize UI state to persistent state
+        st.session_state.month_preset = preset
     col_idx += 1
     
     with cols[col_idx]:
+        if "ui_comparison_mode_radio" not in st.session_state:
+            st.session_state["ui_comparison_mode_radio"] = st.session_state.get("comparison_mode_radio", "YoY")
         if hasattr(st, "segmented_control"):
-            mode_label = st.segmented_control("Comparison", ["YoY", "MoM"], default="YoY", key="comparison_mode_radio")
+            mode_label = st.segmented_control("Comparison", ["YoY", "MoM"], key="ui_comparison_mode_radio")
         else:
-            mode_label = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="comparison_mode_radio")
+            mode_label = st.radio("Comparison", ["YoY", "MoM"], horizontal=True, key="ui_comparison_mode_radio")
         comparison_mode = (mode_label == "YoY")
+        # Synchronize UI state to persistent state
+        st.session_state.comparison_mode_radio = mode_label
     col_idx += 1
     
-    # MP/PB Filter (global)
+    # Business Unit Filter
     with cols[col_idx]:
-        mp_pb = st.radio("Business Unit", ["All", "MP", "PB"], horizontal=True, key="filter_mp_pb")
+        if "ui_filter_mp_pb" not in st.session_state:
+            st.session_state["ui_filter_mp_pb"] = st.session_state.get("filter_mp_pb", "All")
+        if hasattr(st, "segmented_control"):
+            mp_pb = st.segmented_control("Business Unit", ["All", "MP", "PB"], key="ui_filter_mp_pb")
+        else:
+            mp_pb = st.radio("Business Unit", ["All", "MP", "PB"], horizontal=True, key="ui_filter_mp_pb")
+        # Synchronize UI state to persistent state
+        st.session_state.filter_mp_pb = mp_pb
     col_idx += 1
     
-    # Location Filter (cascades from MP/PB)
+    # Location Filter
     with cols[col_idx]:
-        mp_pb_val = st.session_state.get("filter_mp_pb", "All")
         available_locs = sorted(df['Location Name'].dropna().unique().tolist())
-        if mp_pb_val != "All":
-            # Cascade: filter locations based on MP_PB column
-            available_locs = sorted(df[df['MP_PB'] == mp_pb_val]['Location Name'].dropna().unique().tolist())
-        location = st.multiselect("Location", available_locs, key="filter_location", placeholder="All")
+        if "ui_filter_location" not in st.session_state:
+            st.session_state["ui_filter_location"] = st.session_state.get("filter_location", [])
+        location = st.multiselect("Location", available_locs, key="ui_filter_location", placeholder="All")
+        # Synchronize UI state to persistent state
+        st.session_state.filter_location = location
     col_idx += 1
     
     if show_svc:
         with cols[col_idx]:
             svc_type_opts = sorted(df['Service Type'].dropna().unique().tolist())
-            svc_type = st.multiselect("Service Type", svc_type_opts, default=[], key="filter_svc_type_single", placeholder="All")
+            if "ui_filter_svc_type_single" not in st.session_state:
+                st.session_state["ui_filter_svc_type_single"] = st.session_state.get("filter_svc_type", [])
+            svc_type = st.multiselect("Service Type", svc_type_opts, key="ui_filter_svc_type_single", placeholder="All")
             st.session_state.filter_svc_type = svc_type
         col_idx += 1
         
     if show_adv:
         with cols[col_idx]:
             adv_opts = ["All"] + sorted(df[ADV_COL].dropna().unique().tolist())
-            advisor = st.selectbox("Advisor", adv_opts, key="filter_adv_single")
+            if "ui_filter_adv_single" not in st.session_state:
+                current_adv = st.session_state.get("filter_advisor", ["All"])[0] if st.session_state.get("filter_advisor") else "All"
+                st.session_state["ui_filter_adv_single"] = current_adv
+            advisor = st.selectbox("Advisor", adv_opts, key="ui_filter_adv_single")
             st.session_state.filter_advisor = [advisor] if advisor != "All" else []
         col_idx += 1
 
     if is_labour:
         with cols[col_idx]:
-            cur_biz = st.session_state.get("lab_business_view", "All")
+            cur_biz = StateManager.get("lab_business_view", "All")
             st.markdown('<div style="margin-bottom:8px;font-size:14px;color:#1D1D1F;">Business View</div>', unsafe_allow_html=True)
+            if "lab_biz_ui" not in st.session_state:
+                st.session_state["lab_biz_ui"] = cur_biz
             if hasattr(st, "segmented_control"):
-                new_b = st.segmented_control("Business View", ["All", "Workshop", "Bodyshop"], default=cur_biz, key="lab_biz_ui", label_visibility="collapsed")
+                new_b = st.segmented_control("Business View", ["All", "Workshop", "Bodyshop"], key="lab_biz_ui", label_visibility="collapsed")
             else:
-                new_b = st.radio("Business View", ["All", "Workshop", "Bodyshop"], index=["All", "Workshop", "Bodyshop"].index(cur_biz), horizontal=True, key="lab_biz_ui", label_visibility="collapsed")
+                new_b = st.radio("Business View", ["All", "Workshop", "Bodyshop"], horizontal=True, key="lab_biz_ui", label_visibility="collapsed")
             if new_b and new_b != cur_biz:
-                st.session_state.lab_business_view = new_b
+                StateManager.set("lab_business_view", new_b)
                 st.rerun()
         col_idx += 1
         
@@ -352,8 +378,22 @@ def render_month_picker(df, page):
     with cols[col_idx]:
         st.markdown('<div style="margin-top:28px;"></div>', unsafe_allow_html=True)
         if st.button("🔄 Reset Page", key="clear_page"):
-            for key in ["filter_svc_type_single", "filter_svc_type_labour", "filter_adv_single", "filter_svc_type", "filter_advisor", "filter_mp_pb", "filter_location", "month_preset", "selected_months_custom", "comparison_mode_radio", "last_preset"]:
-                if key in st.session_state: del st.session_state[key]
+            # Determine active namespace based on current page
+            active_namespace = None
+            if page == "Labour":
+                active_namespace = "lab_"
+            elif page == "Parts Executive":
+                active_namespace = "parts_"
+            elif page == "Cockpit":
+                active_namespace = "cockpit_"
+            
+            # Reset using StateManager (clears active namespace + global filters)
+            if active_namespace:
+                StateManager.reset_page(active_namespace)
+            else:
+                # Fallback: clear only global filters for pages without namespace
+                StateManager.reset_page("")
+            
             st.rerun()
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -361,7 +401,11 @@ def render_month_picker(df, page):
     is_custom = st.session_state.get("month_preset", "3M") == "Custom"
     
     if is_custom:
-        selected_months = st.multiselect("Custom Months", all_months, key="selected_months_custom", on_change=on_custom_change)
+        if "ui_selected_months_custom" not in st.session_state:
+            st.session_state["ui_selected_months_custom"] = st.session_state.get("selected_months_custom", [])
+        selected_months = st.multiselect("Custom Months", all_months, key="ui_selected_months_custom", on_change=on_custom_change)
+        # Synchronize UI state to persistent state
+        st.session_state.selected_months_custom = selected_months
     else:
         selected_months = st.session_state.selected_months_custom
             
@@ -406,7 +450,8 @@ def render_global_filters(df):
         d = apply_location_filter(d, 'Location Name', location)
         active_count += 1
     if mp_pb and mp_pb != "All": 
-        d = apply_mp_pb_filter(d, 'MP_PB', mp_pb)
+        # Safely pass as a list as expected by apply_location_group_filter
+        d = apply_location_group_filter(d, 'Location_Group', [mp_pb])
         active_count += 1
         
     return d, active_count
@@ -445,7 +490,98 @@ def render_global_filters(df):
 
 
 
+# ── V2 URL Routing Infrastructure ────────────────────────────────────────
+# Activated when LEGACY_NAV = False in config/settings.py
+# URL format: ?page=<slug>  (e.g., ?page=cockpit, ?page=labour)
+
+PAGE_SLUGS = {
+    "cockpit":           "Cockpit",
+    "overview":          "Overview",
+    "executive":         "Executive",
+    "labour":            "Labour",
+    "parts-executive":   "Parts Executive",
+    "parts-detail":      "Parts Detail",
+    "margin":            "Margin",
+    "sales-mix":         "Sales Mix",
+    "discounts":         "Discounts",
+    "leakage-centre":    "Leakage Center",
+    "advisors":          "Advisors",
+    "advisor-mom":       "Advisor MoM",
+    "locations":         "Locations",
+    "trends":            "Trends",
+    "targets":           "Targets",
+    "expense-analysis":  "Expense Analysis",
+    "profit-and-loss":   "Profit & Loss",
+    "reports":           "Reports",
+    "internal-audit":    "Internal Audit",
+    "audit-intelligence":"Audit Intelligence",
+    "system-health":     "System Health",
+}
+SLUG_TO_PAGE = PAGE_SLUGS
+PAGE_TO_SLUG = {v: k for k, v in PAGE_SLUGS.items()}
+
+def resolve_page() -> str:
+    """Resolve the active page from URL params (V2) or session state (V1)."""
+    from config.settings import LEGACY_NAV
+    
+    # Initialize services
+    auth_service = get_auth_service()
+    route_service = get_route_service()
+    
+    if LEGACY_NAV:
+        # V1: Use session state with route validation
+        page_name = st.session_state.get("current_page", "Cockpit")
+        
+        # Validate route exists in registry (even in V1 for consistency)
+        route_path = f"/{page_name}"
+        if not route_service.get_registry().is_valid_route(route_path):
+            # Invalid route - fall back to Cockpit
+            page_name = "Cockpit"
+            st.session_state["current_page"] = "Cockpit"
+        
+        # --- TEMPORARY DEBUG LOGGING ---
+        clicked_slug = st.query_params.get("page", "None")
+        print("\n=== ROUTING DEBUG (V1) ===")
+        print(f"Clicked page (URL Slug): {clicked_slug}")
+        print(f"Resolved slug: (Ignored in V1 due to LEGACY_NAV=True)")
+        print(f"Current session page: {st.session_state.get('current_page', 'None')}")
+        print(f"Resolved page: {page_name}")
+        print(f"Final rendered page: {page_name}")
+        print("==========================\n")
+        
+        return page_name
+
+    # V2: read from st.query_params["page"]
+    page_slug = st.query_params.get("page", "")
+    if page_slug and page_slug in SLUG_TO_PAGE:
+        page_name = SLUG_TO_PAGE[page_slug]
+    elif page_slug:
+        # Unknown slug — fall back to default, do not crash
+        page_name = "Cockpit"
+    else:
+        # No ?page= param — use session state (first visit defaults to Cockpit)
+        page_name = st.session_state.get("current_page", "Cockpit")
+
+    # Sync to session state so render_page_router works unchanged
+    st.session_state["current_page"] = page_name
+    return page_name
+
+def set_page_url(page_name: str) -> None:
+    """Update the URL query parameter to reflect the current page (V2 only)."""
+    from config.settings import LEGACY_NAV
+    if LEGACY_NAV:
+        return
+    slug = PAGE_TO_SLUG.get(page_name, "cockpit")
+    st.query_params["page"] = slug
+
 def sidebar_navigation():
+    from config.settings import LEGACY_NAV
+    if LEGACY_NAV:
+        _sidebar_v1()
+    else:
+        _sidebar_v2()
+
+def _sidebar_v1():
     with st.sidebar:
         st.markdown("### 🚗 Navigation")
         st.markdown("---")
@@ -460,15 +596,13 @@ def sidebar_navigation():
                 st.rerun()
 
         # 📊 OVERVIEW
-        with st.expander("📊 OVERVIEW"):
-            nav_btn("Cockpit", "Cockpit")
-            nav_btn("Overview", "Overview")
-            nav_btn("Executive", "Executive")
+        nav_btn("📊 Executive Command Center", "Cockpit")
     
         # 💰 REVENUE
         with st.expander("💰 REVENUE"):
             nav_btn("Labour", "Labour")
-            nav_btn("Parts", "Parts")
+            nav_btn("Parts Executive", "Parts Executive")
+            nav_btn("Parts Detail", "Parts Detail")
             nav_btn("Margin", "Margin")
             nav_btn("Sales Mix", "Sales Mix")
             nav_btn("Discounts", "Discounts")
@@ -501,8 +635,82 @@ def sidebar_navigation():
             with st.expander("⚙️ OPERATIONS"):
                 nav_btn("System Health", "System Health")
 
+def _sidebar_v2():
+    """V2 sidebar — URL-driven navigation via st.query_params."""
+    current = st.session_state.get("current_page", "Cockpit")
+
+    def nav_btn(label, target_page):
+        slug = PAGE_TO_SLUG.get(target_page, "cockpit")
+        is_active = current == target_page
+        btn_type = "primary" if is_active else "secondary"
+        if st.button(label, use_container_width=True, type=btn_type,
+                      key=f"v2_{slug}"):
+            set_page_url(target_page)
+            st.session_state["current_page"] = target_page
+            st.rerun()
+
+    with st.sidebar:
+        st.markdown("### 🚗 Navigation")
+        st.markdown("---")
+
+        nav_btn("📊 Executive Command Center", "Cockpit")
+
+        with st.expander("💰 REVENUE"):
+            nav_btn("Labour", "Labour")
+            nav_btn("Parts Executive", "Parts Executive")
+            nav_btn("Parts Detail", "Parts Detail")
+            nav_btn("Margin", "Margin")
+            nav_btn("Sales Mix", "Sales Mix")
+            nav_btn("Discounts", "Discounts")
+            nav_btn("Leakage Center", "Leakage Center")
+
+        with st.expander("👥 PEOPLE"):
+            nav_btn("Advisors", "Advisors")
+            nav_btn("Advisor MoM", "Advisor MoM")
+
+        with st.expander("📈 PERFORMANCE"):
+            nav_btn("Locations", "Locations")
+            nav_btn("Trends", "Trends")
+            nav_btn("Targets", "Targets")
+
+        with st.expander("🏦 FINANCE"):
+            nav_btn("Expense Analysis", "Expense Analysis")
+            nav_btn("Profit & Loss", "Profit & Loss")
+
+        with st.expander("🛠 ADMIN"):
+            nav_btn("Reports", "Reports")
+            nav_btn("Internal Audit", "Internal Audit")
+            nav_btn("Audit Intelligence", "Audit Intelligence")
+
+        if st.query_params.get("admin") == "true":
+            with st.expander("⚙️ OPERATIONS"):
+                nav_btn("System Health", "System Health")
+
 def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, alerts, comparison_mode, selected_months, targets_df, client_config, exp_df_filtered_cp=None):
+    # Initialize services
+    auth_service = get_auth_service()
+    route_service = get_route_service()
+    
     page = st.session_state.get("current_page", "Cockpit")
+    route_path = f"/{page}"
+    
+    # Validate route exists
+    if not route_service.get_registry().is_valid_route(route_path):
+        # Invalid route - render 404 page
+        from views.unauthorized import render_not_found_page
+        render_not_found_page()
+        return
+    
+    # Check admin route protection
+    from services.route_service import RouteType
+    route_type = route_service.get_registry().get_route_type(route_path)
+    if route_type == RouteType.ADMIN:
+        # Admin routes require admin role (for now, check query param)
+        if st.query_params.get("admin") != "true":
+            # Unauthorized - render 403 page
+            from views.unauthorized import render_unauthorized_page
+            render_unauthorized_page()
+            return
 
     if page == "Cockpit":
         with st.spinner("Loading Cockpit..."):
@@ -516,10 +724,14 @@ def render_page_router(df_filtered_full, df_filtered_cp, df_filtered, pairs, ale
         with st.spinner("Crunching numbers..."):
             from views.labour import render
         safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
-    elif page == "Parts":
+    elif page == "Parts Executive":
         with st.spinner("Crunching numbers..."):
-            from views.yoy import render
-        safe_render(render, df_filtered_full, pairs, "Net_Parts", "py", "Parts", comparison_mode, selected_months)
+            from views.parts_executive import render
+        safe_render(render, df_filtered_full, targets_df, pairs, comparison_mode, selected_months)
+    elif page == "Parts Detail":
+        with st.spinner("Crunching numbers..."):
+            from views.parts_detail import render
+        safe_render(render, df_filtered_full, pairs, comparison_mode, selected_months)
     elif page == "Margin":
         with st.spinner("Crunching numbers..."):
             from views.margin import render
@@ -601,6 +813,14 @@ def main():
         validate_environment()
         st.session_state["env_validated"] = True
 
+    # ── Initialize Services ─────────────────────────────────────────
+    auth_service = get_auth_service()
+    route_service = get_route_service()
+    
+    # ── URL/Session Synchronization ─────────────────────────────────
+    # Sync URL query parameters to session state
+    route_service.sync_url_to_session()
+    
     # ── Pilot Access Control ────────────────────────────────────────
     if "authenticated" not in st.session_state:
         st.session_state["authenticated"] = False
@@ -649,6 +869,9 @@ def main():
     if "startup_time" not in st.session_state:
         st.session_state["startup_time"] = round(time.time() - START_TIME, 2)
 
+    # ── Resolve active page (V1: session state, V2: URL query param) ──
+    resolve_page()
+
     client_names = list(CLIENTS.keys())
 
     # ── Sidebar Navigation ────────────────────────────────────────
@@ -693,7 +916,7 @@ def main():
     synced_at_str = (st.session_state.get("data_synced_at") or data_loaded_time).strftime('%d %b %Y, %I:%M %p') if (data_loaded_time or st.session_state.get("data_synced_at")) else "Unknown"
     UniversalHeader(
         client_name=sel_client,
-        report_title=st.session_state.get('current_page', 'Cockpit'),
+        report_title="Executive Command Center" if st.session_state.get('current_page', 'Cockpit') in ["Cockpit", "Overview", "Executive"] else st.session_state.get('current_page', 'Cockpit'),
         selected_months=selected_months,
         synced_at=synced_at_str
     )

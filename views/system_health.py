@@ -1,14 +1,15 @@
-import streamlit as st
-import pandas as pd
+from views.shared import *
+from views.components.kpi_engine import KPIEngine
+from views.components.chart_engine import ChartEngine
+
 import sys
 import os
-from datetime import datetime
 import subprocess
+import streamlit
+import pandas
 
 def check_health(df_full, exp_df):
     """Gathers system metrics without modifying any business logic."""
-    import streamlit
-    import pandas
     
     # 1. Base details
     metrics = {

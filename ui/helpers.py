@@ -5,50 +5,23 @@ import plotly.express as px
 import plotly.graph_objects as go
 from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
 from services.financial_service import FinancialService
-from utils.calculations.fact_metrics import (
-    get_labour_sales, get_parts_sales, get_net_labour, get_net_parts,
-    get_labour_discount, get_parts_discount, get_oil_sales, get_tyre_sales,
-    get_battery_sales, get_accessory_sales, get_total_margin, get_parts_profit,
-    get_jobcard_count
-)
-from utils.calculations.revenue import (
-    calculate_gross_revenue, calculate_net_revenue, calculate_total_revenue,
-    calculate_revenue_per_jobcard, calculate_revenue_growth
-)
-from utils.calculations.margin import (
-    calculate_total_margin, calculate_parts_margin, calculate_margin_per_jobcard,
-    calculate_margin_growth, calculate_margin_kpis
-)
-from utils.calculations.discount import (
-    calculate_labour_discount, calculate_parts_discount, calculate_total_discount,
-    calculate_labour_discount_pct, calculate_parts_discount_pct,
-    calculate_overall_discount_pct, calculate_discount_per_jobcard,
-    calculate_discount_growth
-)
-from utils.calculations.leakage import (
-    compute_discount_aggregates, compute_parts_leakage, compute_leakage_delta
-)
-from utils.calculations.common import (
-    safe_divide, calc_ratio, calc_growth_pct, calc_contribution_pct,
-    calc_achievement_pct, calc_variance
-)
-from utils.aggregations import (
-    group_summary, location_summary, advisor_summary, monthly_summary,
-    service_summary, dealer_summary, pivot_summary, top_n
-)
-from utils.constants import (
-    ADV_COL, CLIENTS, EXCLUDE_SERVICE_TYPES, ARENA_LOCATIONS,
-    NEXA_LOCATIONS, PB_SERVICE_TYPES, MONTH_SORT_ORDER, FY_MONTHS, SERVICE_ACCOUNT,
-    MP_COLORS
-)
-from utils.filters import (
-    apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp
-)
+from utils.constants import ADV_COL
+from utils.calculations.common import calc_ratio
+from utils.aggregations import advisor_summary
+from ui.design_tokens import T
 
 def apply_chart(fig, title, height=360, text_col=None, bar_text_pos="outside", size="medium"):
     """
-    Apply Executive Light styling to a Plotly figure.
+    DEPRECATED: Use ChartEngine.apply_chart() from views/components/chart_engine.py instead.
+    ChartEngine.apply_chart() is a superset of this function with additional parameters.
+    
+    This function is retained for backwards compatibility with legacy pages and
+    render_discount_heatmap(). Do not use for new code.
+    
+    Migration:
+        from views.components.chart_engine import ChartEngine
+        ChartEngine.apply_chart(fig, title, height=height, text_col=text_col, 
+                                bar_text_pos=bar_text_pos)
 
     Args:
         fig:          Plotly Figure
@@ -165,7 +138,7 @@ def render_neg_labour_alert(df_cp):
         msg += f" &nbsp;+{len(neg)-6} more"
     st.markdown(
         f'<div class="neg-lab-alert">'
-        f'🚨 <b>NEGATIVE NET LABOUR DETECTED</b> — Immediate review required:<br>{msg}'
+        f'<span style="color: {T.COLOR_DANGER}; font-size: 16px;">●</span> <b>NEGATIVE NET LABOUR DETECTED</b> — Immediate review required:<br>{msg}'
         f'</div>',
         unsafe_allow_html=True
     )
@@ -219,13 +192,20 @@ def render_discount_heatmap(df, view="By Location", key_suffix="lc"):
 def _render_finding(finding, cause, impact, recommendation, owner, priority):
     """Renders a structured audit finding card with mandatory 6-field format."""
     from ui.design_tokens import T
-    colors = {
-        "Critical": (T.COLOR_DANGER, T.COLOR_DANGER_BG, "🔴"),
-        "High":     (T.COLOR_WARNING, T.COLOR_WARNING_BG, "🟠"),
-        "Medium":   (T.COLOR_PRIMARY, T.COLOR_INFO_BG, "🔵"),
-        "Low":      (T.COLOR_TEXT_SECONDARY, T.COLOR_SURFACE2, "⚪"),
+    PRIORITY_ICONS = {
+        "Critical": f'<span style="color: {T.COLOR_DANGER}; font-size: 14px;">●</span>',
+        "High":     f'<span style="color: {T.COLOR_WARNING}; font-size: 14px;">●</span>',
+        "Medium":   f'<span style="color: {T.COLOR_PRIMARY}; font-size: 14px;">●</span>',
+        "Low":      f'<span style="color: {T.COLOR_TEXT_TERTIARY}; font-size: 14px;">●</span>',
     }
-    tc, bg, icon = colors.get(priority, (T.COLOR_TEXT_SECONDARY, T.COLOR_SURFACE2, "⚪"))
+    icon = PRIORITY_ICONS.get(priority, PRIORITY_ICONS["Low"])
+    colors = {
+        "Critical": (T.COLOR_DANGER, T.COLOR_DANGER_BG),
+        "High":     (T.COLOR_WARNING, T.COLOR_WARNING_BG),
+        "Medium":   (T.COLOR_PRIMARY, T.COLOR_INFO_BG),
+        "Low":      (T.COLOR_TEXT_SECONDARY, T.COLOR_SURFACE2),
+    }
+    tc, bg = colors.get(priority, (T.COLOR_TEXT_SECONDARY, T.COLOR_SURFACE2))
     st.markdown(f"""
     <div style="background:{bg};border-left:4px solid {tc};border-radius:{T.RADIUS_MD}px;padding:{T.SPACE_3}px {T.SPACE_4}px;margin-bottom:{T.SPACE_2}px;">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:{T.SPACE_2}px;">

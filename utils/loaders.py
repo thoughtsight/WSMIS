@@ -58,42 +58,14 @@ def get_gc() -> gspread.client.Client:
     Priority: Streamlit Secrets > Environment Variable > File (local dev only).
     A 20-second network timeout is applied so stalled connections fail fast.
     """
-    def _authorized(creds: Credentials) -> gspread.client.Client:
+    from config.environment import get_google_credentials
+    try:
+        creds = get_google_credentials()
         gc = gspread.authorize(creds)
-        # Hard socket timeout so a stalled connection raises instead of hanging forever.
         gc.set_timeout(GSHEET_TIMEOUT)
         return gc
-
-    # 1. Try Streamlit Secrets (Cloud/Deployment)
-    if "service_account" in st.secrets:
-        app_logger.info("[GSheets] Authenticating via Streamlit Secrets")
-        creds_dict = st.secrets["service_account"]
-        creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-        return _authorized(creds)
-
-    # 2. Try Environment Variable (JSON string)
-    service_account_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
-    if service_account_json:
-        app_logger.info("[GSheets] Authenticating via GOOGLE_SERVICE_ACCOUNT_JSON env var")
-        try:
-            creds_dict = json.loads(service_account_json)
-            creds = Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
-            return _authorized(creds)
-        except json.JSONDecodeError as e:
-            raise LoaderError(f"Invalid JSON in GOOGLE_SERVICE_ACCOUNT_JSON: {e}") from e
-
-    # 3. Try File (local development only - file should be gitignored)
-    if os.path.exists(SERVICE_ACCOUNT):
-        app_logger.info(f"[GSheets] Authenticating via local file: {SERVICE_ACCOUNT}")
-        creds = Credentials.from_service_account_file(SERVICE_ACCOUNT, scopes=SCOPES)
-        return _authorized(creds)
-
-    raise LoaderError(
-        "Google credentials not found. Set one of:\n"
-        "- Streamlit Secret: service_account (JSON)\n"
-        "- Environment Variable: GOOGLE_SERVICE_ACCOUNT_JSON (JSON string)\n"
-        "- Local file: service_account.json (development only)"
-    )
+    except Exception as e:
+        raise LoaderError(str(e)) from e
 
 def _read_sheet(sheet_id: str, tab_name: str) -> pd.DataFrame:
     """Read a Google Sheet tab into a DataFrame. Returns empty DF only for missing optional sheets."""
@@ -186,7 +158,83 @@ TARGET_COLS = ["Month Name","Location Name",
                "WS_Labour_Target","BS_Labour_Target",
                "WS_Parts_Target","BS_Parts_Target"]
 
-@st.cache_data(ttl=300)
+APPROVED_DISC_TAB = "MP_PB_Targets"
+
+# TODO (schema pending): map real approved-discount columns once added to MP_PB_Targets.
+#   Approved Labour Discount %  ->  column name TBD
+#   Approved Parts  Discount %  ->  column name TBD
+DEFAULT_APPR_LAB_DISC   = 15.0
+DEFAULT_APPR_PARTS_DISC = 1.0
+
+@st.cache_resource(ttl=300)
+@with_error_context(LoaderError)
+def load_discount_thresholds(sheet_id: str) -> pd.DataFrame:
+    """
+    Returns columns: ['Location Name', 'Appr_Lab_Disc', 'Appr_Parts_Disc'].
+    Uses get_gc() + open_by_key(sheet_id).worksheet(APPROVED_DISC_TAB).
+    PLACEHOLDER until the sheet exposes approved-discount columns:
+      - If approved-discount columns are absent, return one row per existing
+        Location Name populated with DEFAULT_APPR_LAB_DISC / DEFAULT_APPR_PARTS_DISC.
+    Never raises to the UI for a missing optional column — fall back to defaults.
+    """
+    try:
+        wb = _timed_op(f"load_discount_thresholds: open spreadsheet [{sheet_id}]", lambda: get_gc().open_by_key(sheet_id))
+        ws = _timed_op(
+            f"load_discount_thresholds: list worksheets / locate '{APPROVED_DISC_TAB}'",
+            lambda: next((s for s in wb.worksheets() if s.title.strip() == APPROVED_DISC_TAB), None),
+        )
+        if not ws:
+            # Optional targets sheet not found - safe to return default DataFrame
+            # Return empty DataFrame with expected columns, will be handled in view
+            return pd.DataFrame(columns=["Location Name", "Appr_Lab_Disc", "Appr_Parts_Disc"])
+        records = _timed_op(f"load_discount_thresholds: fetch records from '{APPROVED_DISC_TAB}'", lambda: ws.get_all_records())
+        df = pd.DataFrame(records)
+        df.columns = df.columns.str.strip()
+
+        # Check if approved discount columns exist
+        lab_col = None
+        parts_col = None
+        for col in df.columns:
+            col_lower = col.lower()
+            if "labour" in col_lower and "disc" in col_lower and "appr" in col_lower:
+                lab_col = col
+            if "parts" in col_lower and "disc" in col_lower and "appr" in col_lower:
+                parts_col = col
+
+        if lab_col and parts_col:
+            # Schema exists - use it
+            df["Appr_Lab_Disc"] = pd.to_numeric(df[lab_col], errors="coerce").fillna(DEFAULT_APPR_LAB_DISC)
+            df["Appr_Parts_Disc"] = pd.to_numeric(df[parts_col], errors="coerce").fillna(DEFAULT_APPR_PARTS_DISC)
+            if "Location Name" in df.columns:
+                return df[["Location Name", "Appr_Lab_Disc", "Appr_Parts_Disc"]]
+            else:
+                # Fallback to defaults if no Location Name
+                return pd.DataFrame(columns=["Location Name", "Appr_Lab_Disc", "Appr_Parts_Disc"])
+        else:
+            # Schema not yet available - return defaults for all locations
+            # Extract unique locations from the sheet if available, otherwise return empty
+            if "Location Name" in df.columns:
+                locations = df["Location Name"].unique().tolist()
+            else:
+                locations = []
+            if not locations:
+                return pd.DataFrame(columns=["Location Name", "Appr_Lab_Disc", "Appr_Parts_Disc"])
+            return pd.DataFrame({
+                "Location Name": locations,
+                "Appr_Lab_Disc": [DEFAULT_APPR_LAB_DISC] * len(locations),
+                "Appr_Parts_Disc": [DEFAULT_APPR_PARTS_DISC] * len(locations),
+            })
+    except LoaderError:
+        # Already descriptive (named operation + timing) — propagate unchanged.
+        raise
+    except gspread.exceptions.APIError as e:
+        raise LoaderError(f"Google Sheets API error loading discount thresholds: {e}") from e
+    except gspread.exceptions.GSpreadException as e:
+        raise LoaderError(f"Google Sheets authentication/access error loading discount thresholds: {e}") from e
+    except Exception as e:
+        raise LoaderError(f"Failed to load discount thresholds: {e}") from e
+
+@st.cache_resource(ttl=300)
 @with_error_context(LoaderError)
 def load_targets(sheet_id: str) -> pd.DataFrame:
     """Load WS/BS monthly targets from a separate sheet tab. Returns empty DF if sheet not found."""
@@ -215,7 +263,7 @@ def load_targets(sheet_id: str) -> pd.DataFrame:
     except Exception as e:
         raise LoaderError(f"Failed to load targets: {e}") from e
 
-@st.cache_data(ttl=300)
+@st.cache_resource(ttl=300)
 @with_error_context(LoaderError)
 def load_unbilled_sheets(sheet_id: str) -> Dict[str, pd.DataFrame]:
     """

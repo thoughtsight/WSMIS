@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from utils.calculations.revenue import calculate_net_revenue, calculate_total_revenue, calculate_revenue_growth
 from utils.calculations.margin import calculate_total_margin, calculate_margin_kpis
-from utils.calculations.discount import calculate_labour_discount, calculate_labour_discount_pct, calculate_overall_discount_pct
+from utils.calculations.discount import get_labour_discount, calculate_labour_discount_pct, calculate_overall_discount_pct
 from utils.calculations.common import calc_ratio, calc_growth_pct
 
 @pytest.fixture
@@ -45,7 +45,7 @@ def test_margin_calculations(dummy_cp):
     assert mar == 1500
 
 def test_discount_calculations(dummy_cp):
-    lab_disc = calculate_labour_discount(dummy_cp)
+    lab_disc = get_labour_discount(dummy_cp)
     assert lab_disc == 300
     
     lab_disc_pct = calculate_labour_discount_pct(dummy_cp)

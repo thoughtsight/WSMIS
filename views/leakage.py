@@ -1,65 +1,19 @@
-import streamlit as st
-import numpy as np
-import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import json
-from io import BytesIO
-from datetime import datetime
+from views.shared import *
+from views.components.kpi_engine import KPIEngine
+from views.components.chart_engine import ChartEngine
+from ui.helpers import _render_finding
 
 
 
-from services.financial_service import FinancialService
-from utils.calculations.fact_metrics import (
-    get_labour_sales, get_parts_sales, get_net_labour, get_net_parts,
-    get_labour_discount, get_parts_discount, get_oil_sales, get_tyre_sales,
-    get_battery_sales, get_accessory_sales, get_total_margin, get_parts_profit,
-    get_jobcard_count
-)
-from utils.calculations.revenue import (
-    calculate_gross_revenue, calculate_net_revenue, calculate_total_revenue,
-    calculate_revenue_per_jobcard, calculate_revenue_growth
-)
-from utils.calculations.margin import (
-    calculate_total_margin, calculate_parts_margin, calculate_margin_per_jobcard,
-    calculate_margin_growth, calculate_margin_kpis
-)
-from utils.calculations.discount import (
-    calculate_labour_discount, calculate_parts_discount, calculate_total_discount,
-    calculate_labour_discount_pct, calculate_parts_discount_pct,
-    calculate_overall_discount_pct, calculate_discount_per_jobcard,
-    calculate_discount_growth
-)
-from utils.calculations.leakage import (
-    compute_discount_aggregates, compute_parts_leakage, compute_leakage_delta
-)
-from utils.calculations.common import (
-    safe_divide, calc_ratio, calc_growth_pct, calc_contribution_pct,
-    calc_achievement_pct, calc_variance
-)
-from utils.aggregations import (
-    group_summary, location_summary, advisor_summary, monthly_summary,
-    service_summary, dealer_summary, pivot_summary, top_n
-)
-from utils.filters import (
-    apply_month_filter, apply_location_filter, apply_location_group_filter,
-    apply_service_type_filter, apply_advisor_filter, apply_mp_pb_filter, split_cp_pp,
-    filter_valid_advisors
-)
-from ui.formatters import fmt_inr, fmt_inr_full, fmt_inr_short, fmt_pct, fmt_num
-from utils.constants import ADV_COL, MP_COLORS, C
+
 from config.settings import LABOUR_DISC_BENCH, PARTS_DISC_BENCH, HIGH_DISC_ALERT
 
 # Import shared UI helpers from app
-from ui.components import KPIGrid, MetricCard
-from ui.tables import html_table
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
-from ui.helpers import apply_chart, clean_hover, _render_finding, render_discount_heatmap, render_alerts
 
 def render(df, pairs, comparison_mode=True, selected_months=None):
     with st.spinner("Computing Leakage..."):
         if df.empty:
-            from ui.components.core import EmptyState
             EmptyState('No data available for the selected period. Adjust your filters or check data freshness.')
             return
 
@@ -86,8 +40,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         loc_merged["Total_Leakage"] = loc_merged["Recoverable_lab"] + loc_merged["Recoverable_parts"]
         loc_merged = loc_merged.sort_values("Total_Leakage", ascending=False).reset_index(drop=True)
     elif not loc_lab.empty:
-        loc_merged = loc_lab.copy()
-        loc_merged.rename(columns={"Recoverable": "Recoverable_lab"}, inplace=True)
+        loc_merged = loc_lab.rename(columns={"Recoverable": "Recoverable_lab"})
         loc_merged["Recoverable_parts"] = 0.0
         loc_merged["Total_Leakage"] = loc_merged["Recoverable_lab"]
         loc_merged = loc_merged.sort_values("Total_Leakage", ascending=False).reset_index(drop=True)
@@ -97,14 +50,14 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
     adv_lab = filter_valid_advisors(cp, ADV_COL).groupby([ADV_COL, "Location Name"], dropna=False).agg(
         JCs=("JC_Nos.", "sum"), Revenue=("Pre-GST Labour", "sum"), DiscRs=("Labour Discount", "sum")
     ).reset_index()
-    adv_lab = adv_lab[adv_lab["Revenue"] > 0].copy()
+    adv_lab = adv_lab[adv_lab["Revenue"] > 0]
     if not adv_lab.empty:
         adv_lab["Disc_Pct"] = calc_ratio(adv_lab["DiscRs"], adv_lab["Revenue"], multiplier=100, fill_value=0)
         adv_lab["Leakage"]  = np.maximum(0, (adv_lab["Disc_Pct"] - LAB_BENCH) / 100 * adv_lab["Revenue"])
         adv_lab = adv_lab.sort_values("Leakage", ascending=False).reset_index(drop=True)
 
-    total_lab_disc   = calculate_labour_discount(cp)
-    total_parts_disc = calculate_parts_discount(cp)
+    total_lab_disc   = get_labour_discount(cp)
+    total_parts_disc = get_parts_discount(cp)
     total_lab_rev    = get_labour_sales(cp)
     total_parts_rev  = get_parts_sales(cp)
     total_rev        = calculate_gross_revenue(cp)
@@ -116,12 +69,13 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
 
     # ── Hero KPIs ────────────────────────────────────────────────
     st.markdown('<div class="section-card"><div class="section-title">💸 Leakage Summary</div>', unsafe_allow_html=True)
-    c = st.columns(5)
-    with c[0]: kpi("Labour Leakage ₹",     fmt_inr(total_lab_leakage))
-    with c[1]: kpi("Parts Leakage ₹",      fmt_inr(total_parts_leakage))
-    with c[2]: kpi("Total Recoverable ₹",  fmt_inr(total_recoverable))
-    with c[3]: kpi("Leakage % of Revenue", f"{overall_disc_pct:.1f}%")
-    with c[4]: kpi("Locs Above Benchmark", str(locs_above_bench))
+    KPIEngine.render_grid([
+        {"label": "Labour Leakage ₹",     "value": fmt_inr(total_lab_leakage)},
+        {"label": "Parts Leakage ₹",      "value": fmt_inr(total_parts_leakage)},
+        {"label": "Total Recoverable ₹",  "value": fmt_inr(total_recoverable)},
+        {"label": "Leakage % of Revenue", "value": f"{overall_disc_pct:.1f}%"},
+        {"label": "Locs Above Benchmark", "value": str(locs_above_bench)},
+    ], cols=5)
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ── Location Leakage Table ────────────────────────────────────
@@ -177,7 +131,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         fig = go.Figure()
         fig.add_trace(go.Bar(x=ltr["Month Name"], y=ltr["D%"], name="Labour Disc%", marker_color=C["primary"]))
         fig.add_hline(y=LAB_BENCH, line_dash="dash", line_color=C["red"], annotation_text=f"{LAB_BENCH}% Benchmark")
-        apply_chart(fig, "Labour Discount % vs Benchmark", 300)
+        ChartEngine.apply_chart(fig, "Labour Discount % vs Benchmark", 300)
         st.plotly_chart(fig, width='stretch', key="lc_lab_trend",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d", "lasso2d"],
@@ -192,7 +146,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         fig = go.Figure()
         fig.add_trace(go.Bar(x=ptr["Month Name"], y=ptr["D%"], name="Parts Disc%", marker_color=C["orange"]))
         fig.add_hline(y=PARTS_BENCH, line_dash="dash", line_color=C["red"], annotation_text=f"{PARTS_BENCH}% Benchmark")
-        apply_chart(fig, "Parts Discount % vs Benchmark", 300)
+        ChartEngine.apply_chart(fig, "Parts Discount % vs Benchmark", 300)
         st.plotly_chart(fig, width='stretch', key="lc_pts_trend",
                         config={"displayModeBar": True, "displaylogo": False,
                                 "modeBarButtonsToRemove": ["select2d", "lasso2d"],
@@ -275,7 +229,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
                 JCs=("JC_Nos.", "sum"), Revenue=("Pre-GST Labour", "sum"), DiscRs=("Labour Discount", "sum"),
                 PartRev=("Pre-GST Parts", "sum"), PartDisc=("Parts Discount", "sum")
             ).reset_index()
-            adv_drill = adv_drill[adv_drill["Revenue"] > 0].copy()
+            adv_drill = adv_drill[adv_drill["Revenue"] > 0]
             if not adv_drill.empty:
                 adv_drill["Lab Disc %"]    = calc_ratio(adv_drill["DiscRs"], adv_drill["Revenue"], multiplier=100, fill_value=0)
                 adv_drill["Lab Leakage"]   = np.maximum(0, (adv_drill["Lab Disc %"] - LAB_BENCH) / 100 * adv_drill["Revenue"])
@@ -298,7 +252,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         adv_monthly = cp[cp[ADV_COL] == sel_adv].groupby(["Month_Sort", "Month Name"], dropna=False).agg(
             JCs=("JC_Nos.", "sum"), Revenue=("Pre-GST Labour", "sum"), DiscRs=("Labour Discount", "sum")
         ).reset_index()
-        adv_monthly = adv_monthly[adv_monthly["Revenue"] > 0].copy()
+        adv_monthly = adv_monthly[adv_monthly["Revenue"] > 0]
         if not adv_monthly.empty:
             st.markdown(f"##### 👤 {sel_adv} — Monthly Leakage Breakdown")
             adv_monthly["Lab Disc %"] = calc_ratio(adv_monthly["DiscRs"], adv_monthly["Revenue"], multiplier=100, fill_value=0)

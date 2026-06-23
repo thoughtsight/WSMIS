@@ -20,21 +20,22 @@ _DEFAULT_TTL = 3600  # 1 hour default TTL
 _MAX_CACHE_SIZE = 10  # Maximum number of DataFrame entries in cache
 
 def _get_df_hash(df: pd.DataFrame) -> str:
-    """Returns a deterministic hash for a DataFrame using full content.
+    """Returns a highly efficient, deterministic hash for a DataFrame.
     
-    Uses dataset version (from settings) and full dataframe hash for accuracy.
-    Replaces the previous head/tail sampling approach.
+    Since dataframes in WSMIS are structurally immutable slices of a cached parent,
+    we rely on the DataFrame's index values combined with shape metadata. This 
+    guarantees sub-millisecond cache-hit detection without block-level scanning.
     """
     if df.empty:
         return "empty"
     h = hashlib.md5()
     # Include dataset version to invalidate cache on app updates
     h.update(str(VERSION).encode())
-    # Include shape and columns
+    # Include shape and columns to catch structural changes
     h.update(str(df.shape).encode())
     h.update(str(list(df.columns)).encode())
-    # Use full dataframe hash instead of head/tail sampling
-    h.update(pd.util.hash_pandas_object(df).values.tobytes())
+    # Use underlying index values instead of scanning every cell
+    h.update(df.index.values.tobytes())
     return h.hexdigest()
 
 def _evict_if_needed() -> None:
@@ -160,3 +161,48 @@ def get_discount_summary(df: pd.DataFrame) -> pd.DataFrame:
     return get_location_summary(df, as_index=False).agg(
         Labour_Discount=("Labour Discount", "sum"), Parts_Discount=("Parts Discount", "sum")
     )
+
+def get_category_summary(df: pd.DataFrame, cat_cols: list, as_index: bool = False, dropna: bool = False, **kwargs) -> Union[pd.DataFrame, pd.core.groupby.DataFrameGroupBy]:
+    """Cached category-level aggregation for parts categories.
+    
+    Args:
+        df: Input DataFrame
+        cat_cols: List of category columns to aggregate (e.g., ["Parts_Sale", "Oil_Sale", ...])
+        as_index: Whether to return as index or DataFrame
+        dropna: Whether to drop NaN values
+        **kwargs: Additional aggregation kwargs
+    
+    Returns:
+        GroupBy object or aggregated DataFrame with category columns summed
+    """
+    # Use group_summary with no grouping key to get dealer-level category sums
+    # This is equivalent to df[cat_cols].sum() but cached
+    df_id = _get_df_hash(df)
+    
+    # Check if expired and remove if so
+    if _is_expired(df_id):
+        with _CACHE_LOCK:
+            if df_id in _CACHE:
+                del _CACHE[df_id]
+    
+    # Evict if cache is full (LRU policy)
+    _evict_if_needed()
+    
+    with _CACHE_LOCK:
+        if df_id not in _CACHE:
+            _CACHE[df_id] = {"timestamp": time.time(), "ttl": _DEFAULT_TTL}
+        else:
+            _update_access_time(df_id)
+        
+        cache_key = f"cat_{'_'.join(cat_cols)}_{as_index}_{dropna}_{str(kwargs)}"
+        if cache_key not in _CACHE[df_id]:
+            # Calculate category sums
+            cat_sums = df[cat_cols].sum() if all(c in df.columns for c in cat_cols) else pd.Series(0, index=cat_cols)
+            if kwargs:
+                # If additional aggregations requested, return as DataFrame
+                result = pd.DataFrame([cat_sums.to_dict()])
+                _CACHE[df_id][cache_key] = result
+            else:
+                _CACHE[df_id][cache_key] = cat_sums
+        
+        return _CACHE[df_id][cache_key].copy() if kwargs or as_index else _CACHE[df_id][cache_key]

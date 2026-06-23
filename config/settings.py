@@ -3,6 +3,7 @@ import os
 # Application Settings
 APP_NAME = "WSMIS Analytics"
 VERSION = "1.0.0-RC"
+LEGACY_NAV = True
 
 # ── Discount Benchmarks ───────────────────────────────────────────────────────
 LABOUR_DISC_BENCH = 15      # % — max acceptable labour discount

@@ -2,6 +2,14 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict
 
+def normalize_advisor_name(name_series: pd.Series) -> pd.Series:
+    """
+    Normalizes advisor names by stripping anything after and including the hyphen.
+    Preserves original capitalization and trims leading/trailing spaces.
+    Converts repeated spaces to a single space.
+    """
+    return name_series.astype(str).str.split('-').str[0].str.strip().str.replace(r'\s+', ' ', regex=True)
+
 def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, int], pb_service_types: List[str]) -> pd.DataFrame:
     """
     Applies deterministic structural cleaning to the raw DataFrame.
@@ -28,11 +36,20 @@ def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, 
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce", downcast="float").fillna(0)
             
-    # Clean advisor names
+    # Clean advisor names (canonical normalization)
     if adv_col in df.columns:
-        df[adv_col] = df[adv_col].astype(str).str.strip()
+        df["Advisor_Raw"] = df[adv_col]
+        # Only normalize names containing the suffix pattern
+        df["Advisor_Clean"] = np.where(
+            df[adv_col].astype(str).str.contains('-'),
+            normalize_advisor_name(df[adv_col]),
+            df[adv_col].astype(str).str.strip().str.replace(r'\s+', ' ', regex=True)
+        )
+        df[adv_col] = df["Advisor_Clean"]
+        
         invalid_mask = df[adv_col].isin(['', '@', 'nan', 'N/A', 'None', 'nan']) | df[adv_col].isna()
         df.loc[invalid_mask, adv_col] = "Unassigned"
+        df.loc[invalid_mask, "Advisor_Clean"] = "Unassigned"
             
     # Computed helper columns
     df['Location Name'] = df.get('Location Name', df.get('Location', 'Unknown'))
@@ -67,6 +84,10 @@ def clean_dataframe(df: pd.DataFrame, adv_col: str, month_sort_order: Dict[str, 
         df['Month_Sort'] = df['Month Name'].map(month_sort_order).fillna(99).astype(int)
         
     if 'Service Type' in df.columns:
-        df['MP_PB']          = df['Service Type'].apply(lambda x: 'PB' if x in pb_service_types else 'MP')
+        df['Service_Type_Group'] = df['Service Type'].apply(lambda x: 'BS' if x in pb_service_types else 'WS')
+        
+    if 'Location Name' in df.columns:
+        from utils.constants import PB_LOCATIONS
+        df['Location_Group'] = df['Location Name'].apply(lambda x: 'PB' if x in PB_LOCATIONS else 'MP')
 
     return df

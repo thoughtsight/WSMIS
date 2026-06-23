@@ -7,7 +7,7 @@ def FilterToolbar(capabilities: dict, all_months: List[str], advisors: List[str]
     Returns a dictionary of the selected filters.
     """
     from ui.design_tokens import T
-    st.markdown(f'<div class="filter-toolbar" style="background:var(--color-surface2); padding:{T.SPACE_3}px {T.SPACE_4}px; border-radius:{T.RADIUS_MD}px; border:1px solid var(--color-border); margin-bottom:{T.SPACE_4}px;">', unsafe_allow_html=True)
+    st.markdown(f'<div class="filter-toolbar" style="padding:{T.SPACE_3}px {T.SPACE_4}px; border-radius:{T.RADIUS_MD}px; border:1px solid var(--color-border); margin-bottom:{T.SPACE_4}px;">', unsafe_allow_html=True)
     
     selections = {}
     

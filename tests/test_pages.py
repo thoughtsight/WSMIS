@@ -13,10 +13,10 @@ sys.modules['sklearn.linear_model'].LinearRegression = MagicMock()
 os.environ["WSMIS_ENV"] = "production"
 
 PAGES = [
-    "Cockpit", "Overview", "Labour", "Parts", "Margin", "Discounts", 
-    "Leakage Center", "Sales Mix", "Advisors", "Advisor MoM", "Locations", 
-    "Trends", "Targets", "Reports", "Executive", "Expense Analysis", 
-    "Profit & Loss", "Internal Audit"
+    "Cockpit", "Overview", "Labour", "Parts Executive", "Parts Detail", "Margin", "Discounts",
+    "Leakage Center", "Sales Mix", "Advisors", "Advisor MoM", "Locations",
+    "Trends", "Targets", "Reports", "Executive", "Expense Analysis",
+    "Profit & Loss", "Internal Audit", "Audit Intelligence"
 ]
 
 @pytest.fixture(scope="module")

@@ -196,7 +196,7 @@ class RouteRegistry:
                 st.Page(self._wrap_labour, title="Labour", url_path="labour", icon="🔧"),
                 st.Page(self._wrap_parts_executive, title="Parts Executive", url_path="parts-executive", icon="⚙️"),
                 st.Page(self._wrap_parts_detail, title="Parts Detail", url_path="parts-detail", icon="📦"),
-                st.Page(self._wrap_sales_mix, title="Sales Mix", url_path="sales-mix", icon="�"),
+                st.Page(self._wrap_sales_mix, title="Sales Mix", url_path="sales-mix", icon="📊"),
                 st.Page(self._wrap_advisors, title="Advisors", url_path="advisors", icon="👔"),
                 st.Page(self._wrap_advisor_mom, title="Advisor MoM", url_path="advisor-mom", icon="📅"),
                 st.Page(self._wrap_locations, title="Locations", url_path="locations", icon="📍"),

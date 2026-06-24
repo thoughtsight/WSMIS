@@ -206,6 +206,7 @@ def _compute_metrics(cp, pp, df):
         addon_stats = None
     
     return {
+        "cp": cp, "pp": pp,
         "cp_val": cp_val, "pp_val": pp_val, "growth_pct": growth_pct,
         "cp_jc": cp_jc, "pp_jc": pp_jc,
         "cp_rpc": cp_rpc, "pp_rpc": pp_rpc, "rpc_growth": rpc_growth,
@@ -596,7 +597,9 @@ def _render_category_heatmap(d, mode_str):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def _render_charts(d, active_pairs, mode_str, targets_df=None):
+def _render_charts(d, active_pairs, mode_str, ctx=None):
+    """Render analytical charts for Parts Executive"""
+    inject_responsive_css()
     col_trend, col_loc = st.columns([6, 4])
     
     with col_trend:
@@ -630,25 +633,21 @@ def _render_charts(d, active_pairs, mode_str, targets_df=None):
             marker=dict(size=10, color=marker_colors,
                         line=dict(width=2, color="white"))))
 
-        # Add target overlay if targets_df is available
-        if targets_df is not None and not targets_df.empty:
+        # Add target overlay if ctx.target_provider is available
+        if ctx is not None and hasattr(ctx, 'target_provider'):
             target_vals = []
             achievement_pcts = []
             variances = []
             for m in months:
-                # Try to find target for this month
-                target_row = targets_df[targets_df["Month"] == m] if "Month" in targets_df.columns else None
-                if target_row is not None and not target_row.empty:
-                    target = target_row["Parts"].iloc[0] if "Parts" in target_row.columns else 0
-                else:
-                    target = 0
-                target_vals.append(target)
+                # Use target_provider for the specific month
+                m_target = ctx.target_provider.get_parts_target(d["cp"]["Location Name"].unique().tolist(), [m])
+                target_vals.append(m_target)
                 
                 # Calculate achievement % and variance
                 cp_val = d["cp_month_sum"].get(m, 0)
-                if target > 0:
-                    achievement = calc_ratio(cp_val, target, multiplier=100, fill_value=0)
-                    variance = cp_val - target
+                if m_target > 0:
+                    achievement = calc_ratio(cp_val, m_target, multiplier=100, fill_value=0)
+                    variance = cp_val - m_target
                 else:
                     achievement = 0
                     variance = 0
@@ -919,7 +918,7 @@ def _render_monthly_detail(d, active_pairs, mode_str):
         st.dataframe(styled2, column_config=t2cc, use_container_width=True, hide_index=True)
 
 
-def render(df, targets_df, pairs, comparison_mode=True, selected_months=None):
+def render(df, ctx, pairs, comparison_mode=True, selected_months=None):
     inject_responsive_css()
     PageBreadcrumb(["Commercial", "Parts Executive"])
     if df.empty:
@@ -948,7 +947,7 @@ def render(df, targets_df, pairs, comparison_mode=True, selected_months=None):
     _render_ai_narrative(d, mode_str)
     _render_waterfall(d, mode_str)
     _render_category_heatmap(d, mode_str)
-    _render_charts(d, active_pairs, mode_str, targets_df)
+    _render_charts(d, active_pairs, mode_str, ctx)
     _render_executive_table(d, active_pairs, mode_str)
     _render_low_margin_locations(d)
     _render_monthly_detail(d, active_pairs, mode_str)

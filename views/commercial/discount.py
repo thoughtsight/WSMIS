@@ -17,7 +17,6 @@ from services.export_service import ExportMeta
 
 
 # ── Import the approved discount threshold loader from the loader layer ───────
-from utils.loaders import load_discount_thresholds
 
 # ── Data Preparation ─────────────────────────────────────────────────────────
 
@@ -56,7 +55,7 @@ def _prepare_data(df, pairs, comparison_mode, selected_months):
 # ── Metrics Computation ─────────────────────────────────────────────────────
 
 def _compute_discount_metrics(cp: pd.DataFrame, pp: pd.DataFrame,
-                               targets: pd.DataFrame) -> dict:
+                               targets: pd.DataFrame, ctx=None) -> dict:
     """
     Compute all discount and leakage metrics for both CP and PP periods.
     Returns a single dict `d` used by all render functions.
@@ -180,8 +179,14 @@ def _compute_discount_metrics(cp: pd.DataFrame, pp: pd.DataFrame,
     adv_cp = adv_cp.rename(columns={"Revenue": "Rev", "DiscRs": "Disc", "Disc_Pct": "Disc_Pct", "Recoverable": "Leakage_Rs"})
     adv_cp["Disc_Pct"] = adv_cp["Disc_Pct"].round(2)
 
-    # Per-advisor leakage: use median approved threshold as single benchmark
-    median_threshold = targets["Appr_Lab_Disc"].median() if not targets.empty else 15.0
+    # Per-advisor leakage: use revenue-weighted discount target from TargetProvider
+    if ctx is not None and hasattr(ctx, 'target_provider') and not cp.empty:
+        cp_locs = cp["Location Name"].unique().tolist()
+        cp_months = cp["Month Name"].unique().tolist()
+        rev_weights = cp.groupby("Location Name")["Pre-GST Labour"].sum().to_dict()
+        median_threshold = ctx.target_provider.get_discount_target(cp_locs, cp_months, rev_weights)
+    else:
+        median_threshold = targets["Appr_Lab_Disc"].median() if not targets.empty else 15.0
     adv_cp["Threshold"] = median_threshold
     # Use frozen calculation's Recoverable as Leakage_Rs
     adv_cp["Leakage_Rs"] = adv_cp["Leakage_Rs"]
@@ -772,14 +777,6 @@ def _render_advisor_table(d: dict, mode_str: str):
         if pd.isna(val) or val == 0: return f"color:{T.COLOR_SUCCESS}"
         return f"color:{T.COLOR_DANGER};font-weight:700"
 
-    def _row_style(row):
-        if "Anomaly" in str(row.get("Flag", "")):
-            return [f"background:#FEE2E2"] * len(row)
-        if "Breach" in str(row.get("Flag", "")):
-            return [f"background:#FEF9C3"] * len(row)
-        i = getattr(row, "name", 0)
-        return ["background:#F9F9FB" if i % 2 == 1 else ""] * len(row)
-
     styled = display.style.apply(_row_style, axis=1)
     styled = styled.map(_pct_color, subset=["Disc% CP", "Disc% PP"])
     styled = styled.map(_leakage_color, subset=["Leakage ₹"])
@@ -887,7 +884,7 @@ def _render_parts_discount(d: dict, mode_str: str):
 
 # ── MAIN render() FUNCTION ─────────────────────────────────────────────────
 
-def render(df, pairs, comparison_mode=True, selected_months=None):
+def render(df, pairs, comparison_mode=True, selected_months=None, ctx=None):
     """
     Main entry point — called by router exactly as existing discount.py is called.
     Signature is identical to current discount.py render().
@@ -899,14 +896,16 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         EmptyState("No data available for the selected period.")
         return
 
-    # ── Load approved discount thresholds from the loader layer ───────────────
-    # Use the first client's sheet_id (same pattern as app.py line 721)
-    client_config = list(CLIENTS.values())[0]
-    sheet_id = client_config["sheet_id"]
-    targets = load_discount_thresholds(sheet_id)
-
     # ── Prepare CP / PP split ─────────────────────────────────────────────────
     cp, pp, mode_str = _prepare_data(df, pairs, comparison_mode, selected_months)
+
+    # ── Load approved discount thresholds from the centralized provider ───────
+    if ctx is not None and hasattr(ctx, 'target_provider') and not cp.empty:
+        cp_locs = cp["Location Name"].unique().tolist()
+        cp_months = cp["Month Name"].unique().tolist()
+        targets = ctx.target_provider.get_location_targets(cp_locs, cp_months)
+    else:
+        targets = pd.DataFrame()
 
     if cp is None:
         EmptyState("No matching prior period data for the selected comparison mode.")
@@ -917,7 +916,7 @@ def render(df, pairs, comparison_mode=True, selected_months=None):
         return
 
     # ── Compute all metrics ───────────────────────────────────────────────────
-    d = _compute_discount_metrics(cp, pp, targets)
+    d = _compute_discount_metrics(cp, pp, targets, ctx)
 
     # ── Render: CEO section ───────────────────────────────────────────────────
     _render_ceo_kpis(d, mode_str)

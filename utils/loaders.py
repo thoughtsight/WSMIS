@@ -156,83 +156,14 @@ def load_contacts(sheet_id: str) -> Tuple[List[Any], Dict[str, str], Dict[str, s
 TARGET_TAB = "MP_PB_Targets"
 TARGET_COLS = ["Month Name","Location Name",
                "WS_Labour_Target","BS_Labour_Target",
-               "WS_Parts_Target","BS_Parts_Target"]
+               "WS_Parts_Target","BS_Parts_Target",
+               "Appr_Lab_Disc","Appr_Parts_Disc"]
 
 APPROVED_DISC_TAB = "MP_PB_Targets"
 
-# TODO (schema pending): map real approved-discount columns once added to MP_PB_Targets.
-#   Approved Labour Discount %  ->  column name TBD
-#   Approved Parts  Discount %  ->  column name TBD
 DEFAULT_APPR_LAB_DISC   = 15.0
 DEFAULT_APPR_PARTS_DISC = 1.0
 
-@st.cache_resource(ttl=300)
-@with_error_context(LoaderError)
-def load_discount_thresholds(sheet_id: str) -> pd.DataFrame:
-    """
-    Returns columns: ['Location Name', 'Appr_Lab_Disc', 'Appr_Parts_Disc'].
-    Uses get_gc() + open_by_key(sheet_id).worksheet(APPROVED_DISC_TAB).
-    PLACEHOLDER until the sheet exposes approved-discount columns:
-      - If approved-discount columns are absent, return one row per existing
-        Location Name populated with DEFAULT_APPR_LAB_DISC / DEFAULT_APPR_PARTS_DISC.
-    Never raises to the UI for a missing optional column — fall back to defaults.
-    """
-    try:
-        wb = _timed_op(f"load_discount_thresholds: open spreadsheet [{sheet_id}]", lambda: get_gc().open_by_key(sheet_id))
-        ws = _timed_op(
-            f"load_discount_thresholds: list worksheets / locate '{APPROVED_DISC_TAB}'",
-            lambda: next((s for s in wb.worksheets() if s.title.strip() == APPROVED_DISC_TAB), None),
-        )
-        if not ws:
-            # Optional targets sheet not found - safe to return default DataFrame
-            # Return empty DataFrame with expected columns, will be handled in view
-            return pd.DataFrame(columns=["Location Name", "Appr_Lab_Disc", "Appr_Parts_Disc"])
-        records = _timed_op(f"load_discount_thresholds: fetch records from '{APPROVED_DISC_TAB}'", lambda: ws.get_all_records())
-        df = pd.DataFrame(records)
-        df.columns = df.columns.str.strip()
-
-        # Check if approved discount columns exist
-        lab_col = None
-        parts_col = None
-        for col in df.columns:
-            col_lower = col.lower()
-            if "labour" in col_lower and "disc" in col_lower and "appr" in col_lower:
-                lab_col = col
-            if "parts" in col_lower and "disc" in col_lower and "appr" in col_lower:
-                parts_col = col
-
-        if lab_col and parts_col:
-            # Schema exists - use it
-            df["Appr_Lab_Disc"] = pd.to_numeric(df[lab_col], errors="coerce").fillna(DEFAULT_APPR_LAB_DISC)
-            df["Appr_Parts_Disc"] = pd.to_numeric(df[parts_col], errors="coerce").fillna(DEFAULT_APPR_PARTS_DISC)
-            if "Location Name" in df.columns:
-                return df[["Location Name", "Appr_Lab_Disc", "Appr_Parts_Disc"]]
-            else:
-                # Fallback to defaults if no Location Name
-                return pd.DataFrame(columns=["Location Name", "Appr_Lab_Disc", "Appr_Parts_Disc"])
-        else:
-            # Schema not yet available - return defaults for all locations
-            # Extract unique locations from the sheet if available, otherwise return empty
-            if "Location Name" in df.columns:
-                locations = df["Location Name"].unique().tolist()
-            else:
-                locations = []
-            if not locations:
-                return pd.DataFrame(columns=["Location Name", "Appr_Lab_Disc", "Appr_Parts_Disc"])
-            return pd.DataFrame({
-                "Location Name": locations,
-                "Appr_Lab_Disc": [DEFAULT_APPR_LAB_DISC] * len(locations),
-                "Appr_Parts_Disc": [DEFAULT_APPR_PARTS_DISC] * len(locations),
-            })
-    except LoaderError:
-        # Already descriptive (named operation + timing) — propagate unchanged.
-        raise
-    except gspread.exceptions.APIError as e:
-        raise LoaderError(f"Google Sheets API error loading discount thresholds: {e}") from e
-    except gspread.exceptions.GSpreadException as e:
-        raise LoaderError(f"Google Sheets authentication/access error loading discount thresholds: {e}") from e
-    except Exception as e:
-        raise LoaderError(f"Failed to load discount thresholds: {e}") from e
 
 @st.cache_resource(ttl=300)
 @with_error_context(LoaderError)
@@ -249,6 +180,14 @@ def load_targets(sheet_id: str) -> pd.DataFrame:
             return pd.DataFrame(columns=TARGET_COLS)
         records = _timed_op(f"load_targets: fetch records from '{TARGET_TAB}'", lambda: ws.get_all_records())
         df = pd.DataFrame(records)
+        
+        # Schema validation: check if required columns are present
+        missing_cols = [col for col in TARGET_COLS if col not in df.columns]
+        if missing_cols:
+            import streamlit as st
+            st.warning(f"⚠️ Target sheet '{TARGET_TAB}' is missing required columns: {', '.join(missing_cols)}. "
+                      f"Please add these columns to the Google Sheet. Default values will be used where applicable.")
+        
         for c in TARGET_COLS[2:]:
             if c in df.columns:
                 df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)

@@ -8,6 +8,7 @@ import streamlit as st
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import pandas as pd
+from services.target_provider import TargetProvider
 
 
 @dataclass(frozen=True)
@@ -20,9 +21,11 @@ class AppContext:
     alerts: list
     comparison_mode: bool
     selected_months: list
+    # TODO (RC2): Remove targets_df - use target_provider exclusively
     targets_df: pd.DataFrame
     client_config: dict
     exp_df_filtered_cp: pd.DataFrame
+    target_provider: TargetProvider
 
 
 class RouteRegistry:
@@ -65,7 +68,7 @@ class RouteRegistry:
         ctx: AppContext = st.session_state.app_context
         from views.discount import render
         from app import safe_render
-        safe_render(render, ctx.df_filtered_cp, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+        safe_render(render, ctx.df_filtered_cp, ctx.pairs, ctx.comparison_mode, ctx.selected_months, ctx=ctx)
 
     @staticmethod
     def _wrap_sales_mix():
@@ -86,7 +89,7 @@ class RouteRegistry:
         ctx: AppContext = st.session_state.app_context
         from views.parts_executive import render
         from app import safe_render
-        safe_render(render, ctx.df_filtered_full, ctx.targets_df, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
+        safe_render(render, ctx.df_filtered_full, ctx, ctx.pairs, ctx.comparison_mode, ctx.selected_months)
 
     @staticmethod
     def _wrap_parts_detail():
@@ -133,9 +136,9 @@ class RouteRegistry:
     @staticmethod
     def _wrap_targets():
         ctx: AppContext = st.session_state.app_context
-        from views.targets import render
+        from views.performance.targets import render
         from app import safe_render
-        safe_render(render, ctx.df_filtered_cp, ctx.targets_df, ctx.pairs)
+        safe_render(render, ctx.df_filtered_cp, ctx, ctx.pairs)
 
     @staticmethod
     def _wrap_reports():

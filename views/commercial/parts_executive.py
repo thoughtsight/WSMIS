@@ -206,7 +206,8 @@ def _compute_metrics(cp, pp, df):
         addon_stats = None
     
     return {
-        "cp": cp, "pp": pp,
+        "cp_locs": cp["Location Name"].unique().tolist() if not cp.empty else [],
+        "pp_locs": pp["Location Name"].unique().tolist() if not pp.empty else [],
         "cp_val": cp_val, "pp_val": pp_val, "growth_pct": growth_pct,
         "cp_jc": cp_jc, "pp_jc": pp_jc,
         "cp_rpc": cp_rpc, "pp_rpc": pp_rpc, "rpc_growth": rpc_growth,
@@ -640,7 +641,7 @@ def _render_charts(d, active_pairs, mode_str, ctx=None):
             variances = []
             for m in months:
                 # Use target_provider for the specific month
-                m_target = ctx.target_provider.get_parts_target(d["cp"]["Location Name"].unique().tolist(), [m])
+                m_target = ctx.target_provider.get_parts_target(d["cp_locs"], [m])
                 target_vals.append(m_target)
                 
                 # Calculate achievement % and variance

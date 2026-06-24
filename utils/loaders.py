@@ -154,10 +154,11 @@ def load_contacts(sheet_id: str) -> Tuple[List[Any], Dict[str, str], Dict[str, s
     return contacts, loc_map, wc_map, sort_map
 
 TARGET_TAB = "MP_PB_Targets"
-TARGET_COLS = ["Month Name","Location Name",
-               "WS_Labour_Target","BS_Labour_Target",
-               "WS_Parts_Target","BS_Parts_Target",
-               "Appr_Lab_Disc","Appr_Parts_Disc"]
+TARGET_COLS_REQUIRED = ["Month Name","Location Name",
+                        "WS_Labour_Target","BS_Labour_Target",
+                        "WS_Parts_Target","BS_Parts_Target"]
+TARGET_COLS_OPTIONAL = ["Appr_Lab_Disc","Appr_Parts_Disc"]
+TARGET_COLS = TARGET_COLS_REQUIRED + TARGET_COLS_OPTIONAL
 
 APPROVED_DISC_TAB = "MP_PB_Targets"
 
@@ -181,12 +182,18 @@ def load_targets(sheet_id: str) -> pd.DataFrame:
         records = _timed_op(f"load_targets: fetch records from '{TARGET_TAB}'", lambda: ws.get_all_records())
         df = pd.DataFrame(records)
         
-        # Schema validation: check if required columns are present
-        missing_cols = [col for col in TARGET_COLS if col not in df.columns]
-        if missing_cols:
+        # Schema validation: required columns must be present
+        missing_required = [col for col in TARGET_COLS_REQUIRED if col not in df.columns]
+        if missing_required:
+            raise LoaderError(f"Target sheet '{TARGET_TAB}' is missing required columns: {', '.join(missing_required)}. "
+                            f"Please add these columns to the Google Sheet before loading targets.")
+        
+        # Schema validation: optional columns generate warnings if missing
+        missing_optional = [col for col in TARGET_COLS_OPTIONAL if col not in df.columns]
+        if missing_optional:
             import streamlit as st
-            st.warning(f"⚠️ Target sheet '{TARGET_TAB}' is missing required columns: {', '.join(missing_cols)}. "
-                      f"Please add these columns to the Google Sheet. Default values will be used where applicable.")
+            st.warning(f"⚠️ Target sheet '{TARGET_TAB}' is missing optional columns: {', '.join(missing_optional)}. "
+                      f"Default values will be used: Appr_Lab_Disc={DEFAULT_APPR_LAB_DISC}%, Appr_Parts_Disc={DEFAULT_APPR_PARTS_DISC}%")
         
         for c in TARGET_COLS[2:]:
             if c in df.columns:

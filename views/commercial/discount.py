@@ -183,8 +183,7 @@ def _compute_discount_metrics(cp: pd.DataFrame, pp: pd.DataFrame,
     if ctx is not None and hasattr(ctx, 'target_provider') and not cp.empty:
         cp_locs = cp["Location Name"].unique().tolist()
         cp_months = cp["Month Name"].unique().tolist()
-        rev_weights = cp.groupby("Location Name")["Pre-GST Labour"].sum().to_dict()
-        median_threshold = ctx.target_provider.get_discount_target(cp_locs, cp_months, rev_weights)
+        median_threshold = ctx.target_provider.get_discount_target(cp_locs, cp_months, cp)
     else:
         median_threshold = targets["Appr_Lab_Disc"].median() if not targets.empty else 15.0
     adv_cp["Threshold"] = median_threshold

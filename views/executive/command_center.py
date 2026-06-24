@@ -21,11 +21,13 @@ from services.ai.provider import get_ai_client, get_default_model
 from views.dashboard_common import inject_responsive_css, navigate_to_page
 
 
+from views.components.diagnostics import render_developer_diagnostics
+
 # ─────────────────────────────────────────────────────────────────────────────
 # KPI Model: single computation, shared by all consumers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_kpi_model(cp, pp, targets_df, benchmarks):
+def build_kpi_model(cp, pp, ctx, benchmarks):
     """
     Compute all Executive KPIs in one place.
     All downstream components (narrative, cards, charts, alerts) read from this model.
@@ -59,14 +61,12 @@ def build_kpi_model(cp, pp, targets_df, benchmarks):
     avg_disc    = calculate_labour_discount_pct(cp) if not cp.empty else 0.0
     pp_avg_disc = calculate_labour_discount_pct(pp) if not pp.empty else 0.0
 
-    # Revenue vs Target -- uses centralized targets_df, already managed by app.py
-    cp_months_set = set(cp["Month Name"].unique()) if not cp.empty else set()
-    tgt_cp = targets_df[targets_df["Month Name"].isin(cp_months_set)] if not targets_df.empty else pd.DataFrame()
+    # Revenue vs Target -- uses centralized TargetProvider
     tgt_rev = 0.0
-    if not tgt_cp.empty:
-        for col in ["WS_Labour_Target", "BS_Labour_Target", "WS_Parts_Target", "BS_Parts_Target"]:
-            if col in tgt_cp.columns:
-                tgt_rev += float(tgt_cp[col].sum())
+    if ctx is not None and hasattr(ctx, 'target_provider') and not cp.empty:
+        cp_locs = cp["Location Name"].unique().tolist()
+        cp_months = cp["Month Name"].unique().tolist()
+        tgt_rev = ctx.target_provider.get_revenue_target(cp_locs, cp_months)
 
     rev_tgt_pct = _div(cp_rev, tgt_rev, pct=True) if tgt_rev > 0 else None  # None = no target
 
@@ -85,10 +85,13 @@ def build_kpi_model(cp, pp, targets_df, benchmarks):
 
     # Trend signal
     trend_signal = "Insufficient Data"
-    if not cp.empty and "Month_Sort" in cp.columns:
+    trend_df = ctx.df_filtered if ctx is not None and hasattr(ctx, 'df_filtered') else cp
+    if not trend_df.empty and "Month_Sort" in trend_df.columns and not cp.empty and "Month_Sort" in cp.columns:
+        max_sort = cp["Month_Sort"].max()
+        hist = trend_df[(trend_df["Month_Sort"] <= max_sort) & (trend_df["Month_Sort"] > max_sort - 6)]
         recent = (
-            cp.groupby("Month_Sort", dropna=False)["Net_Labour"]
-            .sum().reset_index().sort_values("Month_Sort").tail(6)
+            hist.groupby("Month_Sort", dropna=False)["Net_Labour"]
+            .sum().reset_index().sort_values("Month_Sort")
         )
         if len(recent) >= 3:
             slope = np.polyfit(recent["Month_Sort"], recent["Net_Labour"], 1)[0]
@@ -107,7 +110,7 @@ def build_kpi_model(cp, pp, targets_df, benchmarks):
         avg_disc=avg_disc, pp_avg_disc=pp_avg_disc,
         tgt_rev=tgt_rev, rev_tgt_pct=rev_tgt_pct,
         disc_pct=disc_pct, pp_disc_pct=pp_disc_pct, leakage=leakage,
-        oil_pen=oil_pen, trend_signal=trend_signal, tgt_cp=tgt_cp,
+        oil_pen=oil_pen, trend_signal=trend_signal, tgt_cp=pd.DataFrame(),
     )
 
 
@@ -245,6 +248,9 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None, c
     inject_responsive_css()
     PageBreadcrumb(["Executive", "Command Center"])
 
+    if ctx is not None:
+        render_developer_diagnostics(ctx)
+
     with st.spinner("Loading Executive Command Center..."):
         if df.empty:
             EmptyState("No data available for the selected period.")
@@ -258,22 +264,28 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None, c
         # Use pre-sliced CP frame -- eliminates duplicate apply_month_filter
         cp         = ctx.df_filtered_cp
         pp         = apply_month_filter(df, "Month Name", pp_months) if pp_months else pd.DataFrame()
-        targets_df = ctx.targets_df
     else:
         # Compatibility fallback for callers that have not been updated yet
         cp         = apply_month_filter(df, "Month Name", cp_months)
         pp         = apply_month_filter(df, "Month Name", pp_months) if pp_months else pd.DataFrame()
-        targets_df = pd.DataFrame()
 
     # ── Benchmarks -- centralized provider ─────────────────────────
     _bench = DefaultBenchmarkProvider()
+    
+    # Calculate revenue-weighted discount benchmark if we have context
+    labour_disc_tgt = _bench.get_benchmark("labour_discount_target")
+    if ctx is not None and hasattr(ctx, 'target_provider') and not cp.empty:
+        cp_locs = cp["Location Name"].unique().tolist()
+        cp_months_list = cp["Month Name"].unique().tolist()
+        labour_disc_tgt = ctx.target_provider.get_discount_target(cp_locs, cp_months_list, cp)
+
     benchmarks = {
-        "labour_discount_target": _bench.get_benchmark("labour_discount_target"),
+        "labour_discount_target": labour_disc_tgt,
         "high_discount_alert":    _bench.get_benchmark("high_discount_alert"),
     }
 
     # ── KPI Model -- computed exactly once ─────────────────────────
-    kpi = build_kpi_model(cp, pp, targets_df, benchmarks)
+    kpi = build_kpi_model(cp, pp, ctx, benchmarks)
 
     cp_months_list = sorted(cp["Month Name"].unique(), key=lambda x: MONTH_SORT_ORDER.get(x, 99)) if not cp.empty else []
     pp_months_list = sorted(pp["Month Name"].unique(), key=lambda x: MONTH_SORT_ORDER.get(x, 99)) if not pp.empty else []
@@ -456,7 +468,8 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None, c
             st.info("Select at least 2 months to view the Net Labour trend.")
         elif not cp.empty and "Month_Sort" in cp.columns:
             max_sort   = cp["Month_Sort"].max()
-            trend_df   = df[(df["Month_Sort"] <= max_sort) & (df["Month_Sort"] > max_sort - 6)]
+            trend_src  = ctx.df_filtered if ctx is not None and hasattr(ctx, 'df_filtered') else df
+            trend_df   = trend_src[(trend_src["Month_Sort"] <= max_sort) & (trend_src["Month_Sort"] > max_sort - 6)]
             trend_data = (
                 trend_df.groupby(["Month_Sort", "Month Name"], as_index=False, dropna=False)["Net_Labour"]
                 .sum().sort_values("Month_Sort")

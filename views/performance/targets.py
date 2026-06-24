@@ -12,13 +12,13 @@ from utils.loaders import TARGET_TAB
 from ui.traffic import yoy_badge, traffic_light, tgt_badge
 from ui.design_tokens import T
 
-def render(df_act, targets_df, pairs):
+def render(df_act, ctx, pairs):
     inject_responsive_css()
     PageBreadcrumb(["Performance", "Targets"])
     if df_act.empty:
         EmptyState("No data available.")
         return
-    if targets_df.empty:
+    if ctx is None or not hasattr(ctx, 'target_provider'):
         st.info(
             f'📊 No targets loaded. Create a Google Sheet tab named exactly '
             f'**`{TARGET_TAB}`** in the same spreadsheet.\n\n'
@@ -29,7 +29,12 @@ def render(df_act, targets_df, pairs):
 
     # df_act is already filtered by selected_months at main level, use it directly
     act = df_act
-    tgt = targets_df[targets_df["Month Name"].isin(act["Month Name"].unique())]
+    if ctx is not None and hasattr(ctx, 'target_provider') and not act.empty:
+        cp_locs = act["Location Name"].unique().tolist()
+        cp_months = act["Month Name"].unique().tolist()
+        tgt = ctx.target_provider.get_location_targets(cp_locs, cp_months)
+    else:
+        tgt = pd.DataFrame()
 
     if tgt.empty:
         tgt_months = sorted(act["Month Name"].unique(), key=lambda x: MONTH_SORT_ORDER.get(x, 99))

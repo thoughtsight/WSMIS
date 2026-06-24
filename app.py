@@ -500,7 +500,11 @@ def main():
 
     # ── Initialize Services ─────────────────────────────────────────
     auth_service = get_auth_service()
+    from services.route_service import get_route_service, initialize_workspace
     route_service = get_route_service()
+    
+    # ── Initialize Workspace ────────────────────────────────────────
+    initialize_workspace()
     
     # ── URL/Session Synchronization ─────────────────────────────────
     # Sync URL query parameters to session state
@@ -566,9 +570,34 @@ def main():
 
     # ── Sidebar Workspace ─────────────────────────────────────────
     with st.sidebar:
-        st.markdown("---")
-        st.markdown("### 🏢 Workspace")
-        sel_client = st.selectbox("Client", client_names, key="client_sel", label_visibility="collapsed")
+        from ui.components import render_workspace_sidebar
+        render_workspace_sidebar()
+        
+        from services.route_service import get_workspace
+        _, ws_client, ws_loc = get_workspace()
+        
+        def _sync_legacy_client():
+            new_client = st.session_state.client_sel
+            access_tree = st.session_state.get("user_access_tree", {})
+            from services.route_service import set_business_unit, set_client
+            for bu, clients in access_tree.items():
+                if new_client in clients:
+                    set_business_unit(bu)
+                    break
+            set_client(new_client)
+            
+        # ── Legacy Decoupling: Feature Flag & Dataset Resolver ────────
+        is_debug_mode = st.session_state.get("dev_mode", False) or st.query_params.get("debug") == "1"
+        
+        if is_debug_mode:
+            st.markdown("### 🏢 Dataset (Legacy)")
+            sel_client = st.selectbox("Client", client_names, key="client_sel", on_change=_sync_legacy_client, label_visibility="collapsed")
+        else:
+            # Dataset Resolver: Single source of truth when legacy is hidden
+            legacy_sel = st.session_state.get("client_sel")
+            sel_client = ws_client if ws_client and ws_client in client_names else (legacy_sel if legacy_sel and legacy_sel in client_names else client_names[0])
+            # Keep legacy state synchronized so enabling debug mode preserves context
+            st.session_state["client_sel"] = sel_client
 
 
 
@@ -582,6 +611,15 @@ def main():
             df, exp_df = load_data(CLIENTS[sel_client])
             targets_df = load_targets(CLIENTS[sel_client]["sheet_id"])
             data_loaded_time = datetime.now()
+            
+            # ── WORKSPACE ADOPTION LAYER ──
+            # Apply Workspace Location filter so legacy components "just work"
+            if ws_loc:
+                if df is not None and not df.empty and "Location Name" in df.columns:
+                    df = df[df["Location Name"] == ws_loc]
+                if exp_df is not None and not exp_df.empty and "Location" in exp_df.columns:
+                    exp_df = exp_df[exp_df["Location"] == ws_loc]
+            
             if st.session_state.get("data_synced_at") is None:
                 st.session_state["data_synced_at"] = data_loaded_time
     except Exception as e:
@@ -608,6 +646,9 @@ def main():
         selected_months=selected_months,
         synced_at=synced_at_str
     )
+
+    from ui.components import render_scope_indicator
+    render_scope_indicator()
 
     # ── Prepare data for tabs with comparison support ───────────────
     # For tabs that need comparison (YoY/MoM), include both CP and PP months
@@ -664,17 +705,6 @@ def main():
 
 
 
-    # ── Runtime Diagnostics for AppContext ───────────────────────
-    import inspect
-    from dataclasses import fields
-    st.write("### AppContext Runtime Diagnostics")
-    st.write(f"**Signature:** {inspect.signature(AppContext)}")
-    st.write(f"**Module:** {AppContext.__module__}")
-    st.write(f"**Annotations:** {AppContext.__annotations__}")
-    st.write(f"**File:** {inspect.getfile(AppContext)}")
-    st.write(f"**MRO:** {AppContext.__mro__}")
-    st.write(f"**Fields (dataclass):** {[f.name for f in fields(AppContext)]}")
-
     # ── Create AppContext & Execute Active Page ───────────────────
     st.session_state.app_context = AppContext(
         df_filtered_full=df_filtered_full,
@@ -684,7 +714,6 @@ def main():
         alerts=alerts,
         comparison_mode=comparison_mode,
         selected_months=selected_months,
-        targets_df=targets_df,
         client_config=CLIENTS[sel_client],
         exp_df_filtered_cp=exp_df_filtered_cp,
         target_provider=TargetProvider(targets_df)

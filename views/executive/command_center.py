@@ -62,13 +62,14 @@ def build_kpi_model(cp, pp, ctx, benchmarks):
     pp_avg_disc = calculate_labour_discount_pct(pp) if not pp.empty else 0.0
 
     # Revenue vs Target -- uses centralized TargetProvider
-    tgt_rev = 0.0
+    tgt_rev = None
     if ctx is not None and hasattr(ctx, 'target_provider') and not cp.empty:
         cp_locs = cp["Location Name"].unique().tolist()
         cp_months = cp["Month Name"].unique().tolist()
-        tgt_rev = ctx.target_provider.get_revenue_target(cp_locs, cp_months)
+        result = ctx.target_provider.get_revenue_target(cp_locs, cp_months)
+        tgt_rev = result.value if result.found else None
 
-    rev_tgt_pct = _div(cp_rev, tgt_rev, pct=True) if tgt_rev > 0 else None  # None = no target
+    rev_tgt_pct = _div(cp_rev, tgt_rev, pct=True) if tgt_rev is not None and tgt_rev > 0 else None  # None = no target
 
     # Discount leakage
     pre_gst_labour = _s(cp, "Pre-GST Labour")
@@ -76,7 +77,8 @@ def build_kpi_model(cp, pp, ctx, benchmarks):
     pp_gst_labour  = _s(pp, "Pre-GST Labour")
     disc_pct    = _div(total_disc,                                            pre_gst_labour, pct=True)
     pp_disc_pct = _div(float(get_labour_discount(pp)) if not pp.empty else 0.0, pp_gst_labour, pct=True)
-    leakage     = max(0.0, (disc_pct - benchmarks["labour_discount_target"]) / 100.0 * pre_gst_labour)
+    _disc_bench = benchmarks.get("labour_discount_target")
+    leakage     = max(0.0, (disc_pct - _disc_bench) / 100.0 * pre_gst_labour) if _disc_bench is not None else 0.0
 
     # Oil penetration
     oil_jcs   = int(cp[cp["Oil_Sale_Qty"] > 0]["JC_Nos."].count()) if not cp.empty and "Oil_Sale_Qty" in cp.columns else 0
@@ -190,10 +192,12 @@ def generate_executive_narrative(cp, pp, cp_months, pp_months, kpi, benchmarks):
 
     # Discount
     disc_dir = "improved" if kpi["disc_pct"] < kpi["pp_disc_pct"] else "worsened"
+    _disc_tgt = benchmarks.get("labour_discount_target")
+    _disc_tgt_str = f"{_disc_tgt}% target" if _disc_tgt is not None else "configured target"
     sections["discount"] = (
-        f"Group labour discount stands at {kpi['disc_pct']:.1f}% (vs {kpi['pp_disc_pct']:.1f}% prior period -- {disc_dir}). "
-        f"Estimated revenue leakage vs {benchmarks['labour_discount_target']}% benchmark: {fmt_inr(kpi['leakage'])}. "
-        + ("Immediate discount audit recommended." if kpi["disc_pct"] > benchmarks["high_discount_alert"]
+        f"Group labour discount stands at {kpi['disc_pct']:.1f}% (vs {kpi['pp_disc_pct']:.1f}% prior period — {disc_dir}). "
+        + (f"Estimated revenue leakage vs {_disc_tgt_str}: {fmt_inr(kpi['leakage'])}. " if kpi["leakage"] > 0 else "")
+        + ("Immediate discount audit recommended." if kpi["disc_pct"] > benchmarks.get("high_disc_alert", 25.0)
            else "Discount levels are within acceptable range.")
     )
 
@@ -243,7 +247,7 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None, c
     alerts          : pre-computed flat alert list from app.py (informational).
     comparison_mode : bool
     selected_months : CP months selected by the user.
-    ctx             : AppContext -- provides df_filtered_cp, targets_df, etc.
+    ctx             : AppContext -- provides df_filtered_cp, target_provider, etc.
     """
     inject_responsive_css()
     PageBreadcrumb(["Executive", "Command Center"])
@@ -272,16 +276,26 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None, c
     # ── Benchmarks -- centralized provider ─────────────────────────
     _bench = DefaultBenchmarkProvider()
     
-    # Calculate revenue-weighted discount benchmark if we have context
-    labour_disc_tgt = _bench.get_benchmark("labour_discount_target")
+    # Discount target: TargetProvider only. None when not configured — never substitute hardcoded value.
+    labour_disc_tgt = None
     if ctx is not None and hasattr(ctx, 'target_provider') and not cp.empty:
         cp_locs = cp["Location Name"].unique().tolist()
         cp_months_list = cp["Month Name"].unique().tolist()
-        labour_disc_tgt = ctx.target_provider.get_discount_target(cp_locs, cp_months_list, cp)
+        try:
+            disc_res = ctx.target_provider.get_discount_target(cp_locs, cp_months_list, cp)
+            labour_disc_tgt = disc_res.value if disc_res.found else None
+        except Exception:
+            labour_disc_tgt = None
+
+    high_disc_alert = 25.0
+    try:
+        high_disc_alert = _bench.get_benchmark("high_discount_alert")
+    except Exception:
+        pass
 
     benchmarks = {
-        "labour_discount_target": labour_disc_tgt,
-        "high_discount_alert":    _bench.get_benchmark("high_discount_alert"),
+        "labour_discount_target": labour_disc_tgt,  # may be None — callers must guard
+        "high_disc_alert":    high_disc_alert,
     }
 
     # ── KPI Model -- computed exactly once ─────────────────────────
@@ -293,32 +307,58 @@ def render(df, pairs, alerts=None, comparison_mode=True, selected_months=None, c
     n_locs         = int(cp["Location Name"].nunique()) if not cp.empty else 0
 
     # ── ZONE A: KPI Cards ──────────────────────────────────────────
-    rev_tgt_display = (
-        f"{kpi['rev_tgt_pct']:.1f}%" if kpi["rev_tgt_pct"] is not None
-        else "Target Not Configured"
-    )
-    rev_tgt_cp_val = kpi["rev_tgt_pct"] if kpi["rev_tgt_pct"] is not None else None
+
+    # Revenue vs Target — derive all display values before KPIGrid
+    _rev_has_tgt = kpi["tgt_rev"] is not None and kpi["tgt_rev"] > 0
+    if _rev_has_tgt:
+        _rev_card = {
+            "label":     "Revenue vs Target",
+            "value":     f"{kpi['rev_tgt_pct']:.1f}%",       # primary: achievement %
+            "sub":       fmt_inr(kpi["cp_rev"]),              # actual revenue below primary
+            "target":    fmt_inr(kpi["tgt_rev"]),             # kpi-meta: "Target: ₹X"
+            "cp":        kpi["rev_tgt_pct"],                  # drives delta badge vs 100
+            "pp":        100.0,
+            "pp_label":  f"Target {fmt_inr(kpi['tgt_rev'])}",
+        }
+    else:
+        _rev_card = {
+            "label":    "Revenue vs Target",
+            "value":    fmt_inr(kpi["cp_rev"]),
+            "sub":      "Target Not Configured",
+            "cp":       kpi["cp_rev"],
+            "pp":       kpi["pp_rev"],
+            "pp_label": f"PP {fmt_inr(kpi['pp_rev'])}",
+        }
+
+    # Discount — TargetProvider only; structured via target/benchmark slots
+    _disc_tgt     = benchmarks["labour_discount_target"]   # None when sheet has no target
+    _disc_has_tgt = _disc_tgt is not None
+    if _disc_has_tgt:
+        _disc_card = {
+            "label":        "Avg Discount %",
+            "value":        f"{kpi['avg_disc']:.1f}%",
+            "target":       f"{_disc_tgt:.1f}%",              # kpi-meta: "Target: X.X%"
+            "invert_trend": True,
+            "pp_label":     f"PP {kpi['pp_avg_disc']:.1f}%",
+            "cp":           kpi["avg_disc"],
+            "pp":           _disc_tgt,
+        }
+    else:
+        _disc_card = {
+            "label":        "Avg Discount %",
+            "value":        f"{kpi['avg_disc']:.1f}%",
+            "sub":          "Target Not Configured",
+            "invert_trend": True,
+            "pp_label":     f"PP {kpi['pp_avg_disc']:.1f}%",
+        }
 
     KPIGrid([
-        {"label": "Total Revenue",    "value": fmt_inr(kpi["cp_rev"]),        "cp": kpi["cp_rev"],        "pp": kpi["pp_rev"],        "pp_label": f"PP {fmt_inr(kpi['pp_rev'])}"},
-        {"label": "Margin %",         "value": f"{kpi['cp_mar_pct']:.1f}%",   "cp": kpi["cp_mar_pct"],    "pp": kpi["pp_mar_pct"],    "pp_label": f"PP {kpi['pp_mar_pct']:.1f}%"},
-        {"label": "Total JCs",        "value": fmt_num(kpi["cp_jc"]),         "cp": kpi["cp_jc"],         "pp": kpi["pp_jc"],         "pp_label": f"PP {fmt_num(kpi['pp_jc'])}"},
-        {"label": "Avg Labour / JC",  "value": fmt_inr(kpi["cp_avg_lab_jc"]), "cp": kpi["cp_avg_lab_jc"], "pp": kpi["pp_avg_lab_jc"], "pp_label": f"PP {fmt_inr(kpi['pp_avg_lab_jc'])}"},
-        {
-            "label": "Avg Discount %",
-            "value": f"{kpi['avg_disc']:.1f}%",
-            "target": f"{benchmarks['labour_discount_target']}%",
-            "benchmark": f"Critical {benchmarks['high_discount_alert']}%",
-            "invert_trend": True,
-            "pp_label": f"PP {kpi['pp_avg_disc']:.1f}%",
-        },
-        {
-            "label": "Revenue vs Target",
-            "value": rev_tgt_display,
-            "cp":    rev_tgt_cp_val,
-            "pp":    100 if rev_tgt_cp_val is not None else None,
-            "pp_label": "Target 100%",
-        },
+        {"label": "Total Revenue",   "value": fmt_inr(kpi["cp_rev"]),        "cp": kpi["cp_rev"],        "pp": kpi["pp_rev"],        "pp_label": f"PP {fmt_inr(kpi['pp_rev'])}"},
+        {"label": "Margin %",        "value": f"{kpi['cp_mar_pct']:.1f}%",   "cp": kpi["cp_mar_pct"],    "pp": kpi["pp_mar_pct"],    "pp_label": f"PP {kpi['pp_mar_pct']:.1f}%"},
+        {"label": "Total JCs",       "value": fmt_num(kpi["cp_jc"]),         "cp": kpi["cp_jc"],         "pp": kpi["pp_jc"],         "pp_label": f"PP {fmt_num(kpi['pp_jc'])}"},
+        {"label": "Avg Labour / JC", "value": fmt_inr(kpi["cp_avg_lab_jc"]), "cp": kpi["cp_avg_lab_jc"], "pp": kpi["pp_avg_lab_jc"], "pp_label": f"PP {fmt_inr(kpi['pp_avg_lab_jc'])}"},
+        _disc_card,
+        _rev_card,
     ], cols=6)
 
     st.markdown('<hr class="zone-separator" />', unsafe_allow_html=True)

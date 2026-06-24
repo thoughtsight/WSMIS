@@ -9,6 +9,7 @@ from typing import Dict, List, Tuple, Optional, Any, Callable
 from utils.constants import SERVICE_ACCOUNT
 from services.error_handler import with_error_context, LoaderError
 from services.logger import app_logger
+from config.settings import LABOUR_DISC_BENCH
 
 SCOPES = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
@@ -162,7 +163,7 @@ TARGET_COLS = TARGET_COLS_REQUIRED + TARGET_COLS_OPTIONAL
 
 APPROVED_DISC_TAB = "MP_PB_Targets"
 
-DEFAULT_APPR_LAB_DISC   = 15.0
+# Fallback defaults for when column is missing from the sheet entirely
 DEFAULT_APPR_PARTS_DISC = 1.0
 
 
@@ -193,7 +194,7 @@ def load_targets(sheet_id: str) -> pd.DataFrame:
         if missing_optional:
             import streamlit as st
             st.warning(f"⚠️ Target sheet '{TARGET_TAB}' is missing optional columns: {', '.join(missing_optional)}. "
-                      f"Default values will be used: Appr_Lab_Disc={DEFAULT_APPR_LAB_DISC}%, Appr_Parts_Disc={DEFAULT_APPR_PARTS_DISC}%")
+                      f"Default values will be used: Appr_Lab_Disc={LABOUR_DISC_BENCH}%, Appr_Parts_Disc={DEFAULT_APPR_PARTS_DISC}%")
         
         for c in TARGET_COLS[2:]:
             if c in df.columns:

@@ -10,7 +10,6 @@ from dataclasses import dataclass
 import pandas as pd
 from services.target_provider import TargetProvider
 
-
 @dataclass(frozen=True)
 class AppContext:
     """Immutable application context containing ephemeral state for the active page."""
@@ -21,12 +20,25 @@ class AppContext:
     alerts: list
     comparison_mode: bool
     selected_months: list
-    # TODO (RC2): Remove targets_df - use target_provider exclusively
-    targets_df: pd.DataFrame
     client_config: dict
     exp_df_filtered_cp: pd.DataFrame
     target_provider: TargetProvider
+    
+    # Workspace Fields
+    business_unit: Optional[str] = None
+    client: Optional[str] = None
+    location: Optional[str] = None
+    user_access_tree: Optional[dict] = None
 
+def _wrap_internal_audit():
+    import streamlit as st
+    with st.status("🔍 Running audit analysis...", expanded=False) as _s:
+        st.caption("⏳ Exception scan · Leakage detection · Risk register")
+        ctx = st.session_state.app_context
+        from views.internal_audit import render
+        from app import safe_render
+        safe_render(render, ctx.df_filtered, ctx.client_config, cp=ctx.df_filtered_cp)
+        _s.update(label="Audit analysis complete", state="complete", expanded=False)
 
 class RouteRegistry:
     """Central registry for all application routes supporting st.navigation."""
@@ -163,15 +175,6 @@ class RouteRegistry:
         from app import safe_render
         safe_render(render, ctx.df_filtered_cp, ctx.exp_df_filtered_cp, ctx.selected_months)
 
-    @staticmethod
-    def _wrap_internal_audit():
-        with st.status("🔍 Running audit analysis...", expanded=False) as _s:
-            st.caption("⏳ Exception scan · Leakage detection · Risk register")
-            ctx: AppContext = st.session_state.app_context
-            from views.internal_audit import render
-            from app import safe_render
-            safe_render(render, ctx.df_filtered, ctx.client_config, cp=ctx.df_filtered_cp)
-            _s.update(label="Audit analysis complete", state="complete", expanded=False)
 
     @staticmethod
     def _wrap_audit_intelligence():
@@ -217,7 +220,7 @@ class RouteRegistry:
                 st.Page(self._wrap_profit_and_loss, title="Profit & Loss", url_path="profit-and-loss", icon="⚖️"),
             ],
             "Audit": [
-                st.Page(self._wrap_internal_audit, title="Internal Audit", url_path="internal-audit", icon="🔍"),
+                st.Page(_wrap_internal_audit, title="Internal Audit", url_path="internal-audit", icon="🔍"),
                 st.Page(self._wrap_audit_intelligence, title="Audit Intelligence", url_path="audit-intelligence", icon="🧠"),
                 st.Page(self._wrap_leakage_center, title="Leakage Center", url_path="leakage-centre", icon="💧"),
             ],
@@ -272,3 +275,78 @@ def get_route_service() -> RouteService:
     if _route_service is None:
         _route_service = RouteService()
     return _route_service
+
+# ── Workspace Operations ─────────────────────────────────────────────
+
+def initialize_workspace():
+    """Initializes workspace options in session state if not present."""
+    if "user_access_tree" not in st.session_state:
+        # Load user access tree here. Using a placeholder for testing.
+        st.session_state["user_access_tree"] = {
+            "MP": {"Rukmani Motors": ["Indore", "Bhopal"]},
+            "PB": {"Client B": ["Location 1"]}
+        }
+    if "workspace_bu_value" not in st.session_state:
+        st.session_state["workspace_bu_value"] = None
+    if "workspace_client_value" not in st.session_state:
+        st.session_state["workspace_client_value"] = None
+    if "workspace_location_value" not in st.session_state:
+        st.session_state["workspace_location_value"] = None
+    
+    restore_from_url()
+
+def get_workspace() -> tuple:
+    """Returns current BU, Client, Location from session state."""
+    return (
+        st.session_state.get("workspace_bu_value"),
+        st.session_state.get("workspace_client_value"),
+        st.session_state.get("workspace_location_value")
+    )
+
+def is_workspace_complete() -> bool:
+    """Returns True if all three workspace fields are set."""
+    bu, client, loc = get_workspace()
+    return bool(bu and client and loc)
+
+def set_business_unit(value: Optional[str]):
+    """Sets BU and cascades clear to client and location."""
+    current_bu = st.session_state.get("workspace_bu_value")
+    if current_bu != value:
+        st.session_state["workspace_bu_value"] = value
+        st.session_state["workspace_client_value"] = None
+        st.session_state["workspace_location_value"] = None
+        sync_to_url()
+
+def set_client(value: Optional[str]):
+    """Sets Client and cascades clear to location."""
+    current_client = st.session_state.get("workspace_client_value")
+    if current_client != value:
+        st.session_state["workspace_client_value"] = value
+        st.session_state["workspace_location_value"] = None
+        sync_to_url()
+
+def set_location(value: Optional[str]):
+    """Sets Location."""
+    current_loc = st.session_state.get("workspace_location_value")
+    if current_loc != value:
+        st.session_state["workspace_location_value"] = value
+        sync_to_url()
+
+def sync_to_url():
+    """Writes workspace to URL query params if complete."""
+    if is_workspace_complete():
+        bu, client, loc = get_workspace()
+        st.query_params["bu"] = bu
+        st.query_params["client"] = client
+        st.query_params["location"] = loc
+
+def restore_from_url():
+    """Reads workspace from URL query params."""
+    bu = st.query_params.get("bu")
+    client = st.query_params.get("client")
+    loc = st.query_params.get("location")
+    if bu or client or loc:
+        if bu: st.session_state["workspace_bu_value"] = bu
+        if client: st.session_state["workspace_client_value"] = client
+        if loc: st.session_state["workspace_location_value"] = loc
+

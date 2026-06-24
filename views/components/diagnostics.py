@@ -1,4 +1,5 @@
 import streamlit as st
+from services.target_provider import _normalize_key
 
 def render_developer_diagnostics(ctx):
     """
@@ -90,16 +91,42 @@ def render_developer_diagnostics(ctx):
                 cp_locs = ctx.df_filtered_cp["Location Name"].unique().tolist()
                 cp_months = ctx.df_filtered_cp["Month Name"].unique().tolist()
                 
-                rev_tgt = ctx.target_provider.get_revenue_target(cp_locs, cp_months)
-                parts_tgt = ctx.target_provider.get_parts_target(cp_locs, cp_months)
+                rev_res = ctx.target_provider.get_revenue_target(cp_locs, cp_months)
+                parts_res = ctx.target_provider.get_parts_target(cp_locs, cp_months)
+                disc_res = ctx.target_provider.get_discount_target(cp_locs, cp_months, ctx.df_filtered_cp)
                 
-                # compute weights - TargetProvider handles this internally
-                disc_tgt = ctx.target_provider.get_discount_target(cp_locs, cp_months, ctx.df_filtered_cp)
+                rev_val = f"{rev_res.value:,.2f}" if rev_res.found and rev_res.value is not None else rev_res.message
+                parts_val = f"{parts_res.value:,.2f}" if parts_res.found and parts_res.value is not None else parts_res.message
+                disc_val = f"{disc_res.value:.2f}%" if disc_res.found else f"{disc_res.value:.2f}% ({disc_res.message})"
                 
-                st.write(f"- Revenue Target: {rev_tgt:,.2f}")
-                st.write(f"- Parts Target: {parts_tgt:,.2f}")
-                st.write(f"- Discount Target (Weighted): {disc_tgt:.2f}%")
+                st.write(f"- Revenue Target: {rev_val}")
+                st.write(f"- Parts Target: {parts_val}")
+                st.write(f"- Discount Target (Weighted): {disc_val}")
             else:
                 st.write("No active period data to calculate targets for.")
+
+            st.write("#### Lookup Diagnostics")
+            if not ctx.df_filtered_cp.empty:
+                st.write(f"**Requested Month(s):** {cp_months}")
+                st.write(f"**Requested Location(s):** {cp_locs}")
+                matching = ctx.target_provider.get_location_targets(cp_locs, cp_months)
+                st.write(f"**Matching rows in MP_PB_Targets:** {len(matching)}")
+                st.write(f"**Returned revenue target:** {rev_res.found} (value={rev_res.value}, msg={rev_res.message})")
+                st.write(f"**Returned parts target:** {parts_res.found} (value={parts_res.value}, msg={parts_res.message})")
+                st.write(f"**Returned discount target:** {disc_res.found} (value={disc_res.value}, msg={disc_res.message})")
+                if not matching.empty:
+                    st.dataframe(matching, use_container_width=True)
+                else:
+                    st.warning("No matching rows found.")
+                    # Show normalized keys for debugging
+                    norm_months = [f"`{_normalize_key(m)}`" for m in cp_months]
+                    norm_locs = [f"`{_normalize_key(l).lower()}`" for l in cp_locs]
+                    st.write(f"**Normalized month key(s):** {', '.join(norm_months)}")
+                    st.write(f"**Normalized location key(s):** {', '.join(norm_locs)}")
+                    st.write("Available months in targets:", sorted(raw['Month Name'].unique().tolist()))
+                    st.write("Available locations in targets:", sorted(raw['Location Name'].unique().tolist()))
+                    if "_month_key" in raw.columns and "_location_key" in raw.columns:
+                        st.write("Available month keys:", sorted(raw['_month_key'].unique().tolist()))
+                        st.write("Available location keys:", sorted(raw['_location_key'].unique().tolist()))
         else:
             st.error("TargetProvider not initialized in AppContext.")

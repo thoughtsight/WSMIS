@@ -5,6 +5,7 @@ Enforces consistent layout, typography and UX across all reports.
 from .core import UniversalHeader, UniversalFooter, EmptyState, AlertBanner
 from .metrics import MetricCard, KPIGrid
 from .tables import TableCard
+from .workspace_sidebar import render_workspace_sidebar, render_scope_indicator
 
 __all__ = [
     # Header / Footer
@@ -18,4 +19,7 @@ __all__ = [
     "KPIGrid",
     # Tables
     "TableCard",
+    # Workspace
+    "render_workspace_sidebar",
+    "render_scope_indicator",
 ]

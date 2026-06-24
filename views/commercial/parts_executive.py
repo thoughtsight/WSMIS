@@ -641,7 +641,8 @@ def _render_charts(d, active_pairs, mode_str, ctx=None):
             variances = []
             for m in months:
                 # Use target_provider for the specific month
-                m_target = ctx.target_provider.get_parts_target(d["cp_locs"], [m])
+                parts_res = ctx.target_provider.get_parts_target(d["cp_locs"], [m])
+                m_target = parts_res.value if parts_res.found else 0
                 target_vals.append(m_target)
                 
                 # Calculate achievement % and variance

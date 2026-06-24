@@ -93,9 +93,8 @@ def render_developer_diagnostics(ctx):
                 rev_tgt = ctx.target_provider.get_revenue_target(cp_locs, cp_months)
                 parts_tgt = ctx.target_provider.get_parts_target(cp_locs, cp_months)
                 
-                # compute weights
-                rev_weights = ctx.df_filtered_cp.groupby("Location Name")["Net_Labour"].sum().to_dict()
-                disc_tgt = ctx.target_provider.get_discount_target(cp_locs, cp_months, rev_weights)
+                # compute weights - TargetProvider handles this internally
+                disc_tgt = ctx.target_provider.get_discount_target(cp_locs, cp_months, ctx.df_filtered_cp)
                 
                 st.write(f"- Revenue Target: {rev_tgt:,.2f}")
                 st.write(f"- Parts Target: {parts_tgt:,.2f}")

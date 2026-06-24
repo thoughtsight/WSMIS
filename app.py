@@ -101,6 +101,7 @@ def classify_location(name, client_config=None):
 
 from utils.loaders import load_targets, load_unbilled_sheets, load_raw_worksheet, load_raw_expense, TARGET_COLS
 from services.financial_service import FinancialService
+from services.target_provider import TargetProvider
 from utils.calculations.common import calc_ratio, calc_growth_pct
 from utils.calculations.fact_metrics import get_vor_charges
 from ui.helpers import render_neg_labour_alert
@@ -663,6 +664,16 @@ def main():
 
 
 
+    # ── Runtime Diagnostics for AppContext ───────────────────────
+    import inspect
+    from services.route_service import AppContext as AC
+    st.write("### AppContext Runtime Diagnostics")
+    st.write(f"**Signature:** {inspect.signature(AC)}")
+    st.write(f"**Module:** {AC.__module__}")
+    st.write(f"**Annotations:** {AC.__annotations__}")
+    st.write(f"**File:** {inspect.getfile(AC)}")
+    st.write(f"**MRO:** {AC.__mro__}")
+
     # ── Create AppContext & Execute Active Page ───────────────────
     st.session_state.app_context = AppContext(
         df_filtered_full=df_filtered_full,
@@ -674,7 +685,8 @@ def main():
         selected_months=selected_months,
         targets_df=targets_df,
         client_config=CLIENTS[sel_client],
-        exp_df_filtered_cp=exp_df_filtered_cp
+        exp_df_filtered_cp=exp_df_filtered_cp,
+        target_provider=TargetProvider(targets_df)
     )
 
     # Execute the selected page wrapper

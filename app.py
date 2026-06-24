@@ -666,6 +666,7 @@ def main():
 
     # ── Runtime Diagnostics for AppContext ───────────────────────
     import inspect
+    from dataclasses import fields
     from services.route_service import AppContext as AC
     st.write("### AppContext Runtime Diagnostics")
     st.write(f"**Signature:** {inspect.signature(AC)}")
@@ -673,6 +674,7 @@ def main():
     st.write(f"**Annotations:** {AC.__annotations__}")
     st.write(f"**File:** {inspect.getfile(AC)}")
     st.write(f"**MRO:** {AC.__mro__}")
+    st.write(f"**Fields (dataclass):** {[f.name for f in fields(AC)]}")
 
     # ── Create AppContext & Execute Active Page ───────────────────
     st.session_state.app_context = AppContext(
